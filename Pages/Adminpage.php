@@ -1581,7 +1581,7 @@ function alertNotPaid() {
 
 <div id="itemrequestsPanel" class="panel-content">
   <div class="item-requests-header">
-    <h1>Item Requests</h1>
+    <h1>Item Request</h1>
     <div class="header-buttons">
       <button id="openRequestModalBtn" class="item-requests-btn">
         <i class="fa fa-plus"></i> Add Request

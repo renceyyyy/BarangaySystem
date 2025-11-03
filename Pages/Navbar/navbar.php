@@ -642,6 +642,7 @@ unset($_SESSION['verification_notification']);
                             <a href="../NewRequests/NewScholar.php">Apply for Scholar</a>
                             <a href="../NewRequests/NewNoFixIncome.php">No fix income/No income</a>
                             <a href="../NewRequests/NewGuardianshipForm.php">Guardianship</a>
+                            <a href="../NewRequests/CohabilitationForm.php">Cohabitation</a>
                            
                             
                         <?php else: ?>
@@ -662,7 +663,9 @@ unset($_SESSION['verification_notification']);
                             <a href="#"
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Guardianship</a>
                             <a href="#"
-                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">No
+                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Cohabitation</a>
+                            <a href="#"
+                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;"></a>No
                                 Birth Certificate</a>
                         <?php endif; ?>
                     <?php else: ?>

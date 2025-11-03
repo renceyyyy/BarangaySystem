@@ -147,6 +147,9 @@ function displayApprovalNotifications($approvedRequests) {
                             <small>Ref: <?= htmlspecialchars($request['refno']) ?></small>
                             <small class="approval-date"><?= date('M j, Y g:i A', strtotime($request['request_date'])) ?></small>
                         </div>
+                        <div class="ready-to-claim">
+                            <i class="fas fa-check"></i> Document is ready to claim, Please visit the barangay office and pay the needed ammount.
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -302,6 +305,25 @@ function displayApprovalNotifications($approvedRequests) {
     .approval-date {
         font-weight: 500;
         color: #4CAF50 !important;
+    }
+    
+    .ready-to-claim {
+        margin-top: 12px;
+        padding: 8px 12px;
+        background-color: #e8f5e9;
+        border-left: 3px solid #4CAF50;
+        color: #2c5f2d;
+        font-size: 0.85rem;
+        font-weight: 500;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .ready-to-claim i {
+        color: #4CAF50;
+        font-size: 0.9rem;
     }
     
     .notification-footer {

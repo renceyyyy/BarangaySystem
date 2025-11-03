@@ -14,7 +14,7 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $user_data = [];
 
-$user_sql = "SELECT Firstname, Lastname, Gender, ContactNo, Address FROM userloginfo WHERE UserID = ?";
+$user_sql = "SELECT Firstname, Lastname, Gender, ContactNo, Address, CivilStatus FROM userloginfo WHERE UserID = ?";
 $user_stmt = $conn->prepare($user_sql);
 if ($user_stmt) {
     $user_stmt->bind_param("i", $user_id);
@@ -30,6 +30,7 @@ if ($user_stmt) {
         $gender = $user_data['Gender'] ?? '';
         $contactNo = $user_data['ContactNo'] ?? '';
         $address = $user_data['Address'] ?? '';
+        $civilStatus = $user_data['CivilStatus'] ?? '';
 
         // Check for default values and replace them with empty strings
         if ($firstname === 'uncompleted')
@@ -42,6 +43,8 @@ if ($user_stmt) {
             $contactNo = '';
         if ($address === 'uncompleted')
             $address = '';
+        if ($civilStatus === 'uncompleted')
+            $civilStatus = '';
     }
     $user_stmt->close();
 }
@@ -73,6 +76,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
     $contactNo = trim($_POST["contactNo"] ?? '');
     $address = trim($_POST["address"] ?? '');
     $reqPurpose = trim($_POST["reqPurpose"] ?? '');
+    $yearsOfResidency = trim($_POST["yearsOfResidency"] ?? '');
+    $civilStatus = trim($_POST["civilStatus"] ?? '');
 
     // Validate required fields
     $required = [
@@ -81,7 +86,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
         'Gender' => $gender,
         'Contact Number' => $contactNo,
         'Address' => $address,
-        'Purpose' => $reqPurpose
+        'Purpose' => $reqPurpose,
+        'Years of Residency' => $yearsOfResidency,
+        'Civil Status' => $civilStatus
     ];
 
     $missing = [];
@@ -93,6 +100,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
     if (!empty($missing)) {
         $errors[] = "Missing required fields: " . implode(", ", $missing);
+    }
+
+    // Validate years of residency is a number
+    if (!empty($yearsOfResidency) && !is_numeric($yearsOfResidency)) {
+        $errors[] = "Years of residency must be a number.";
     }
 
     // Handle file upload
@@ -139,8 +151,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
                 $sql = "INSERT INTO docsreqtbl (
                     Userid, DocuType, Firstname, Lastname,
-                    Gender, ContactNO, ReqPurpose, Address, refno, CertificateImage, DateRequested
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                    Gender, ContactNO, ReqPurpose, Address, refno, CertificateImage, 
+                    YearsOfResidency, CivilStatus, DateRequested
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
                 $stmt = $conn->prepare($sql);
                 if (!$stmt) {
@@ -149,7 +162,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
                 $null = null;
                 $stmt->bind_param(
-                    "issssssssb",
+                    "issssssssbis",
                     $userId,
                     $doctype,
                     $firstname,
@@ -159,7 +172,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                     $reqPurpose,
                     $address,
                     $refno,
-                    $null
+                    $null,
+                    $yearsOfResidency,
+                    $civilStatus
                 );
 
                 // Send long blob data
@@ -182,6 +197,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                 // Reset form but keep user data
                 $reqPurpose = "";
                 $doctypes = [];
+                $yearsOfResidency = "";
             }
         } catch (Exception $e) {
             $conn->rollback();
@@ -235,6 +251,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
         input[type="text"],
         input[type="tel"],
+        input[type="number"],
         select,
         textarea {
             width: 100%;
@@ -392,6 +409,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
         .overlay.show {
             display: block;
         }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
     </style>
 </head>
 
@@ -410,7 +443,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
         <div class="user-info-note">
             <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and
-            update if necessary. Payment for your request is due within 7 days.
+            update if necessary.
         </div>
 
         <?php if (!empty($errors)): ?>
@@ -442,17 +475,36 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                         value="<?php echo htmlspecialchars($lastname ?? ''); ?>" required>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gender">Gender <span class="required">*</span></label>
+                        <select id="gender" name="gender" required>
+                            <option value="">Select Gender</option>
+                            <option value="Male" <?php echo (isset($gender) && $gender === 'Male') ? 'selected' : ''; ?>>Male</option>
+                            <option value="Female" <?php echo (isset($gender) && $gender === 'Female') ? 'selected' : ''; ?>>Female</option>
+                            <option value="Other" <?php echo (isset($gender) && $gender === 'Other') ? 'selected' : ''; ?>>Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="civilStatus">Civil Status <span class="required">*</span></label>
+                        <select id="civilStatus" name="civilStatus" required>
+                            <option value="">Select Civil Status</option>
+                            <option value="Single" <?php echo (isset($civilStatus) && $civilStatus === 'Single') ? 'selected' : ''; ?>>Single</option>
+                            <option value="Married" <?php echo (isset($civilStatus) && $civilStatus === 'Married') ? 'selected' : ''; ?>>Married</option>
+                            <option value="Divorced" <?php echo (isset($civilStatus) && $civilStatus === 'Divorced') ? 'selected' : ''; ?>>Divorced</option>
+                            <option value="Widowed" <?php echo (isset($civilStatus) && $civilStatus === 'Widowed') ? 'selected' : ''; ?>>Widowed</option>
+                            <option value="Separated" <?php echo (isset($civilStatus) && $civilStatus === 'Separated') ? 'selected' : ''; ?>>Separated</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="form-group">
-                    <label for="gender">Gender <span class="required">*</span></label>
-                    <select id="gender" name="gender" required>
-                        <option value="">Select Gender</option>
-                        <option value="Male" <?php echo (isset($gender) && $gender === 'Male') ? 'selected' : ''; ?>>Male
-                        </option>
-                        <option value="Female" <?php echo (isset($gender) && $gender === 'Female') ? 'selected' : ''; ?>>
-                            Female</option>
-                        <option value="Other" <?php echo (isset($gender) && $gender === 'Other') ? 'selected' : ''; ?>>
-                            Other</option>
-                    </select>
+                    <label for="yearsOfResidency">Years of Residency in this Barangay <span class="required">*</span></label>
+                    <input type="number" id="yearsOfResidency" name="yearsOfResidency" 
+                        value="<?php echo htmlspecialchars($yearsOfResidency ?? ''); ?>" 
+                        min="0" max="100" step="1" 
+                        placeholder="Enter number of years" required>
                 </div>
 
                 <div class="form-group">
@@ -549,6 +601,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                 // Check if at least one document type is selected
                 const documentTypes = form.querySelectorAll('input[name="doctype[]"]:checked');
                 if (documentTypes.length === 0) {
+                    isValid = false;
+                }
+
+                // Validate years of residency is a number
+                const yearsOfResidency = document.getElementById('yearsOfResidency');
+                if (yearsOfResidency.value && isNaN(yearsOfResidency.value)) {
                     isValid = false;
                 }
 

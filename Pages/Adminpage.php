@@ -167,225 +167,286 @@ require_once '../Process/db_connection.php';
             </div>
           </div>
 
-          <div id="residencePanel" class="panel-content">
-            <h1>Residence Information</h1>
+         <div id="residencePanel" class="panel-content">
+  <h1>Residence Information</h1>
 
-            <!-- Search Form -->
-            <form method="GET" action="" class="mb-3 search-form">
-              <div class="search-form-group">
-                <input type="text" name="search_lastname" class="form-control search-input"
-                  placeholder="Search by Lastname"
-                  value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
-                <button type="submit" class="search-btn">
-                  <i class="fas fa-search"></i> Search
-                </button>
-                <!-- <button class="add-user" type="button" onclick="openModal()">
-                  <i class="fa-regular fa-user"></i> Add
-                </button> -->
-                <!-- <button class="print-btn" type="button" onclick="printTable()">
-                  <i class="fas fa-print"></i> Print
-                </button> -->
-              </div>
-            </form>
+  <!-- Tab Navigation -->
+  <div class="tabs-container">
+    <button class="tab-btn active" onclick="switchTab(event, 'unverified')">
+      Unverified
+    </button>
+    <button class="tab-btn" onclick="switchTab(event, 'pending')">
+      Pending
+    </button>
+    <button class="tab-btn" onclick="switchTab(event, 'verified')">
+      Verified
+    </button>
+  </div>
 
-            <!-- Table -->
-            <div class="scrollable-table-container">
-              <table class="styled-table">
-                <tr>
-                  <th>ID</th>
-                  <th>FIRSTNAME</th>
-                  <th>LASTNAME</th>
-                  <th>MIDDLENAME</th>
-                  <th>EMAIL</th>
-                  <th>ACCOUNT STATUS</th>
-                  <th>ACTION</th>
-                </tr>
-                </thead>
-                <tbody>
-                  <?php
-require_once '../Process/db_connection.php';
+  <?php
+  require_once '../Process/db_connection.php';
+  $connection = getDBConnection();
 
-// Get the database connection
-$connection = getDBConnection();
+  if ($connection->connect_error) {
+    http_response_code(500);
+    echo "Database connection failed.";
+    exit;
+  }
 
-    if ($connection->connect_error) {
-        http_response_code(500);
-        echo "Database connection failed.";
-        exit;
+  // Handle save user action
+  if (isset($_POST['saveUser'])) {
+    $UserID = $_POST['UserID'];
+    $Firstname = $_POST['Firstname'];
+    $Lastname = $_POST['Lastname'];
+    $Middlename = $_POST['Middlename'];
+    $Email = $_POST['Email'];
+    $ContactNo = $_POST['ContactNo'];
+    $Address = $_POST['Address'];
+    $Birthdate = $_POST['Birthdate'];
+    $Gender = $_POST['Gender'];
+    $Birthplace = $_POST['Birthplace'];
+    $CivilStatus = $_POST['CivilStatus'];
+    $Nationality = $_POST['Nationality'];
+    $AccountStatus = $_POST['AccountStatus'];
+
+    $sql_insert = "INSERT INTO userloginfo
+        (UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus)
+        VALUES 
+        ('$UserID','$Firstname','$Lastname','$Middlename','$Email','$ContactNo','$Address','$Birthdate','$Gender','$Birthplace','$CivilStatus','$Nationality', '$AccountStatus')";
+
+    if ($connection->query($sql_insert) === TRUE) {
+      echo "<script>alert('User added successfully'); window.location.href='';</script>";
+    } else {
+      echo "Error: " . $connection->error;
     }
-                 
+  }
 
-                  if (isset($_GET['search_lastname']) && !empty(trim($_GET['search_lastname']))) {
-                    $search = $connection->real_escape_string($_GET['search_lastname']);
-                    $sql = "SELECT UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus, ValidID
-                            FROM userloginfo
-                            WHERE Lastname LIKE '%$search%'";
-                  } else {
-                    $sql = "SELECT UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus, ValidID
-                            FROM userloginfo";
-                  }
+  // Function to render table for specific status
+  function renderTableForStatus($connection, $status) {
+    $search = isset($_GET['search_lastname']) ? $connection->real_escape_string($_GET['search_lastname']) : '';
+    
+    if (!empty(trim($search))) {
+      $sql = "SELECT UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus, ValidID
+              FROM userloginfo
+              WHERE AccountStatus = '$status' AND Lastname LIKE '%$search%'";
+    } else {
+      $sql = "SELECT UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus, ValidID
+              FROM userloginfo
+              WHERE AccountStatus = '$status'";
+    }
 
-                  if (isset($_POST['saveUser'])) {
-                    $UserID = $_POST['UserID'];
-                    $Firstname = $_POST['Firstname'];
-                    $Lastname = $_POST['Lastname'];
-                    $Middlename = $_POST['Middlename'];
-                    $Email = $_POST['Email'];
-                    $ContactNo = $_POST['ContactNo'];
-                    $Address = $_POST['Address'];
-                    $Birthdate = $_POST['Birthdate'];
-                    $Gender = $_POST['Gender'];
-                    $Birthplace = $_POST['Birthplace'];
-                    $CivilStatus = $_POST['CivilStatus'];
-                    $Nationality = $_POST['Nationality'];
-                    $AccountStatus = $_POST['AccountStatus'];
+    $result = $connection->query($sql);
 
-                    $sql_insert = "INSERT INTO userloginfo
-                        (UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus)
-                        VALUES 
-                        ('$UserID','$Firstname','$Lastname','$Middlename','$Email','$ContactNo','$Address','$Birthdate','$Gender','$Birthplace','$CivilStatus','$Nationality', '$AccountStatus')";
+    if (!$result) {
+      die("Invalid query: " . $connection->error);
+    }
 
-                    if ($connection->query($sql_insert) === TRUE) {
-                      echo "<script>alert('User added successfully'); window.location.href='';</script>";
-                    } else {
-                      echo "Error: " . $connection->error;
-                    }
-                  }
+    $rows = '';
+    $hasRows = false;
 
-                  $result = $connection->query($sql);
+    while ($row = $result->fetch_assoc()) {
+      $hasRows = true;
+      $rows .= "<tr>
+          <td>" . $row["UserID"] . "</td>
+          <td>" . strtoupper($row["Firstname"]) . "</td>
+          <td>" . strtoupper($row["Lastname"]) . "</td>
+          <td>" . strtoupper($row["Middlename"]) . "</td>
+          <td>" . $row["Email"] . "</td>
+          <td>" . $row["AccountStatus"] . "</td>
+          <td>";
+      
+      if ($row["AccountStatus"] == "pending") {
+        $rows .= "<a href='approveaccount.php?id=" . $row["UserID"] . "' 
+                    class='action-btn-2 approve' 
+                    onclick=\"showCustomConfirm(event, this.href);\">
+                    <i class='fas fa-check'></i>
+                </a>";
+      }
+      
+      $rows .= "<a href='viewusers.php?id=" . htmlspecialchars($row['UserID']) . "' 
+                   class='action-btn-2 view'> 
+                   <i class='fas fa-eye'></i>
+                </a>";
+      
+      $rows .= "</td></tr>";
+    }
 
-                  if (!$result) {
-                    die("Invalid query: " . $connection->error);
-                  }
+    if (!$hasRows) {
+      $rows = "<tr><td colspan='7' style='text-align: center;'>No records found</td></tr>";
+    }
 
-                  while ($row = $result->fetch_assoc()) {
-                    // Encode the ValidID (blob) as base64 for the data attribute
-                    $validIDBase64 = base64_encode($row["ValidID"]);  // Assuming ValidID is the column name
-                  
-                    echo "<tr>
-                        <td>" . $row["UserID"] . "</td>
-                        <td>" . strtoupper($row["Firstname"]) . "</td>
-                        <td>" . strtoupper($row["Lastname"]) . "</td>
-                        <td>" . strtoupper($row["Middlename"]) . "</td>
-                        <td>" . $row["Email"] . "</td>
-                        <td>" . $row["AccountStatus"] . "</td>
-                        <td>
-                            <button 
-                                class='action-btn-2 view' 
-                                data-id='" . $row["UserID"] . "'
-                                data-firstname='" . strtoupper($row["Firstname"]) . "'
-                                data-lastname='" . strtoupper($row["Lastname"]) . "'
-                                data-middlename='" . strtoupper($row["Middlename"]) . "'
-                                data-email='" . $row["Email"] . "'
-                                data-contact='" . $row["ContactNo"] . "'
-                                data-address='" . htmlspecialchars($row["Address"]) . "'
-                                data-birthdate='" . $row["Birthdate"] . "'
-                                data-gender='" . $row["Gender"] . "'
-                                data-birthplace='" . htmlspecialchars($row["Birthplace"]) . "'
-                                data-civilstatus='" . $row["CivilStatus"] . "'
-                                data-nationality='" . $row["Nationality"] . "'
-                                data-accountstatus='" . htmlspecialchars($row["AccountStatus"]) . "'
-                                data-validid='" . $validIDBase64 . "'>  <!-- Added data attribute for ValidID -->
-                                <i class='fas fa-eye'></i>
-                            </button>";
+    return $rows;
+  }
+  ?>
 
-                    if ($row["AccountStatus"] == "pending") {
-                      echo "<a href='approveaccount.php?id=" . $row["UserID"] . "' 
-                                class='action-btn-2 approve' 
-                                onclick=\"showCustomConfirm(event, this.href);\">
-                                <i class='fas fa-check'></i>
-                            </a>";
-                    }
+  <!-- Unverified Tab -->
+  <div id="unverified" class="tab-content active">
+    <!-- Search Form -->
+    <form method="GET" action="" class="mb-3 search-form">
+      <div class="search-form-group">
+        <input type="text" name="search_lastname" class="form-control search-input"
+          placeholder="Search by Lastname"
+          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+        <button type="submit" class="search-btn">
+          <i class="fas fa-search"></i> Search
+        </button>
+      </div>
+    </form>
 
-                    echo "</td>
-                    </tr>";
-                  }
-                  ?>
-                </tbody>
-              </table>
-            </div>
-          </div>
+    <!-- Table -->
+    <div class="scrollable-table-container">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>FIRSTNAME</th>
+            <th>LASTNAME</th>
+            <th>MIDDLENAME</th>
+            <th>EMAIL</th>
+            <th>ACCOUNT STATUS</th>
+            <th>ACTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php echo renderTableForStatus($connection, 'unverified'); ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-          <div id="viewModal" class="view-modal" style="display:none;">
-            <div class="view-modal-content">
-              <span class="close-btn">&times;</span>
-              <div style="text-align: center;">
-                <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
-                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
-              </div>
-              <h2>User Information</h2>
+  <!-- Pending Tab -->
+  <div id="pending" class="tab-content">
+    <!-- Search Form -->
+    <form method="GET" action="" class="mb-3 search-form">
+      <div class="search-form-group">
+        <input type="text" name="search_lastname" class="form-control search-input"
+          placeholder="Search by Lastname"
+          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+        <button type="submit" class="search-btn">
+          <i class="fas fa-search"></i> Search
+        </button>
+      </div>
+    </form>
 
-              <form class="modal-form">
-                <div class="form-section">
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label>ID</label>
-                      <input type="text" id="modalId" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Firstname</label>
-                      <input type="text" id="modalFirstname" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Lastname</label>
-                      <input type="text" id="modalLastname" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Middlename</label>
-                      <input type="text" id="modalMiddlename" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Email</label>
-                      <input type="text" id="modalEmail" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Contact No</label>
-                      <input type="text" id="modalContact" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Birthday</label>
-                      <input type="text" id="modalBirthday" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Gender</label>
-                      <input type="text" id="modalGender" readonly>
-                    </div>
-                    <!-- New section for ValidID image -->
-                    <div class="form-group">
-                      <label>Valid ID</label>
-                      <img id="modalValidID" src="" alt="Valid ID"
-                        style="max-width: 100%; height: auto; border: 1px solid #ccc;">
-                    </div>
-                  </div>
-                </div>
+    <!-- Table -->
+    <div class="scrollable-table-container">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>FIRSTNAME</th>
+            <th>LASTNAME</th>
+            <th>MIDDLENAME</th>
+            <th>EMAIL</th>
+            <th>ACCOUNT STATUS</th>
+            <th>ACTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php echo renderTableForStatus($connection, 'pending'); ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-                <div class="form-section">
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label>Address</label>
-                      <input type="text" id="modalAddress" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Birthplace</label>
-                      <input type="text" id="modalBirthplace" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Civil Status</label>
-                      <input type="text" id="modalCivilStat" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Nationality</label>
-                      <input type="text" id="modalNationality" readonly>
-                    </div>
-                    <div class="form-group">
-                      <label>Account Status</label>
-                      <input type="text" id="modalAccountStatus" readonly>
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
+  <!-- Verified Tab -->
+  <div id="verified" class="tab-content">
+    <!-- Search Form -->
+    <form method="GET" action="" class="mb-3 search-form">
+      <div class="search-form-group">
+        <input type="text" name="search_lastname" class="form-control search-input"
+          placeholder="Search by Lastname"
+          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+        <button type="submit" class="search-btn">
+          <i class="fas fa-search"></i> Search
+        </button>
+      </div>
+    </form>
+
+    <!-- Table -->
+    <div class="scrollable-table-container">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>FIRSTNAME</th>
+            <th>LASTNAME</th>
+            <th>MIDDLENAME</th>
+            <th>EMAIL</th>
+            <th>ACCOUNT STATUS</th>
+            <th>ACTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php echo renderTableForStatus($connection, 'verified'); ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.tabs-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-btn {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  color: #333;
+  background: #f5f5f5;
+}
+
+.tab-btn.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+</style>
+
+<script>
+function switchTab(event, tabName) {
+  // Hide all tab contents
+  const tabContents = document.getElementsByClassName('tab-content');
+  for (let i = 0; i < tabContents.length; i++) {
+    tabContents[i].classList.remove('active');
+  }
+
+  // Remove active class from all tab buttons
+  const tabBtns = document.getElementsByClassName('tab-btn');
+  for (let i = 0; i < tabBtns.length; i++) {
+    tabBtns[i].classList.remove('active');
+  }
+
+  // Show the selected tab content
+  document.getElementById(tabName).classList.add('active');
+  
+  // Add active class to the clicked button
+  event.currentTarget.classList.add('active');
+}
+</script>
+
+        
 
 
 
@@ -2214,6 +2275,44 @@ function alertNotPaid() {
       margin: 15% auto;
     }
   }
+
+  .item-requests-table-container {
+  max-height: 700px; /* Adjust height as needed */
+  overflow-y: auto;  /* Enables vertical scrolling */
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Keep the table header fixed during scroll */
+.item-requests-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.item-requests-thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f8fafc; /* Header background */
+  z-index: 2;
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #cbd5e1;
+}
+
+.item-requests-tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+/* Optional: subtle hover effect */
+.item-requests-tbody tr:hover {
+  background-color: #f1f5f9;
+  transition: background-color 0.2s ease-in-out;
+}
+
   </style>
 
   <!-- Modal: Add Request -->
@@ -2381,6 +2480,7 @@ function alertNotPaid() {
           <th>DATE REQUEST</th>
           <th>DATE NEEDED</th>
           <th>STATUS</th>
+          <th>CONDITION</th>
           <th>ACTION</th>
         </tr>
       </thead>
@@ -2529,6 +2629,7 @@ function alertNotPaid() {
               <td>" . htmlspecialchars($row['date']) . "</td>
               <td>" . date("Y-m-d", strtotime($row["event_datetime"])) . "</td>
               <td>" . htmlspecialchars($row['RequestStatus']) . "</td>
+              <td>" . htmlspecialchars($row['damage_status'] ?? 'N/A') . "</td>
               <td>";
 
             echo "<button class='action-btn action-view' data-id='{$row['id']}' onclick='viewRequest(this)'><i class='fa fa-eye'></i> View</button>";
@@ -6082,40 +6183,56 @@ document.getElementById("printForm").addEventListener("submit", function (event)
 
 
 
-            <script>
-              document.querySelectorAll('.view').forEach(button => {
-                button.addEventListener('click', function () {
-                  document.getElementById('modalId').value = this.getAttribute('data-id');
-                  document.getElementById('modalFirstname').value = this.getAttribute('data-firstname');
-                  document.getElementById('modalLastname').value = this.getAttribute('data-lastname');
-                  document.getElementById('modalMiddlename').value = this.getAttribute('data-middlename');
-                  document.getElementById('modalEmail').value = this.getAttribute('data-email');
-                  document.getElementById('modalContact').value = this.getAttribute('data-contact');
-                  document.getElementById('modalBirthday').value = this.getAttribute('data-birthdate');
-                  document.getElementById('modalGender').value = this.getAttribute('data-gender');
-                  document.getElementById('modalAddress').value = this.getAttribute('data-address');
-                  document.getElementById('modalBirthplace').value = this.getAttribute('data-birthplace');
-                  document.getElementById('modalCivilStat').value = this.getAttribute('data-civilstatus');
-                  document.getElementById('modalNationality').value = this.getAttribute('data-nationality');
-                  document.getElementById('modalAccountStatus').value = this.getAttribute('data-accountstatus');
+           <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const viewButtons = document.querySelectorAll(".action-btn-2.view");
+    const modal = document.getElementById("viewModal");
+    const closeBtn = document.querySelector(".close-btn");
 
+    viewButtons.forEach(button => {
+      button.addEventListener("click", function () {
+        // Fill in text fields
+        document.getElementById("modalId").value = this.dataset.id;
+        document.getElementById("modalFirstname").value = this.dataset.firstname;
+        document.getElementById("modalLastname").value = this.dataset.lastname;
+        document.getElementById("modalMiddlename").value = this.dataset.middlename;
+        document.getElementById("modalEmail").value = this.dataset.email;
+        document.getElementById("modalContact").value = this.dataset.contact;
+        document.getElementById("modalBirthday").value = this.dataset.birthdate;
+        document.getElementById("modalGender").value = this.dataset.gender;
+        document.getElementById("modalAddress").value = this.dataset.address;
+        document.getElementById("modalBirthplace").value = this.dataset.birthplace;
+        document.getElementById("modalCivilStat").value = this.dataset.civilstatus;
+        document.getElementById("modalNationality").value = this.dataset.nationality;
+        document.getElementById("modalAccountStatus").value = this.dataset.accountstatus;
 
-                  document.getElementById('viewModal').style.display = 'flex';
-                });
-              });
+        // Display the Valid ID (Base64)
+        const validIDImg = document.getElementById("modalValidID");
+        if (this.dataset.validid && this.dataset.validid.trim() !== "") {
+          validIDImg.src = "data:image/jpeg;base64," + this.dataset.validid;
+        } else {
+          validIDImg.src = "/Capstone/Assets/no-valid-id.png"; // fallback image
+        }
 
+        // Show modal
+        modal.style.display = "block";
+      });
+    });
 
+    // Close modal on click (X)
+    closeBtn.addEventListener("click", () => {
+      modal.style.display = "none";
+    });
 
-              document.querySelector('.close-btn').addEventListener('click', function () {
-                document.getElementById('viewModal').style.display = 'none';
-              });
+    // Close when clicking outside the modal
+    window.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        modal.style.display = "none";
+      }
+    });
+  });
+</script>
 
-              window.addEventListener('click', function (e) {
-                if (e.target == document.getElementById('viewModal')) {
-                  document.getElementById('viewModal').style.display = 'none';
-                }
-              });
-            </script>
 
             <script>
               function openModal() {
@@ -8125,6 +8242,302 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                 });
               })();
             </script>
+        <script>
+(function () {
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function hideBackgroundModals() {
+    const selectors = [
+      '.modal', '.document-popup', '.business-popup', '.unemployment-popup', '.guardianship-popup',
+      '#viewDocumentModal', '#viewUnemploymentModal', '#viewGuardianshipModal'
+    ];
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        if (el.style) el.style.display = 'none';
+        el.classList.remove('show');
+      });
+    });
+  }
+
+  function showImageViewer(src, alt) {
+    const prev = document.getElementById('user_image_modal');
+    if (prev) prev.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'user_image_modal';
+    overlay.className = 'vb-overlay';
+    overlay.innerHTML = `
+      <div class="vb-img-wrapper">
+        <img src="${escapeHtml(src)}" alt="${escapeHtml(alt || '')}" />
+        <button id="user_img_close">&times;</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay || e.target.id === 'user_img_close') {
+        overlay.remove();
+        document.body.classList.remove('modal-open');
+      }
+    });
+    document.addEventListener('keydown', function esc(e) {
+      if (e.key === 'Escape') {
+        overlay.remove();
+        document.body.classList.remove('modal-open');
+      }
+    }, { once: true });
+  }
+
+  document.addEventListener('click', function (e) {
+    const a = e.target.closest('a[href*="viewusers.php"], button[data-viewuser-id]');
+    if (!a) return;
+
+    let href = a.getAttribute('href') || '';
+    const id = a.dataset.viewuserId || null;
+    if (!href && id) href = 'viewusers.php?id=' + encodeURIComponent(id);
+    if (!href.includes('viewusers.php')) return;
+
+    e.preventDefault();
+    hideBackgroundModals();
+
+    // Remove existing modal if open
+    const prev = document.getElementById('viewUserModal');
+    if (prev) prev.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'viewUserModal';
+    modal.className = 'vb-modal';
+    modal.innerHTML = `
+      <div class="vb-card" style="max-width:720px;">
+        <button id="vu_close" class="vb-close" aria-label="Close">&times;</button>
+        <div class="vb-header">
+          <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="vb-logo" />
+          <h2>User Information</h2>
+        </div>
+        <div id="vu_alert" style="display:none;padding:10px;margin:10px 20px;border-radius:5px;"></div>
+        <div id="vu_media" class="vb-content" style="text-align:center;margin-bottom:12px;">
+          <img id="vu_valid_img" src='' alt='Valid ID' style="max-width:100%;max-height:260px;border-radius:10px;display:none;cursor:zoom-in;box-shadow:0 6px 20px rgba(0,0,0,0.15)" />
+        </div>
+        <form id="vu_form">
+          <div id="vu_content" class="vb-content" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+        </form>
+        <div class="vb-footer" style="display:flex;gap:10px;justify-content:space-between;">
+          <button id="vu_delete_btn" class="vb-btn" type="button" style="background:#dc3545;color:white;">Delete Account</button>
+          <div style="display:flex;gap:10px;">
+            <button id="vu_edit_btn" class="vb-btn" type="button" style="background:#667eea;color:white;">Edit</button>
+            <button id="vu_save_btn" class="vb-btn" type="button" style="background:#28a745;color:white;display:none;">Save Changes</button>
+            <button id="vu_cancel_btn" class="vb-btn" type="button" style="background:#6c757d;color:white;display:none;">Cancel</button>
+            <button id="vu_close2" class="vb-btn">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    document.body.classList.add('modal-open');
+    if (!document.getElementById('modalOpenStyle')) {
+      const style = document.createElement('style');
+      style.id = 'modalOpenStyle';
+      style.innerHTML = 'body.modal-open{overflow:hidden;height:100%;}';
+      document.head.appendChild(style);
+    }
+
+    let userData = {};
+    let isEditMode = false;
+
+    function closeModal() {
+      const m = document.getElementById('viewUserModal');
+      if (m) m.remove();
+      document.body.classList.remove('modal-open');
+    }
+
+    function showAlert(message, type) {
+      const alert = document.getElementById('vu_alert');
+      alert.style.display = 'block';
+      alert.style.background = type === 'success' ? '#d4edda' : '#f8d7da';
+      alert.style.color = type === 'success' ? '#155724' : '#721c24';
+      alert.style.border = type === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+      alert.textContent = message;
+      setTimeout(() => { alert.style.display = 'none'; }, 5000);
+    }
+
+    function renderFields(editMode) {
+      const content = document.getElementById('vu_content');
+      
+      const fields = [
+        { label: 'User ID', key: 'UserID', readonly: true },
+        { label: 'Firstname', key: 'Firstname', readonly: false },
+        { label: 'Lastname', key: 'Lastname', readonly: false },
+        { label: 'Middlename', key: 'Middlename', readonly: false },
+        { label: 'Gender', key: 'Gender', readonly: false, type: 'select', options: ['Male', 'Female'] },
+        { label: 'Birthdate', key: 'Birthdate', readonly: false, type: 'date' },
+        { label: 'Email', key: 'Email', readonly: false, type: 'email' },
+        { label: 'Contact No.', key: 'ContactNo', readonly: false },
+        { label: 'Address', key: 'Address', readonly: false, fullWidth: true },
+        { label: 'Birthplace', key: 'Birthplace', readonly: false },
+        { label: 'Civil Status', key: 'CivilStatus', readonly: false, type: 'select', options: ['Single', 'Married', 'Widowed', 'Separated'] },
+        { label: 'Nationality', key: 'Nationality', readonly: false },
+        { label: 'Account Status', key: 'AccountStatus', readonly: true }
+      ];
+
+      content.innerHTML = fields.map(field => {
+        const value = userData[field.key] || '';
+        const isReadonly = field.readonly || !editMode;
+        const style = field.fullWidth ? 'grid-column:1/-1;' : '';
+        
+        let inputHtml;
+        if (field.type === 'select' && editMode && !field.readonly) {
+          inputHtml = `
+            <select name="${field.key}" ${isReadonly ? 'disabled' : ''} style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;background:white;">
+              ${field.options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+          `;
+        } else {
+          const inputType = field.type || 'text';
+          inputHtml = `<input 
+            type="${inputType}" 
+            name="${field.key}" 
+            value="${escapeHtml(value)}" 
+            ${isReadonly ? 'readonly' : ''} 
+            style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;${isReadonly ? 'background:#f5f5f5;' : 'background:white;'}"
+          />`;
+        }
+
+        return `
+          <label class="vb-field" style="${style}">
+            <span style="font-weight:600;color:#555;font-size:12px;text-transform:uppercase;margin-bottom:5px;display:block;">${escapeHtml(field.label)}</span>
+            ${inputHtml}
+          </label>
+        `;
+      }).join('');
+    }
+
+    function toggleEditMode(edit) {
+      isEditMode = edit;
+      document.getElementById('vu_edit_btn').style.display = edit ? 'none' : 'inline-block';
+      document.getElementById('vu_save_btn').style.display = edit ? 'inline-block' : 'none';
+      document.getElementById('vu_cancel_btn').style.display = edit ? 'inline-block' : 'none';
+      renderFields(edit);
+    }
+
+    modal.addEventListener('click', ev => { if (ev.target === modal) closeModal(); });
+    modal.querySelector('#vu_close').addEventListener('click', closeModal);
+    modal.querySelector('#vu_close2').addEventListener('click', closeModal);
+    
+    modal.querySelector('#vu_edit_btn').addEventListener('click', () => {
+      toggleEditMode(true);
+    });
+
+    modal.querySelector('#vu_cancel_btn').addEventListener('click', () => {
+      toggleEditMode(false);
+    });
+
+    modal.querySelector('#vu_save_btn').addEventListener('click', () => {
+      const form = document.getElementById('vu_form');
+      const formData = new FormData(form);
+      const updateData = {};
+      
+      for (let [key, value] of formData.entries()) {
+        updateData[key] = value;
+      }
+      
+      // Send update request
+      fetch(href.split('?')[0], {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(updateData)
+      })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          showAlert('User information updated successfully!', 'success');
+          // Update userData with new values
+          Object.assign(userData, updateData);
+          toggleEditMode(false);
+        } else {
+          showAlert(json.error || 'Failed to update user information', 'error');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        showAlert('Error updating user information', 'error');
+      });
+    });
+
+    modal.querySelector('#vu_delete_btn').addEventListener('click', () => {
+      if (!confirm('Are you sure you want to delete this user account? This action cannot be undone.')) {
+        return;
+      }
+      
+      // Send delete request
+      fetch('viewusers.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          UserID: userData.UserID,
+          action: 'delete'
+        })
+      })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          alert('User account deleted successfully!');
+          closeModal();
+          // Reload the page to refresh the user list
+          window.location.reload();
+        } else {
+          showAlert(json.error || 'Failed to delete user account', 'error');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        showAlert('Error deleting user account', 'error');
+      });
+    });
+
+    // Fetch user data
+    fetch(href, { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(json => {
+        if (json.error) {
+          closeModal();
+          alert(json.error || 'Failed to load user record.');
+          return;
+        }
+        userData = json.data || {};
+        const img = document.getElementById('vu_valid_img');
+
+        // Show Valid ID image if available
+        if (userData.ValidID) {
+          img.src = userData.ValidID;
+          img.style.display = 'block';
+          img.onclick = function (ev) { ev.stopPropagation(); showImageViewer(img.src, 'Valid ID'); };
+        } else {
+          img.style.display = 'none';
+        }
+
+        // Render user info in view mode
+        renderFields(false);
+      })
+      .catch(err => {
+        console.error(err);
+        closeModal();
+        alert('Failed to load user details.');
+      });
+  });
+})();
+</script>
 </body>
 
 </html>

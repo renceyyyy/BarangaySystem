@@ -1,16 +1,13 @@
 <?php
-// filepath: d:\xampp\htdocs\Capston\Capstones\Capstones\Process\blotter\create_blotter.php
-
 session_start();
 require_once '../db_connection.php'; // Update this path to your DB connection file
 
 $conn = getDBConnection();
 
 
-function generateParticipantId($conn)
+function generateParticipantId($conn, $blotter_id)
 {
-    $date = date('Ymd');
-    $prefix = "PTCP-$date-";
+    $prefix = "PTCP-$blotter_id-";
     $sql = "SELECT blotter_participant_id FROM blotter_participantstbl WHERE blotter_participant_id LIKE ? ORDER BY blotter_participant_id DESC LIMIT 1";
     $like = $prefix . '%';
     $stmt = $conn->prepare($sql);
@@ -85,17 +82,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     // Get officer on duty from session (adjust key as needed)
     $officer_on_duty = $_SESSION['fullname'] ?? 'Unknown Officer';
 
-    // Complainant info
-    $complainant_lastname = trim($_POST['complainant_lastname'] ?? '');
-    $complainant_firstname = trim($_POST['complainant_firstname'] ?? '');
-    $complainant_middlename = trim($_POST['complainant_middlename'] ?? '');
-    $complainant_alias = null;
-    $complainant_address = trim($_POST['complainant_address'] ?? '');
-    $complainant_age = intval($_POST['complainant_age'] ?? 0);
-    $complainant_contact_no = trim($_POST['complainant_contact_no'] ?? '');
-    $complainant_email = trim($_POST['complainant_email'] ?? '');
+    $sql_part = "INSERT INTO blotter_participantstbl (
+    blotter_participant_id, blotter_id, participant_type, lastname, firstname, middlename, alias, address, age, contact_no, email
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    $reported_by = $complainant_lastname . ', ' . $complainant_firstname . ' ' . $complainant_middlename;
+
+    // Build reported_by string from all complainants
+    $reported_by_arr = [];
+    if (!empty($_POST['complainant_lastname'])) {
+        foreach ($_POST['complainant_lastname'] as $i => $c_lastname) {
+            $c_firstname = $_POST['complainant_firstname'][$i] ?? '';
+            $c_middlename = $_POST['complainant_middlename'][$i] ?? '';
+            $name = trim($c_lastname) . ', ' . trim($c_firstname) . ' ' . trim($c_middlename);
+            $reported_by_arr[] = $name;
+        }
+    }
+    $reported_by = implode(', and ', $reported_by_arr);
+
+
+
+    
 
     // Incident details
     $datetime_of_incident = $_POST['incident_datetime'] ?? date('Y-m-d H:i:s');
@@ -129,28 +135,38 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt->execute();
 
     // Insert complainant into blotter_participantstbl
-    $blotter_participant_id = generateParticipantId($conn);
-    $sql_part = "INSERT INTO blotter_participantstbl (
-    blotter_participant_id, blotter_id, participant_type, lastname, firstname, middlename, alias, address, age, contact_no, email
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    $c_participant_type = 'complainant';
-    $stmt_part = $conn->prepare($sql_part);
-    $stmt_part->bind_param(
-        "ssssssssiis",
-        $blotter_participant_id,
-        $blotter_id,
-        $c_participant_type,
-        $complainant_lastname,
-        $complainant_firstname,
-        $complainant_middlename,
-        $complainant_alias,
-        $complainant_address,
-        $complainant_age,
-        $complainant_contact_no,
-        $complainant_email
-    );
-    $stmt_part->execute();
-    $stmt_part->close(); // <-- Close after each insert
+    $blotter_participant_id = generateParticipantId($conn, $blotter_id);
+    if (!empty($_POST['complainant_lastname'])) {
+        foreach ($_POST['complainant_lastname'] as $i => $c_lastname) {
+            $c_firstname = $_POST['complainant_firstname'][$i] ?? '';
+            $c_middlename = $_POST['complainant_middlename'][$i] ?? '';
+            $c_address = $_POST['complainant_address'][$i] ?? '';
+            $c_age = ($_POST['complainant_age'][$i] === '' || !isset($_POST['complainant_age'][$i])) ? null : intval($_POST['complainant_age'][$i]);
+            $c_contact_no = ($_POST['complainant_contact_no'][$i] === '' || !isset($_POST['complainant_contact_no'][$i])) ? null : $_POST['complainant_contact_no'][$i];
+            $c_email = $_POST['complainant_email'][$i] ?? '';
+            $c_alias = null;
+            $c_participant_type = 'complainant';
+            $blotter_participant_id = generateParticipantId($conn, $blotter_id);
+
+            $stmt_part = $conn->prepare($sql_part);
+            $stmt_part->bind_param(
+                "ssssssssiis",
+                $blotter_participant_id,
+                $blotter_id,
+                $c_participant_type,
+                $c_lastname,
+                $c_firstname,
+                $c_middlename,
+                $c_alias,
+                $c_address,
+                $c_age,
+                $c_contact_no,
+                $c_email
+            );
+            $stmt_part->execute();
+            $stmt_part->close();
+        }
+    }
 
     // Insert witnesses
     if (!empty($_POST['witness_lastname'])) {
@@ -181,7 +197,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $w_alias = Null;
             $w_participant_type = 'witness';
-            $blotter_participant_id = generateParticipantId($conn);
+            $blotter_participant_id = generateParticipantId($conn, $blotter_id);
 
             $stmt_part = $conn->prepare($sql_part);
             $stmt_part->bind_param(
@@ -215,7 +231,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $a_contact_no = ($_POST['accused_contact_no'][$i] === '' || !isset($_POST['accused_contact_no'][$i])) ? null : $_POST['accused_contact_no'][$i];
             $a_email = $_POST['accused_email'][$i] ?? '';
             $a_participant_type = 'accused';
-            $blotter_participant_id = generateParticipantId($conn);
+            $blotter_participant_id = generateParticipantId($conn, $blotter_id);
 
             $stmt_part = $conn->prepare($sql_part);
             $stmt_part->bind_param(

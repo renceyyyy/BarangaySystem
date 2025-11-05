@@ -24,7 +24,7 @@ require_once '../Process/db_connection.php';
     <div class="row">
       <!-- Sidebar -->
       <div class="col-12 col-md-2 sidebar">
-        <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+        <img src="/BarangaySystem/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
         <button class="sidebar-btn" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
@@ -42,7 +42,7 @@ require_once '../Process/db_connection.php';
             <a href="#" onclick="showPanel('businessPermitPanel')">Business Permit</a>
             <a href="#" onclick="showPanel('businessUnemploymentCertificatePanel')">Unemployment Certificate Request</a>
             <a href="#" onclick="showPanel('guardianshipPanel')">Guardianship</a>
-      
+
           </div>
         </div>
 
@@ -167,86 +167,87 @@ require_once '../Process/db_connection.php';
             </div>
           </div>
 
-         <div id="residencePanel" class="panel-content">
-  <h1>Residence Information</h1>
+          <div id="residencePanel" class="panel-content">
+            <h1>Residence Information</h1>
 
-  <!-- Tab Navigation -->
-  <div class="tabs-container">
-    <button class="tab-btn active" onclick="switchTab(event, 'unverified')">
-      Unverified
-    </button>
-    <button class="tab-btn" onclick="switchTab(event, 'pending')">
-      Pending
-    </button>
-    <button class="tab-btn" onclick="switchTab(event, 'verified')">
-      Verified
-    </button>
-  </div>
+            <!-- Tab Navigation -->
+            <div class="tabs-container">
+              <button class="tab-btn active" onclick="switchTab(event, 'unverified')">
+                Unverified
+              </button>
+              <button class="tab-btn" onclick="switchTab(event, 'pending')">
+                Pending
+              </button>
+              <button class="tab-btn" onclick="switchTab(event, 'verified')">
+                Verified
+              </button>
+            </div>
 
-  <?php
-  require_once '../Process/db_connection.php';
-  $connection = getDBConnection();
+            <?php
+            require_once '../Process/db_connection.php';
+            $connection = getDBConnection();
 
-  if ($connection->connect_error) {
-    http_response_code(500);
-    echo "Database connection failed.";
-    exit;
-  }
+            if ($connection->connect_error) {
+              http_response_code(500);
+              echo "Database connection failed.";
+              exit;
+            }
 
-  // Handle save user action
-  if (isset($_POST['saveUser'])) {
-    $UserID = $_POST['UserID'];
-    $Firstname = $_POST['Firstname'];
-    $Lastname = $_POST['Lastname'];
-    $Middlename = $_POST['Middlename'];
-    $Email = $_POST['Email'];
-    $ContactNo = $_POST['ContactNo'];
-    $Address = $_POST['Address'];
-    $Birthdate = $_POST['Birthdate'];
-    $Gender = $_POST['Gender'];
-    $Birthplace = $_POST['Birthplace'];
-    $CivilStatus = $_POST['CivilStatus'];
-    $Nationality = $_POST['Nationality'];
-    $AccountStatus = $_POST['AccountStatus'];
+            // Handle save user action
+            if (isset($_POST['saveUser'])) {
+              $UserID = $_POST['UserID'];
+              $Firstname = $_POST['Firstname'];
+              $Lastname = $_POST['Lastname'];
+              $Middlename = $_POST['Middlename'];
+              $Email = $_POST['Email'];
+              $ContactNo = $_POST['ContactNo'];
+              $Address = $_POST['Address'];
+              $Birthdate = $_POST['Birthdate'];
+              $Gender = $_POST['Gender'];
+              $Birthplace = $_POST['Birthplace'];
+              $CivilStatus = $_POST['CivilStatus'];
+              $Nationality = $_POST['Nationality'];
+              $AccountStatus = $_POST['AccountStatus'];
 
-    $sql_insert = "INSERT INTO userloginfo
+              $sql_insert = "INSERT INTO userloginfo
         (UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus)
         VALUES 
         ('$UserID','$Firstname','$Lastname','$Middlename','$Email','$ContactNo','$Address','$Birthdate','$Gender','$Birthplace','$CivilStatus','$Nationality', '$AccountStatus')";
 
-    if ($connection->query($sql_insert) === TRUE) {
-      echo "<script>alert('User added successfully'); window.location.href='';</script>";
-    } else {
-      echo "Error: " . $connection->error;
-    }
-  }
+              if ($connection->query($sql_insert) === TRUE) {
+                echo "<script>alert('User added successfully'); window.location.href='';</script>";
+              } else {
+                echo "Error: " . $connection->error;
+              }
+            }
 
-  // Function to render table for specific status
-  function renderTableForStatus($connection, $status) {
-    $search = isset($_GET['search_lastname']) ? $connection->real_escape_string($_GET['search_lastname']) : '';
-    
-    if (!empty(trim($search))) {
-      $sql = "SELECT UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus, ValidID
+            // Function to render table for specific status
+            function renderTableForStatus($connection, $status)
+            {
+              $search = isset($_GET['search_lastname']) ? $connection->real_escape_string($_GET['search_lastname']) : '';
+
+              if (!empty(trim($search))) {
+                $sql = "SELECT UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus, ValidID
               FROM userloginfo
               WHERE AccountStatus = '$status' AND Lastname LIKE '%$search%'";
-    } else {
-      $sql = "SELECT UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus, ValidID
+              } else {
+                $sql = "SELECT UserID, Firstname, Lastname, Middlename, Email, ContactNo, Address, Birthdate, Gender, Birthplace, CivilStatus, Nationality, AccountStatus, ValidID
               FROM userloginfo
               WHERE AccountStatus = '$status'";
-    }
+              }
 
-    $result = $connection->query($sql);
+              $result = $connection->query($sql);
 
-    if (!$result) {
-      die("Invalid query: " . $connection->error);
-    }
+              if (!$result) {
+                die("Invalid query: " . $connection->error);
+              }
 
-    $rows = '';
-    $hasRows = false;
+              $rows = '';
+              $hasRows = false;
 
-    while ($row = $result->fetch_assoc()) {
-      $hasRows = true;
-      $rows .= "<tr>
+              while ($row = $result->fetch_assoc()) {
+                $hasRows = true;
+                $rows .= "<tr>
           <td>" . $row["UserID"] . "</td>
           <td>" . strtoupper($row["Firstname"]) . "</td>
           <td>" . strtoupper($row["Lastname"]) . "</td>
@@ -254,199 +255,199 @@ require_once '../Process/db_connection.php';
           <td>" . $row["Email"] . "</td>
           <td>" . $row["AccountStatus"] . "</td>
           <td>";
-      
-      if ($row["AccountStatus"] == "pending") {
-        $rows .= "<a href='approveaccount.php?id=" . $row["UserID"] . "' 
+
+                if ($row["AccountStatus"] == "pending") {
+                  $rows .= "<a href='approveaccount.php?id=" . $row["UserID"] . "' 
                     class='action-btn-2 approve' 
                     onclick=\"showCustomConfirm(event, this.href);\">
                     <i class='fas fa-check'></i>
                 </a>";
-      }
-      
-      $rows .= "<a href='viewusers.php?id=" . htmlspecialchars($row['UserID']) . "' 
+                }
+
+                $rows .= "<a href='viewusers.php?id=" . htmlspecialchars($row['UserID']) . "' 
                    class='action-btn-2 view'> 
                    <i class='fas fa-eye'></i>
                 </a>";
-      
-      $rows .= "</td></tr>";
-    }
 
-    if (!$hasRows) {
-      $rows = "<tr><td colspan='7' style='text-align: center;'>No records found</td></tr>";
-    }
+                $rows .= "</td></tr>";
+              }
 
-    return $rows;
-  }
-  ?>
+              if (!$hasRows) {
+                $rows = "<tr><td colspan='7' style='text-align: center;'>No records found</td></tr>";
+              }
 
-  <!-- Unverified Tab -->
-  <div id="unverified" class="tab-content active">
-    <!-- Search Form -->
-    <form method="GET" action="" class="mb-3 search-form">
-      <div class="search-form-group">
-        <input type="text" name="search_lastname" class="form-control search-input"
-          placeholder="Search by Lastname"
-          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
-        <button type="submit" class="search-btn">
-          <i class="fas fa-search"></i> Search
-        </button>
-      </div>
-    </form>
+              return $rows;
+            }
+            ?>
 
-    <!-- Table -->
-    <div class="scrollable-table-container">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>FIRSTNAME</th>
-            <th>LASTNAME</th>
-            <th>MIDDLENAME</th>
-            <th>EMAIL</th>
-            <th>ACCOUNT STATUS</th>
-            <th>ACTION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php echo renderTableForStatus($connection, 'unverified'); ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
+            <!-- Unverified Tab -->
+            <div id="unverified" class="tab-content active">
+              <!-- Search Form -->
+              <form method="GET" action="" class="mb-3 search-form">
+                <div class="search-form-group">
+                  <input type="text" name="search_lastname" class="form-control search-input"
+                    placeholder="Search by Lastname"
+                    value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+                  <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> Search
+                  </button>
+                </div>
+              </form>
 
-  <!-- Pending Tab -->
-  <div id="pending" class="tab-content">
-    <!-- Search Form -->
-    <form method="GET" action="" class="mb-3 search-form">
-      <div class="search-form-group">
-        <input type="text" name="search_lastname" class="form-control search-input"
-          placeholder="Search by Lastname"
-          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
-        <button type="submit" class="search-btn">
-          <i class="fas fa-search"></i> Search
-        </button>
-      </div>
-    </form>
+              <!-- Table -->
+              <div class="scrollable-table-container">
+                <table class="styled-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>FIRSTNAME</th>
+                      <th>LASTNAME</th>
+                      <th>MIDDLENAME</th>
+                      <th>EMAIL</th>
+                      <th>ACCOUNT STATUS</th>
+                      <th>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php echo renderTableForStatus($connection, 'unverified'); ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-    <!-- Table -->
-    <div class="scrollable-table-container">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>FIRSTNAME</th>
-            <th>LASTNAME</th>
-            <th>MIDDLENAME</th>
-            <th>EMAIL</th>
-            <th>ACCOUNT STATUS</th>
-            <th>ACTION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php echo renderTableForStatus($connection, 'pending'); ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
+            <!-- Pending Tab -->
+            <div id="pending" class="tab-content">
+              <!-- Search Form -->
+              <form method="GET" action="" class="mb-3 search-form">
+                <div class="search-form-group">
+                  <input type="text" name="search_lastname" class="form-control search-input"
+                    placeholder="Search by Lastname"
+                    value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+                  <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> Search
+                  </button>
+                </div>
+              </form>
 
-  <!-- Verified Tab -->
-  <div id="verified" class="tab-content">
-    <!-- Search Form -->
-    <form method="GET" action="" class="mb-3 search-form">
-      <div class="search-form-group">
-        <input type="text" name="search_lastname" class="form-control search-input"
-          placeholder="Search by Lastname"
-          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
-        <button type="submit" class="search-btn">
-          <i class="fas fa-search"></i> Search
-        </button>
-      </div>
-    </form>
+              <!-- Table -->
+              <div class="scrollable-table-container">
+                <table class="styled-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>FIRSTNAME</th>
+                      <th>LASTNAME</th>
+                      <th>MIDDLENAME</th>
+                      <th>EMAIL</th>
+                      <th>ACCOUNT STATUS</th>
+                      <th>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php echo renderTableForStatus($connection, 'pending'); ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-    <!-- Table -->
-    <div class="scrollable-table-container">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>FIRSTNAME</th>
-            <th>LASTNAME</th>
-            <th>MIDDLENAME</th>
-            <th>EMAIL</th>
-            <th>ACCOUNT STATUS</th>
-            <th>ACTION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php echo renderTableForStatus($connection, 'verified'); ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+            <!-- Verified Tab -->
+            <div id="verified" class="tab-content">
+              <!-- Search Form -->
+              <form method="GET" action="" class="mb-3 search-form">
+                <div class="search-form-group">
+                  <input type="text" name="search_lastname" class="form-control search-input"
+                    placeholder="Search by Lastname"
+                    value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+                  <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> Search
+                  </button>
+                </div>
+              </form>
 
-<style>
-.tabs-container {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #e0e0e0;
-}
+              <!-- Table -->
+              <div class="scrollable-table-container">
+                <table class="styled-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>FIRSTNAME</th>
+                      <th>LASTNAME</th>
+                      <th>MIDDLENAME</th>
+                      <th>EMAIL</th>
+                      <th>ACCOUNT STATUS</th>
+                      <th>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php echo renderTableForStatus($connection, 'verified'); ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
 
-.tab-btn {
-  padding: 12px 24px;
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  color: #666;
-  transition: all 0.3s ease;
-}
+          <style>
+            .tabs-container {
+              display: flex;
+              gap: 10px;
+              margin-bottom: 20px;
+              border-bottom: 2px solid #e0e0e0;
+            }
 
-.tab-btn:hover {
-  color: #333;
-  background: #f5f5f5;
-}
+            .tab-btn {
+              padding: 12px 24px;
+              background: transparent;
+              border: none;
+              border-bottom: 3px solid transparent;
+              cursor: pointer;
+              font-size: 16px;
+              font-weight: 500;
+              color: #666;
+              transition: all 0.3s ease;
+            }
 
-.tab-btn.active {
-  color: #007bff;
-  border-bottom-color: #007bff;
-}
+            .tab-btn:hover {
+              color: #333;
+              background: #f5f5f5;
+            }
 
-.tab-content {
-  display: none;
-}
+            .tab-btn.active {
+              color: #007bff;
+              border-bottom-color: #007bff;
+            }
 
-.tab-content.active {
-  display: block;
-}
-</style>
+            .tab-content {
+              display: none;
+            }
 
-<script>
-function switchTab(event, tabName) {
-  // Hide all tab contents
-  const tabContents = document.getElementsByClassName('tab-content');
-  for (let i = 0; i < tabContents.length; i++) {
-    tabContents[i].classList.remove('active');
-  }
+            .tab-content.active {
+              display: block;
+            }
+          </style>
 
-  // Remove active class from all tab buttons
-  const tabBtns = document.getElementsByClassName('tab-btn');
-  for (let i = 0; i < tabBtns.length; i++) {
-    tabBtns[i].classList.remove('active');
-  }
+          <script>
+            function switchTab(event, tabName) {
+              // Hide all tab contents
+              const tabContents = document.getElementsByClassName('tab-content');
+              for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+              }
 
-  // Show the selected tab content
-  document.getElementById(tabName).classList.add('active');
-  
-  // Add active class to the clicked button
-  event.currentTarget.classList.add('active');
-}
-</script>
+              // Remove active class from all tab buttons
+              const tabBtns = document.getElementsByClassName('tab-btn');
+              for (let i = 0; i < tabBtns.length; i++) {
+                tabBtns[i].classList.remove('active');
+              }
 
-        
+              // Show the selected tab content
+              document.getElementById(tabName).classList.add('active');
+
+              // Add active class to the clicked button
+              event.currentTarget.classList.add('active');
+            }
+          </script>
+
+
 
 
 
@@ -483,7 +484,7 @@ function switchTab(event, tabName) {
                     <th>ID</th>
                     <th>FIRSTNAME</th>
                     <th>LASTNAME</th>
-                   
+
                     <th>ADDRESS</th>
                     <th>REFERENCE</th>
                     <th>TYPE</th>
@@ -530,10 +531,10 @@ function switchTab(event, tabName) {
 
 
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
-                 $sql = "SELECT ReqId, Firstname, Lastname, Gender, ReqPurpose, ContactNo, Address, refno, Docutype, DateRequested, RequestStatus, PaymentStatus, CertificateImage 
+                  $sql = "SELECT ReqId, Firstname, Lastname, Gender, ReqPurpose, ContactNo, Address, refno, Docutype, DateRequested, RequestStatus, PaymentStatus, CertificateImage 
 FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
 
-                  
+
                   $params = [];
                   $types = "";
 
@@ -554,7 +555,7 @@ FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
                   }
 
                   $sql .= " ORDER BY DateRequested DESC"; // Sort by date descending
-                  
+
                   // Prepare and execute query
                   $stmt = $connection->prepare($sql);
                   if (!empty($params)) {
@@ -592,23 +593,20 @@ FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
                     // Show PRINT button only if already approved
-                  if ($row["RequestStatus"] === "Approved" && $row["PaymentStatus"] === "Paid") {
-    echo "<button type='button' class='action-btn-2 print' onclick='openPrintModal(JSON.parse(`$docData`))'>
+                    if ($row["RequestStatus"] === "Approved" && $row["PaymentStatus"] === "Paid") {
+                      echo "<button type='button' class='action-btn-2 print' onclick='openPrintModal(JSON.parse(`$docData`))'>
             <i class='fas fa-print'></i>
           </button>";
-} elseif ($row["RequestStatus"] === "Approved" && $row["PaymentStatus"] === "Unpaid") {
-    echo "<button type='button' class='action-btn-2 print' onclick='alert(`Payment required before printing.`)'>
+                    } elseif ($row["RequestStatus"] === "Approved" && $row["PaymentStatus"] === "Unpaid") {
+                      echo "<button type='button' class='action-btn-2 print' onclick='alert(`Payment required before printing.`)'>
             <i class='fas fa-lock'></i>
           </button>";
-} elseif ($row["RequestStatus"] === "Pending") {
-    echo "<a href='approve.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+                    } elseif ($row["RequestStatus"] === "Pending") {
+                      echo "<a href='approve.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
             class='action-btn-2 approve'
             onclick='showCustomConfirm(event, this.href);'>
             <i class='fas fa-check'></i>
           </a>";
-
-
-
                     } else {
                       // Show APPROVE button if not yet approved/declined (Declined rows won't reach here)
                       if ($row["RequestStatus"] !== "Declined") {
@@ -635,7 +633,7 @@ FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
               <i class='fas fa-xmark'></i>
             </a>";
                     }
-                  
+
 
                     echo "</td></tr>";
                   }
@@ -716,11 +714,11 @@ FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
               </div>
             </div>
           </div>
-<script>
-function alertNotPaid() {
-  alert("This request is not yet paid.");
-}
-</script>
+          <script>
+            function alertNotPaid() {
+              alert("This request is not yet paid.");
+            }
+          </script>
 
 
 
@@ -913,7 +911,7 @@ function alertNotPaid() {
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
                   $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus 
                 FROM businesstbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
-                  
+
                   $params = [];
                   $types = "";
 
@@ -934,7 +932,7 @@ function alertNotPaid() {
                   }
 
                   $sql .= " ORDER BY RequestedDate DESC"; // Sort by date descending
-                  
+
                   // Prepare and execute query
                   $stmt = $connection->prepare($sql);
                   if (!empty($params)) {
@@ -1058,7 +1056,7 @@ function alertNotPaid() {
             <div class="business-modal-box">
               <span class="close-btn" onclick="closeBusinessModal()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4" style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
               <h2>Business Request Form</h2>
               <form id="addBusinessForm" method="POST" action="" class="modal-form">
@@ -1176,7 +1174,7 @@ function alertNotPaid() {
 
                   $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus 
                         FROM unemploymenttbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
-                  
+
                   $params = [];
                   $types = "";
 
@@ -1193,7 +1191,7 @@ function alertNotPaid() {
                     $types .= "s";
                   }
                   $sql .= " ORDER BY request_date DESC"; // Sort by date descending
-                  
+
                   $stmt = $connection->prepare($sql);
                   if (!empty($params)) {
                     $stmt->bind_param($types, ...$params);
@@ -1269,7 +1267,7 @@ function alertNotPaid() {
                 <form id="unemploymentPrintForm">
                   <div class="mb-3">
                     <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                        style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                      <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4" style="width: 70%; max-width: 120px; border-radius: 50%;" />
                     </div>
                     <h2>Unemployment Certificate Form</h2>
                     <label for="unemployment_modal_refno" class="form-label">Reference No.</label>
@@ -1313,7 +1311,7 @@ function alertNotPaid() {
             <div class="unemployment-modal-box">
               <span class="close-btn" onclick="closeUnemployment()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4" style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
               <h2>Unemployment Request Form</h2>
               <form id="addUnemploymentForm" method="POST" action="" class="modal-form">
@@ -1444,8 +1442,7 @@ function alertNotPaid() {
                       echo "<script>alert('Error saving guardianship: " . addslashes($stmt->error) . "');</script>";
                     }
 
-                    $
-                      $insertstmt->close();
+                    $$insertstmt->close();
                   }
                   $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus 
                           FROM guardianshiptbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
@@ -1490,7 +1487,7 @@ function alertNotPaid() {
                       "refno" => $row['refno'],
                       "applicant_name" => $row['applicant_name'],
                       "request_type" => $row['request_type'],
-                     
+
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
                     if ($row["RequestStatus"] === "Approved") {
@@ -1499,7 +1496,7 @@ function alertNotPaid() {
                         "refno" => $row['refno'],
                         "applicant_name" => $row['applicant_name'],
                         "request_type" => $row['request_type'],
-                        
+
                         "request_date" => $row['request_date'],
                       ]), ENT_QUOTES, 'UTF-8') . ")'>
     <i class='fas fa-print'></i>
@@ -1544,7 +1541,7 @@ function alertNotPaid() {
                 <form id="guardianshipPrintForm">
                   <div class="mb-3">
                     <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                        style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                      <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4" style="width: 70%; max-width: 120px; border-radius: 50%;" />
                     </div>
                     <h2>Guardianship Document Form</h2>
                     <label for="guardianship_modal_refno" class="form-label
@@ -1558,7 +1555,7 @@ function alertNotPaid() {
                     <input type="text" name="applicant_name" id="guardianship_modal_name" readonly required
                       class="form-control" />
                   </div>
-                
+
                   <div class="mb-3">
                     <label for="guardianship_modal_type" class="form-label
 ">Request Type</label>
@@ -1588,7 +1585,7 @@ function alertNotPaid() {
             <div class="document-modal-box">
               <span class="close-btn" onclick="closebirthcertificate()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4" style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
               <h2>Guardianship Request Form</h2>
               <form id="addGuardianshipForm" method="POST" action="" class="modal-form">
@@ -1634,995 +1631,1021 @@ function alertNotPaid() {
           </div>
 
 
-          
-          
-          
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<div id="itemrequestsPanel" class="panel-content">
-  <div class="item-requests-header">
-    <h1>Item Requests</h1>
-    <div class="header-buttons">
-      <button id="openRequestModalBtn" class="item-requests-btn">
-        <i class="fa fa-plus"></i> Add Request
-      </button>
-      <button id="openAddQuantityBtn" class="item-requests-btn-add-quantity">
-        <i class="fas fa-plus-circle"></i> Add Item Quantity
-      </button>
-    </div>
-  </div>
 
-  <!-- Display Inventory Availability -->
-  <div class="inventory-availability">
-    <div class="inventory-header">
-      <h2>Item Availability</h2>
-    </div>
 
-    <?php
-    $conn = new mysqli("localhost", "root", "", "barangayDb");
-    if ($conn->connect_error) die("DB error: " . $conn->connect_error);
-    $invRes = $conn->query("SELECT item_name, total_stock, on_loan FROM inventory");
-    
-    if ($invRes && $invRes->num_rows > 0) {
-      echo '<div class="inventory-grid">';
-      while ($invRow = $invRes->fetch_assoc()) {
-        $available = $invRow['total_stock'] - $invRow['on_loan'];
-        $availablePercent = $invRow['total_stock'] > 0 ? ($available / $invRow['total_stock']) * 100 : 0;
-        
-        $statusClass = 'status-high';
-        if ($availablePercent <= 20) {
-          $statusClass = 'status-critical';
-        } elseif ($availablePercent <= 50) {
-          $statusClass = 'status-low';
-        }
-        
-        echo '<div class="inventory-card ' . $statusClass . '">';
-        echo '  <div class="card-header">';
-        echo '    <h3 class="item-name">' . htmlspecialchars($invRow['item_name']) . '</h3>';
-        echo '    <span class="availability-badge">' . $available . ' Available</span>';
-        echo '  </div>';
-        echo '  <div class="card-body">';
-        echo '    <div class="stat-row">';
-        echo '      <div class="stat-item">';
-        echo '        <span class="stat-label">Total Stock</span>';
-        echo '        <span class="stat-value">' . $invRow['total_stock'] . '</span>';
-        echo '      </div>';
-        echo '      <div class="stat-item">';
-        echo '        <span class="stat-label">On Loan</span>';
-        echo '        <span class="stat-value">' . $invRow['on_loan'] . '</span>';
-        echo '      </div>';
-        echo '    </div>';
-        echo '    <div class="progress-bar">';
-        echo '      <div class="progress-fill" style="width: ' . $availablePercent . '%"></div>';
-        echo '    </div>';
-        echo '    <div class="progress-label">' . round($availablePercent) . '% Available</div>';
-        echo '  </div>';
-        echo '</div>';
-      }
-      echo '</div>';
-    } else {
-      echo '<div class="empty-state">';
-      echo '  <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">';
-      echo '    <path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4zm10 16H4V9h16v11z"/>';
-      echo '  </svg>';
-      echo '  <p class="empty-text">No inventory data found</p>';
-      echo '  <p class="empty-subtext">Add items to get started</p>';
-      echo '</div>';
-    }
-    ?>
-  </div>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <style>
-  .header-buttons {
-    display: flex;
-    gap: 10px;
-  }
-
-  .item-requests-btn-add-quantity {
-     padding: 10px 16px;
-      background-color: #5CB25D;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-  }
-
-  .item-requests-btn-add-quantity:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(56, 239, 125, 0.4);
-  }
-
-  .inventory-availability {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  }
-
-  .inventory-header {
-    margin-bottom: 2rem;
-  }
-
-  .inventory-header h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1a202c;
-    margin: 0 0 0.5rem 0;
-  }
-
-  .inventory-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .inventory-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-    transition: all 0.3s ease;
-    border-left: 4px solid;
-    overflow: hidden;
-  }
-
-  .inventory-card:hover {
-    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
-    transform: translateY(-2px);
-  }
-
-  .status-high { border-left-color: #0b9920ff; }
-  .status-low { border-left-color: #f59e0b; }
-  .status-critical { border-left-color: #ef4444; }
-
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .item-name {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #1e293b;
-    margin: 0;
-  }
-
-  .availability-badge {
-    background: #1e293b;
-    color: white;
-    padding: 0.375rem 0.875rem;
-    border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: 600;
-  }
-
-  .card-body { padding: .5rem; }
-
-  .stat-row {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .stat-item {
-    flex: 1;
-    background: #f8fafc;
-    padding: 1rem;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-  }
-
-  .stat-label {
-    display: block;
-    font-size: 0.75rem;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.375rem;
-    font-weight: 600;
-  }
-
-  .stat-value {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1e293b;
-  }
-
-  .progress-bar {
-    width: 100%;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 0.5rem;
-  }
-
-  .status-high .progress-fill { background: #4CAF50; }
-  .status-low .progress-fill { background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }
-  .status-critical .progress-fill { background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); }
-
-  .progress-fill {
-    height: 100%;
-    transition: width 0.6s ease;
-    border-radius: 10px;
-  }
-
-  .progress-label {
-    font-size: 0.875rem;
-    color: #64748b;
-    font-weight: 500;
-  }
-
-  /* Details View Modal Styles */
-  .details-view-modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(10px);
-    animation: fadeIn 0.3s ease;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  .details-view-modal-content {
-    background: white;
-    margin: 3% auto;
-    padding: 0;
-    border-radius: 24px;
-    width: 50%;
-    max-width: 700px;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
-    animation: modalZoom 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    overflow: hidden;
-  }
-
-  @keyframes modalZoom {
-    from {
-      transform: scale(0.7) rotateX(20deg);
-      opacity: 0;
-    }
-    to {
-      transform: scale(1) rotateX(0);
-      opacity: 1;
-    }
-  }
-
-  .details-view-modal-header {
-    padding: 2.5rem;
-    text-align: center;
-    color: white;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .details-view-modal-header img {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    border: 5px solid white;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-    margin-bottom: 1rem;
-    position: relative;
-    z-index: 1;
-    background: white;
-    object-fit: cover;
-  }
-
-  .details-view-modal-header h4 {
-    margin: 0;
-    font-size: 1.85rem;
-    font-weight: 700;
-    position: relative;
-    z-index: 1;
-    color: black;
-    text-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
-    letter-spacing: 0.5px;
-  }
-
-  .details-view-modal-close {
-    position: absolute;
-    right: 1.5rem;
-    top: 1.5rem;
-    color: black;
-    font-size: 32px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    width: 42px;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
-    z-index: 2;
-    backdrop-filter: blur(10px);
-  }
-
-  .details-view-modal-close:hover {
-    background: rgba(255, 255, 255, 0.4);
-    transform: rotate(180deg) scale(1.1);
-  }
-
-  .details-view-modal-body {
-    padding: 2.5rem;
-    background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
-  }
-
-  /* Return Modal Styles */
-  .return-modal {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.3s ease;
-  }
-
-  .return-modal-content {
-    background: #059629ff;
-    margin: 8% auto;
-    padding: 0;
-    border-radius: 20px;
-    width: 90%;
-    max-width: 450px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: slideDown 0.4s ease;
-    overflow: hidden;
-  }
-
-  .return-modal-content h4 {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    color: black;
-    padding: 25px 30px;
-    margin: 0;
-    font-size: 24px;
-    font-weight: 600;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .return-modal-content form {
-    padding: 30px;
-    background: white;
-  }
-
-  .return-modal-content label {
-    display: block;
-    color: #333;
-    font-weight: 600;
-    margin-bottom: 10px;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .return-modal-content select {
-    width: 100%;
-    padding: 12px 15px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    font-size: 15px;
-    transition: all 0.3s ease;
-    background-color: #f8f9fa;
-    cursor: pointer;
-    margin-bottom: 20px;
-  }
-
-  .return-modal-content select:focus {
-    outline: none;
-    border-color: #667eea;
-    background-color: white;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  }
-
-  .return-modal-content button[type="submit"] {
-    width: 100%;
-    padding: 14px;
-    background: #069e1dff;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 10px;
-  }
-
-  .return-modal-content button[type="submit"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-  }
-
-  .return-modal-close {
-    position: absolute;
-    right: 20px;
-    top: 20px;
-    color: black;
-    font-size: 32px;
-    font-weight: 300;
-    cursor: pointer;
-    z-index: 1;
-    transition: all 0.3s ease;
-    width: 35px;
-    height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .return-modal-close:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: rotate(90deg);
-  }
-
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-50px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Add Quantity Modal Styles */
-  .add-quantity-modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.3s ease;
-  }
-
-  .add-quantity-modal-content {
-    background: white;
-    margin: 5% auto;
-    padding: 0;
-    border-radius: 20px;
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: slideDown 0.4s ease;
-    overflow: hidden;
-  }
-
-  .add-quantity-modal .modal-header {
-    background: white;
-    padding: 25px 30px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-  }
-
-  .add-quantity-modal .modal-header img {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: white;
-    padding: 5px;
-  }
-
-  .add-quantity-modal .modal-header h4 {
-    color: black;
-    margin: 0;
-    font-size: 24px;
-    font-weight: 600;
-    flex: 1;
-  }
-
-  .add-quantity-modal-close {
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: black;
-    font-size: 32px;
-    font-weight: 300;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    width: 35px;
-    height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .add-quantity-modal-close:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-50%) rotate(90deg);
-  }
-
-  .add-quantity-modal .modal-body {
-    padding: 30px;
-  }
-
-  .add-quantity-modal .form-group {
-    margin-bottom: 20px;
-  }
-
-  .add-quantity-modal .form-group label {
-    display: block;
-    color: #333;
-    font-weight: 600;
-    margin-bottom: 10px;
-    font-size: 14px;
-  }
-
-  .add-quantity-modal .form-group label i {
-    margin-right: 8px;
-    color: #11998e;
-  }
-
-  .add-quantity-modal .form-control {
-    width: 100%;
-    padding: 12px 15px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    font-size: 15px;
-    transition: all 0.3s ease;
-    background-color: #f8f9fa;
-    box-sizing: border-box;
-  }
-
-  .add-quantity-modal .form-control:focus {
-    outline: none;
-    border-color: #11998e;
-    background-color: white;
-    box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.1);
-  }
-
-  .add-quantity-modal .info-box {
-    background: linear-gradient(135deg, #11998e15 0%, #38ef7d15 100%);
-    border-left: 4px solid #11998e;
-    padding: 15px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .add-quantity-modal .info-box i {
-    color: #11998e;
-    font-size: 20px;
-  }
-
-  .add-quantity-modal .info-box span {
-    color: #333;
-    font-size: 15px;
-  }
-
-  .add-quantity-modal .info-box strong {
-    color: #11998e;
-    font-size: 18px;
-  }
-
-  .add-quantity-modal .btn-submit {
-    width: 100%;
-    padding: 14px;
-    background: #0aa242ff;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 10px;
-  }
-
-  .add-quantity-modal .btn-submit:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(56, 239, 125, 0.4);
-  }
-
-  @media (max-width: 768px) {
-    .header-buttons {
-      flex-direction: column;
-    }
-
-    .inventory-availability {
-      padding: 1rem;
-    }
-
-    .inventory-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .details-view-modal-content {
-      width: 95%;
-      margin: 5% auto;
-    }
-
-    .return-modal-content,
-    .add-quantity-modal-content {
-      width: 95%;
-      margin: 15% auto;
-    }
-  }
-
-  .item-requests-table-container {
-  max-height: 700px; /* Adjust height as needed */
-  overflow-y: auto;  /* Enables vertical scrolling */
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Keep the table header fixed during scroll */
-.item-requests-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.item-requests-thead th {
-  position: sticky;
-  top: 0;
-  background-color: #f8fafc; /* Header background */
-  z-index: 2;
-  padding: 10px;
-  text-align: left;
-  font-weight: 600;
-  border-bottom: 2px solid #cbd5e1;
-}
-
-.item-requests-tbody td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
-}
-
-/* Optional: subtle hover effect */
-.item-requests-tbody tr:hover {
-  background-color: #f1f5f9;
-  transition: background-color 0.2s ease-in-out;
-}
-
-  </style>
-
-  <!-- Modal: Add Request -->
-  <div id="requestModal" class="request-modal">
-    <div class="request-modal-content">
-      <div class="modal-header">
-        <span class="request-modal-close">&times;</span>
-        <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" />
-        <h4>Request Item</h4>
-      </div>
-      
-      <div class="modal-body">
-        <form method="POST" id="requestForm">
-          <div class="form-group">
-            <label><i class="fas fa-user"></i> Resident Name:</label>
-            <div class="autocomplete-container">
-              <input 
-                type="text" 
-                id="residentNameInput" 
-                name="residentNameDisplay" 
-                class="form-control autocomplete-input" 
-                placeholder="Search resident name..."
-                autocomplete="off"
-                required
-              />
-              <input type="hidden" name="residentName" id="residentNameHidden" />
-              <input type="hidden" name="residentUserId" id="residentUserId" />
-              <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+          <div id="itemrequestsPanel" class="panel-content">
+            <div class="item-requests-header">
+              <h1>Item Requests</h1>
+              <div class="header-buttons">
+                <button id="openRequestModalBtn" class="item-requests-btn">
+                  <i class="fa fa-plus"></i> Add Request
+                </button>
+                <button id="openAddQuantityBtn" class="item-requests-btn-add-quantity">
+                  <i class="fas fa-plus-circle"></i> Add Item Quantity
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div class="form-group">
-            <label><i class="fas fa-box"></i> Select Item:</label>
-            <select name="itemSelect" class="form-control" required>
-              <option value="">--Choose an item--</option>
-              <option value="Tent">Tent</option>
-              <option value="Monoblock Chair">Monoblock Chair</option>
-              <option value="Table">Table</option>
-            </select>
-          </div>
+            <!-- Display Inventory Availability -->
+            <div class="inventory-availability">
+              <div class="inventory-header">
+                <h2>Item Availability</h2>
+              </div>
 
-          <div class="form-group">
-            <label><i class="fas fa-sort-numeric-up"></i> Quantity:</label>
-            <input type="number" name="quantity" class="form-control" min="1" required />
-          </div>
-
-          <div class="form-group">
-            <label><i class="fas fa-file-alt"></i> Purpose of Request:</label>
-            <textarea name="purpose" class="form-control" rows="3" placeholder="Describe the purpose..." required></textarea>
-          </div>
-
-          <div class="form-group">
-            <label><i class="fas fa-calendar-alt"></i> Date & Time Needed:</label>
-            <input type="datetime-local" name="eventDatetime" class="form-control" required />
-          </div>
-
-          <button type="submit" name="saveItemRequest" class="btn-submit">
-            <i class="fas fa-paper-plane"></i> Submit Request
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Add Quantity -->
-  <div id="addQuantityModal" class="add-quantity-modal" style="display:none;">
-    <div class="add-quantity-modal-content">
-      <div class="modal-header">
-        <span class="add-quantity-modal-close">&times;</span>
-        <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" />
-        <h4>Add Item Quantity</h4>
-      </div>
-      
-      <div class="modal-body">
-        <form method="POST" id="addQuantityForm">
-          <div class="form-group">
-            <label><i class="fas fa-box"></i> Select Item:</label>
-            <select name="itemName" id="itemNameSelect" class="form-control" required>
-              <option value="">--Choose an item--</option>
               <?php
-              $connQ = new mysqli("localhost", "root", "", "barangayDb");
-              if (!$connQ->connect_error) {
-                $result = $connQ->query("SELECT item_name, total_stock FROM inventory ORDER BY item_name");
-                if ($result && $result->num_rows > 0) {
-                  while ($item = $result->fetch_assoc()) {
-                    echo "<option value='" . htmlspecialchars($item['item_name']) . "' data-current-stock='" . $item['total_stock'] . "'>";
-                    echo htmlspecialchars($item['item_name']) . " (Current: " . $item['total_stock'] . ")";
-                    echo "</option>";
+              $conn = new mysqli("localhost", "root", "", "barangayDb");
+              if ($conn->connect_error) die("DB error: " . $conn->connect_error);
+              $invRes = $conn->query("SELECT item_name, total_stock, on_loan FROM inventory");
+
+              if ($invRes && $invRes->num_rows > 0) {
+                echo '<div class="inventory-grid">';
+                while ($invRow = $invRes->fetch_assoc()) {
+                  $available = $invRow['total_stock'] - $invRow['on_loan'];
+                  $availablePercent = $invRow['total_stock'] > 0 ? ($available / $invRow['total_stock']) * 100 : 0;
+
+                  $statusClass = 'status-high';
+                  if ($availablePercent <= 20) {
+                    $statusClass = 'status-critical';
+                  } elseif ($availablePercent <= 50) {
+                    $statusClass = 'status-low';
                   }
+
+                  echo '<div class="inventory-card ' . $statusClass . '">';
+                  echo '  <div class="card-header">';
+                  echo '    <h3 class="item-name">' . htmlspecialchars($invRow['item_name']) . '</h3>';
+                  echo '    <span class="availability-badge">' . $available . ' Available</span>';
+                  echo '  </div>';
+                  echo '  <div class="card-body">';
+                  echo '    <div class="stat-row">';
+                  echo '      <div class="stat-item">';
+                  echo '        <span class="stat-label">Total Stock</span>';
+                  echo '        <span class="stat-value">' . $invRow['total_stock'] . '</span>';
+                  echo '      </div>';
+                  echo '      <div class="stat-item">';
+                  echo '        <span class="stat-label">On Loan</span>';
+                  echo '        <span class="stat-value">' . $invRow['on_loan'] . '</span>';
+                  echo '      </div>';
+                  echo '    </div>';
+                  echo '    <div class="progress-bar">';
+                  echo '      <div class="progress-fill" style="width: ' . $availablePercent . '%"></div>';
+                  echo '    </div>';
+                  echo '    <div class="progress-label">' . round($availablePercent) . '% Available</div>';
+                  echo '  </div>';
+                  echo '</div>';
                 }
-                $connQ->close();
+                echo '</div>';
+              } else {
+                echo '<div class="empty-state">';
+                echo '  <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">';
+                echo '    <path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4zm10 16H4V9h16v11z"/>';
+                echo '  </svg>';
+                echo '  <p class="empty-text">No inventory data found</p>';
+                echo '  <p class="empty-subtext">Add items to get started</p>';
+                echo '</div>';
               }
               ?>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label><i class="fas fa-plus-circle"></i> Quantity to Add:</label>
-            <input type="number" name="quantityToAdd" id="quantityToAdd" class="form-control" min="1" placeholder="Enter quantity to add" required />
-          </div>
-
-          <div class="form-group" id="newTotalDisplay" style="display:none;">
-            <div class="info-box">
-              <i class="fas fa-info-circle"></i>
-              <span>New Total: <strong id="newTotalValue">0</strong></span>
             </div>
-          </div>
 
-          <button type="submit" name="addItemQuantity" class="btn-submit">
-            <i class="fas fa-check-circle"></i> Add Quantity
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Return Item -->
-  <div id="returnModal" class="return-modal" style="display:none;">
-    <div class="return-modal-content">
-      <span class="return-modal-close" onclick="document.getElementById('returnModal').style.display='none';">&times;</span>
-      <h4>Return Item</h4>
-      <form method="POST">
-        <input type="hidden" name="returnId" id="returnId">
-        <label>Damage Status:</label><br>
-        <select name="damageStatus" required>
-          <option value="Good">Good</option>
-          <option value="Damaged">Damaged</option>
-        </select><br><br>
-        <button type="submit" name="processReturn">Submit Return</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- Modal: View Request Details -->
-  <div id="requestDetailsModal" class="details-view-modal">
-    <div class="details-view-modal-content">
-      <div class="details-view-modal-header">
-        <span class="details-view-modal-close" onclick="document.getElementById('requestDetailsModal').style.display='none';">&times;</span>
-        <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" />
-        <h4>Request Details</h4>
-      </div>
-      
-      <div class="details-view-modal-body" id="viewDetails">
-        <!-- Details will be populated here via JS -->
-      </div>
-    </div>
-  </div>
-
-  <!-- Popup Modal -->
-  <div id="popupModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.5);">
-    <div style="background-color:#fff; margin:15% auto; padding:20px; border-radius:5px; width:300px; text-align:center;">
-      <p id="popupMessage"></p>
-      <button onclick="document.getElementById('popupModal').style.display='none'">Close</button>
-    </div>
-  </div>
-
-  <!-- Table of Requests -->
-  <div class="item-requests-table-container">
-    <table class="item-requests-table">
-      <thead class="item-requests-thead">
-        <tr>
-          <th>REQUESTOR NAME</th>
-          <th>ITEM REQUEST</th>
-          <th>QUANTITY</th>
-          <th>DATE REQUEST</th>
-          <th>DATE NEEDED</th>
-          <th>STATUS</th>
-          <th>CONDITION</th>
-          <th>ACTION</th>
-        </tr>
-      </thead>
-      <tbody class="item-requests-tbody" id="requestsTableBody">
-        <?php
-        // ---------- PHP PROCESSING ----------
-        
-        // 1) ADD ITEM QUANTITY (NEW)
-        if (isset($_POST['addItemQuantity'])) {
-          $itemName = trim($_POST['itemName']);
-          $quantityToAdd = (int) $_POST['quantityToAdd'];
-          
-          if ($quantityToAdd > 0) {
-            $stmt = $conn->prepare("UPDATE inventory SET total_stock = total_stock + ? WHERE item_name = ?");
-            $stmt->bind_param("is", $quantityToAdd, $itemName);
-            
-            if ($stmt->execute()) {
-              $message = "Successfully added $quantityToAdd to $itemName inventory.";
-            } else {
-              $message = "Error updating inventory: " . $conn->error;
-            }
-            
-            $stmt->close();
-          } else {
-            $message = "Invalid quantity. Please enter a positive number.";
-          }
-          
-          echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
-        }
-
-        // 2) NEW REQUEST
-        if (isset($_POST['saveItemRequest'])) {
-          $name = trim($_POST['residentName']);
-          $item = trim($_POST['itemSelect']);
-          $quantity = (int) $_POST['quantity'];
-          $purpose = trim($_POST['purpose']);
-          $eventDT = $_POST['eventDatetime'];
-
-          $stmt = $conn->prepare("SELECT total_stock, on_loan FROM inventory WHERE item_name=?");
-          $stmt->bind_param("s", $item);
-          $stmt->execute();
-          $inv = $stmt->get_result()->fetch_assoc();
-          $stmt->close();
-
-          $reserved = 0;
-          $rs = $conn->prepare("SELECT SUM(quantity) AS r FROM tblitemrequest WHERE item=? AND RequestStatus IN ('Pending','Approved','On Loan') AND event_datetime=?");
-          $rs->bind_param("ss", $item, $eventDT);
-          $rs->execute();
-          if ($row = $rs->get_result()->fetch_assoc()) $reserved = $row['r'] ?? 0;
-          $rs->close();
-
-          $available = $inv['total_stock'] - $inv['on_loan'] - $reserved;
-
-          if ($quantity > $available) {
-            $message = "Request denied: Only $available $item(s) available.";
-          } else {
-            $status = 'Pending';
-            $ins = $conn->prepare("INSERT INTO tblitemrequest (name,Purpose,item,quantity,event_datetime,date,RequestStatus) VALUES (?,?,?,?,?,NOW(),?)");
-            $ins->bind_param("sssiss", $name, $purpose, $item, $quantity, $eventDT, $status);
-            $ins->execute();
-            $ins->close();
-            $message = "Request submitted successfully.";
-          }
-
-          echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
-        }
-
-        // 3) PROCESS RETURN
-        if (isset($_POST['processReturn'])) {
-          $id = (int) $_POST['returnId'];
-          $damageStatus = $_POST['damageStatus'];
-          $returnDate = date('Y-m-d H:i:s');
-
-          $q = $conn->query("SELECT item, quantity FROM tblitemrequest WHERE id=$id AND RequestStatus='On Loan'")->fetch_assoc();
-          if ($q) {
-            $conn->query("UPDATE inventory SET on_loan = GREATEST(on_loan - {$q['quantity']}, 0) WHERE item_name = '{$q['item']}'");
-
-            if ($damageStatus === 'Damaged') {
-              $conn->query("UPDATE inventory SET total_stock = GREATEST(total_stock - {$q['quantity']}, 0) WHERE item_name = '{$q['item']}'");
-            }
-
-            $conn->query("UPDATE tblitemrequest SET RequestStatus='Returned', return_date='$returnDate', damage_status='$damageStatus' WHERE id=$id");
-            $message = "Item returned successfully.";
-          } else {
-            $message = "Error: Invalid return request.";
-          }
-
-          echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
-        }
-
-        // 4) OTHER ACTION BUTTONS
-        if (isset($_POST['action'], $_POST['id'])) {
-          $id = (int) $_POST['id'];
-          $action = $_POST['action'];
-
-          switch ($action) {
-            case 'approve':
-              $req = $conn->query("SELECT item, quantity, event_datetime FROM tblitemrequest WHERE id=$id")->fetch_assoc();
-              $item = $req['item'];
-              $quantity = $req['quantity'];
-              $eventDT = $req['event_datetime'];
-
-              $inv = $conn->query("SELECT total_stock, on_loan FROM inventory WHERE item_name='$item'")->fetch_assoc();
-
-              $reserved = 0;
-              $rs = $conn->query("SELECT SUM(quantity) AS r FROM tblitemrequest WHERE item='$item' AND RequestStatus IN ('Pending','Approved','On Loan') AND event_datetime='$eventDT' AND id != $id");
-              if ($row = $rs->fetch_assoc()) $reserved = $row['r'] ?? 0;
-
-              $available = $inv['total_stock'] - $inv['on_loan'] - $reserved;
-
-              if ($quantity > $available) {
-                $message = "Cannot approve: Only $available $item(s) available.";
-              } else {
-                $conn->query("UPDATE tblitemrequest SET RequestStatus='Approved' WHERE id=$id");
-                $message = "Request approved successfully.";
+            <style>
+              .header-buttons {
+                display: flex;
+                gap: 10px;
               }
 
-              echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
-              break;
+              .item-requests-btn-add-quantity {
+                padding: 10px 16px;
+                background-color: #5CB25D;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+              }
 
-            case 'reject':
-              $reason = $conn->real_escape_string($_POST['reason'] ?? 'Not specified');
-              $conn->query("UPDATE tblitemrequest SET RequestStatus='Cancelled', Reason='$reason' WHERE id=$id");
-              $message = "Cancel Request.";
-              echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
-              break;
+              .item-requests-btn-add-quantity:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(56, 239, 125, 0.4);
+              }
 
-            case 'release':
-              $q = $conn->query("SELECT item, quantity FROM tblitemrequest WHERE id=$id")->fetch_assoc();
-              $conn->query("UPDATE inventory SET on_loan = on_loan + {$q['quantity']} WHERE item_name = '{$q['item']}'");
-              $conn->query("UPDATE tblitemrequest SET RequestStatus='On Loan' WHERE id=$id");
-              $message = "Item released successfully.";
-              echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
-              break;
-          }
-        }
+              .inventory-availability {
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 2rem;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+              }
 
-        // 5) DISPLAY TABLE
-        $res = $conn->query("SELECT * FROM tblitemrequest ORDER BY date DESC");
-        if ($res && $res->num_rows > 0) {
-          while ($row = $res->fetch_assoc()) {
-            echo "<tr>
+              .inventory-header {
+                margin-bottom: 2rem;
+              }
+
+              .inventory-header h2 {
+                font-size: 2rem;
+                font-weight: 700;
+                color: #1a202c;
+                margin: 0 0 0.5rem 0;
+              }
+
+              .inventory-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 1.5rem;
+              }
+
+              .inventory-card {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+                transition: all 0.3s ease;
+                border-left: 4px solid;
+                overflow: hidden;
+              }
+
+              .inventory-card:hover {
+                box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+                transform: translateY(-2px);
+              }
+
+              .status-high {
+                border-left-color: #0b9920ff;
+              }
+
+              .status-low {
+                border-left-color: #f59e0b;
+              }
+
+              .status-critical {
+                border-left-color: #ef4444;
+              }
+
+              .card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1.25rem 1.5rem;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                border-bottom: 1px solid #e2e8f0;
+              }
+
+              .item-name {
+                font-size: 1.125rem;
+                font-weight: 600;
+                color: #1e293b;
+                margin: 0;
+              }
+
+              .availability-badge {
+                background: #1e293b;
+                color: white;
+                padding: 0.375rem 0.875rem;
+                border-radius: 20px;
+                font-size: 0.875rem;
+                font-weight: 600;
+              }
+
+              .card-body {
+                padding: .5rem;
+              }
+
+              .stat-row {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 1.25rem;
+              }
+
+              .stat-item {
+                flex: 1;
+                background: #f8fafc;
+                padding: 1rem;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+              }
+
+              .stat-label {
+                display: block;
+                font-size: 0.75rem;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 0.375rem;
+                font-weight: 600;
+              }
+
+              .stat-value {
+                display: block;
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: #1e293b;
+              }
+
+              .progress-bar {
+                width: 100%;
+                height: 8px;
+                background: #e2e8f0;
+                border-radius: 10px;
+                overflow: hidden;
+                margin-bottom: 0.5rem;
+              }
+
+              .status-high .progress-fill {
+                background: #4CAF50;
+              }
+
+              .status-low .progress-fill {
+                background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+              }
+
+              .status-critical .progress-fill {
+                background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+              }
+
+              .progress-fill {
+                height: 100%;
+                transition: width 0.6s ease;
+                border-radius: 10px;
+              }
+
+              .progress-label {
+                font-size: 0.875rem;
+                color: #64748b;
+                font-weight: 500;
+              }
+
+              /* Details View Modal Styles */
+              .details-view-modal {
+                display: none;
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                background-color: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(10px);
+                animation: fadeIn 0.3s ease;
+              }
+
+              @keyframes fadeIn {
+                from {
+                  opacity: 0;
+                }
+
+                to {
+                  opacity: 1;
+                }
+              }
+
+              .details-view-modal-content {
+                background: white;
+                margin: 3% auto;
+                padding: 0;
+                border-radius: 24px;
+                width: 50%;
+                max-width: 700px;
+                box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+                animation: modalZoom 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                overflow: hidden;
+              }
+
+              @keyframes modalZoom {
+                from {
+                  transform: scale(0.7) rotateX(20deg);
+                  opacity: 0;
+                }
+
+                to {
+                  transform: scale(1) rotateX(0);
+                  opacity: 1;
+                }
+              }
+
+              .details-view-modal-header {
+                padding: 2.5rem;
+                text-align: center;
+                color: white;
+                position: relative;
+                overflow: hidden;
+              }
+
+              .details-view-modal-header img {
+                width: 100px;
+                height: 100px;
+                border-radius: 50%;
+                border: 5px solid white;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+                margin-bottom: 1rem;
+                position: relative;
+                z-index: 1;
+                background: white;
+                object-fit: cover;
+              }
+
+              .details-view-modal-header h4 {
+                margin: 0;
+                font-size: 1.85rem;
+                font-weight: 700;
+                position: relative;
+                z-index: 1;
+                color: black;
+                text-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+                letter-spacing: 0.5px;
+              }
+
+              .details-view-modal-close {
+                position: absolute;
+                right: 1.5rem;
+                top: 1.5rem;
+                color: black;
+                font-size: 32px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                width: 42px;
+                height: 42px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.25);
+                z-index: 2;
+                backdrop-filter: blur(10px);
+              }
+
+              .details-view-modal-close:hover {
+                background: rgba(255, 255, 255, 0.4);
+                transform: rotate(180deg) scale(1.1);
+              }
+
+              .details-view-modal-body {
+                padding: 2.5rem;
+                background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
+              }
+
+              /* Return Modal Styles */
+              .return-modal {
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                background-color: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(4px);
+                animation: fadeIn 0.3s ease;
+              }
+
+              .return-modal-content {
+                background: #059629ff;
+                margin: 8% auto;
+                padding: 0;
+                border-radius: 20px;
+                width: 90%;
+                max-width: 450px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                animation: slideDown 0.4s ease;
+                overflow: hidden;
+              }
+
+              .return-modal-content h4 {
+                background: rgba(255, 255, 255, 0.15);
+                backdrop-filter: blur(10px);
+                color: black;
+                padding: 25px 30px;
+                margin: 0;
+                font-size: 24px;
+                font-weight: 600;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+              }
+
+              .return-modal-content form {
+                padding: 30px;
+                background: white;
+              }
+
+              .return-modal-content label {
+                display: block;
+                color: #333;
+                font-weight: 600;
+                margin-bottom: 10px;
+                font-size: 14px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+
+              .return-modal-content select {
+                width: 100%;
+                padding: 12px 15px;
+                border: 2px solid #e0e0e0;
+                border-radius: 10px;
+                font-size: 15px;
+                transition: all 0.3s ease;
+                background-color: #f8f9fa;
+                cursor: pointer;
+                margin-bottom: 20px;
+              }
+
+              .return-modal-content select:focus {
+                outline: none;
+                border-color: #667eea;
+                background-color: white;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+              }
+
+              .return-modal-content button[type="submit"] {
+                width: 100%;
+                padding: 14px;
+                background: #069e1dff;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-top: 10px;
+              }
+
+              .return-modal-content button[type="submit"]:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+              }
+
+              .return-modal-close {
+                position: absolute;
+                right: 20px;
+                top: 20px;
+                color: black;
+                font-size: 32px;
+                font-weight: 300;
+                cursor: pointer;
+                z-index: 1;
+                transition: all 0.3s ease;
+                width: 35px;
+                height: 35px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.2);
+              }
+
+              .return-modal-close:hover {
+                background: rgba(255, 255, 255, 0.3);
+                transform: rotate(90deg);
+              }
+
+              @keyframes slideDown {
+                from {
+                  opacity: 0;
+                  transform: translateY(-50px);
+                }
+
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+              }
+
+              /* Add Quantity Modal Styles */
+              .add-quantity-modal {
+                display: none;
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                background-color: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(4px);
+                animation: fadeIn 0.3s ease;
+              }
+
+              .add-quantity-modal-content {
+                background: white;
+                margin: 5% auto;
+                padding: 0;
+                border-radius: 20px;
+                width: 90%;
+                max-width: 500px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                animation: slideDown 0.4s ease;
+                overflow: hidden;
+              }
+
+              .add-quantity-modal .modal-header {
+                background: white;
+                padding: 25px 30px;
+                position: relative;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+              }
+
+              .add-quantity-modal .modal-header img {
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                background: white;
+                padding: 5px;
+              }
+
+              .add-quantity-modal .modal-header h4 {
+                color: black;
+                margin: 0;
+                font-size: 24px;
+                font-weight: 600;
+                flex: 1;
+              }
+
+              .add-quantity-modal-close {
+                position: absolute;
+                right: 20px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: black;
+                font-size: 32px;
+                font-weight: 300;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                width: 35px;
+                height: 35px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.2);
+              }
+
+              .add-quantity-modal-close:hover {
+                background: rgba(255, 255, 255, 0.3);
+                transform: translateY(-50%) rotate(90deg);
+              }
+
+              .add-quantity-modal .modal-body {
+                padding: 30px;
+              }
+
+              .add-quantity-modal .form-group {
+                margin-bottom: 20px;
+              }
+
+              .add-quantity-modal .form-group label {
+                display: block;
+                color: #333;
+                font-weight: 600;
+                margin-bottom: 10px;
+                font-size: 14px;
+              }
+
+              .add-quantity-modal .form-group label i {
+                margin-right: 8px;
+                color: #11998e;
+              }
+
+              .add-quantity-modal .form-control {
+                width: 100%;
+                padding: 12px 15px;
+                border: 2px solid #e0e0e0;
+                border-radius: 10px;
+                font-size: 15px;
+                transition: all 0.3s ease;
+                background-color: #f8f9fa;
+                box-sizing: border-box;
+              }
+
+              .add-quantity-modal .form-control:focus {
+                outline: none;
+                border-color: #11998e;
+                background-color: white;
+                box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.1);
+              }
+
+              .add-quantity-modal .info-box {
+                background: linear-gradient(135deg, #11998e15 0%, #38ef7d15 100%);
+                border-left: 4px solid #11998e;
+                padding: 15px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              }
+
+              .add-quantity-modal .info-box i {
+                color: #11998e;
+                font-size: 20px;
+              }
+
+              .add-quantity-modal .info-box span {
+                color: #333;
+                font-size: 15px;
+              }
+
+              .add-quantity-modal .info-box strong {
+                color: #11998e;
+                font-size: 18px;
+              }
+
+              .add-quantity-modal .btn-submit {
+                width: 100%;
+                padding: 14px;
+                background: #0aa242ff;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-top: 10px;
+              }
+
+              .add-quantity-modal .btn-submit:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(56, 239, 125, 0.4);
+              }
+
+              @media (max-width: 768px) {
+                .header-buttons {
+                  flex-direction: column;
+                }
+
+                .inventory-availability {
+                  padding: 1rem;
+                }
+
+                .inventory-grid {
+                  grid-template-columns: 1fr;
+                }
+
+                .details-view-modal-content {
+                  width: 95%;
+                  margin: 5% auto;
+                }
+
+                .return-modal-content,
+                .add-quantity-modal-content {
+                  width: 95%;
+                  margin: 15% auto;
+                }
+              }
+
+              .item-requests-table-container {
+                max-height: 700px;
+                /* Adjust height as needed */
+                overflow-y: auto;
+                /* Enables vertical scrolling */
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+              }
+
+              /* Keep the table header fixed during scroll */
+              .item-requests-table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+
+              .item-requests-thead th {
+                position: sticky;
+                top: 0;
+                background-color: #f8fafc;
+                /* Header background */
+                z-index: 2;
+                padding: 10px;
+                text-align: left;
+                font-weight: 600;
+                border-bottom: 2px solid #cbd5e1;
+              }
+
+              .item-requests-tbody td {
+                padding: 8px 10px;
+                border-bottom: 1px solid #e2e8f0;
+                background: #ffffff;
+              }
+
+              /* Optional: subtle hover effect */
+              .item-requests-tbody tr:hover {
+                background-color: #f1f5f9;
+                transition: background-color 0.2s ease-in-out;
+              }
+            </style>
+
+            <!-- Modal: Add Request -->
+            <div id="requestModal" class="request-modal">
+              <div class="request-modal-content">
+                <div class="modal-header">
+                  <span class="request-modal-close">&times;</span>
+                  <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" />
+                  <h4>Request Item</h4>
+                </div>
+
+                <div class="modal-body">
+                  <form method="POST" id="requestForm">
+                    <div class="form-group">
+                      <label><i class="fas fa-user"></i> Resident Name:</label>
+                      <div class="autocomplete-container">
+                        <input
+                          type="text"
+                          id="residentNameInput"
+                          name="residentNameDisplay"
+                          class="form-control autocomplete-input"
+                          placeholder="Search resident name..."
+                          autocomplete="off"
+                          required />
+                        <input type="hidden" name="residentName" id="residentNameHidden" />
+                        <input type="hidden" name="residentUserId" id="residentUserId" />
+                        <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label><i class="fas fa-box"></i> Select Item:</label>
+                      <select name="itemSelect" class="form-control" required>
+                        <option value="">--Choose an item--</option>
+                        <option value="Tent">Tent</option>
+                        <option value="Monoblock Chair">Monoblock Chair</option>
+                        <option value="Table">Table</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label><i class="fas fa-sort-numeric-up"></i> Quantity:</label>
+                      <input type="number" name="quantity" class="form-control" min="1" required />
+                    </div>
+
+                    <div class="form-group">
+                      <label><i class="fas fa-file-alt"></i> Purpose of Request:</label>
+                      <textarea name="purpose" class="form-control" rows="3" placeholder="Describe the purpose..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                      <label><i class="fas fa-calendar-alt"></i> Date & Time Needed:</label>
+                      <input type="datetime-local" name="eventDatetime" class="form-control" required />
+                    </div>
+
+                    <button type="submit" name="saveItemRequest" class="btn-submit">
+                      <i class="fas fa-paper-plane"></i> Submit Request
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal: Add Quantity -->
+            <div id="addQuantityModal" class="add-quantity-modal" style="display:none;">
+              <div class="add-quantity-modal-content">
+                <div class="modal-header">
+                  <span class="add-quantity-modal-close">&times;</span>
+                  <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" />
+                  <h4>Add Item Quantity</h4>
+                </div>
+
+                <div class="modal-body">
+                  <form method="POST" id="addQuantityForm">
+                    <div class="form-group">
+                      <label><i class="fas fa-box"></i> Select Item:</label>
+                      <select name="itemName" id="itemNameSelect" class="form-control" required>
+                        <option value="">--Choose an item--</option>
+                        <?php
+                        $connQ = new mysqli("localhost", "root", "", "barangayDb");
+                        if (!$connQ->connect_error) {
+                          $result = $connQ->query("SELECT item_name, total_stock FROM inventory ORDER BY item_name");
+                          if ($result && $result->num_rows > 0) {
+                            while ($item = $result->fetch_assoc()) {
+                              echo "<option value='" . htmlspecialchars($item['item_name']) . "' data-current-stock='" . $item['total_stock'] . "'>";
+                              echo htmlspecialchars($item['item_name']) . " (Current: " . $item['total_stock'] . ")";
+                              echo "</option>";
+                            }
+                          }
+                          $connQ->close();
+                        }
+                        ?>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label><i class="fas fa-plus-circle"></i> Quantity to Add:</label>
+                      <input type="number" name="quantityToAdd" id="quantityToAdd" class="form-control" min="1" placeholder="Enter quantity to add" required />
+                    </div>
+
+                    <div class="form-group" id="newTotalDisplay" style="display:none;">
+                      <div class="info-box">
+                        <i class="fas fa-info-circle"></i>
+                        <span>New Total: <strong id="newTotalValue">0</strong></span>
+                      </div>
+                    </div>
+
+                    <button type="submit" name="addItemQuantity" class="btn-submit">
+                      <i class="fas fa-check-circle"></i> Add Quantity
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal: Return Item -->
+            <div id="returnModal" class="return-modal" style="display:none;">
+              <div class="return-modal-content">
+                <span class="return-modal-close" onclick="document.getElementById('returnModal').style.display='none';">&times;</span>
+                <h4>Return Item</h4>
+                <form method="POST">
+                  <input type="hidden" name="returnId" id="returnId">
+                  <label>Damage Status:</label><br>
+                  <select name="damageStatus" required>
+                    <option value="Good">Good</option>
+                    <option value="Damaged">Damaged</option>
+                  </select><br><br>
+                  <button type="submit" name="processReturn">Submit Return</button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Modal: View Request Details -->
+            <div id="requestDetailsModal" class="details-view-modal">
+              <div class="details-view-modal-content">
+                <div class="details-view-modal-header">
+                  <span class="details-view-modal-close" onclick="document.getElementById('requestDetailsModal').style.display='none';">&times;</span>
+                  <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" />
+                  <h4>Request Details</h4>
+                </div>
+
+                <div class="details-view-modal-body" id="viewDetails">
+                  <!-- Details will be populated here via JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Popup Modal -->
+            <div id="popupModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.5);">
+              <div style="background-color:#fff; margin:15% auto; padding:20px; border-radius:5px; width:300px; text-align:center;">
+                <p id="popupMessage"></p>
+                <button onclick="document.getElementById('popupModal').style.display='none'">Close</button>
+              </div>
+            </div>
+
+            <!-- Table of Requests -->
+            <div class="item-requests-table-container">
+              <table class="item-requests-table">
+                <thead class="item-requests-thead">
+                  <tr>
+                    <th>REQUESTOR NAME</th>
+                    <th>ITEM REQUEST</th>
+                    <th>QUANTITY</th>
+                    <th>DATE REQUEST</th>
+                    <th>DATE NEEDED</th>
+                    <th>STATUS</th>
+                    <th>CONDITION</th>
+                    <th>ACTION</th>
+                  </tr>
+                </thead>
+                <tbody class="item-requests-tbody" id="requestsTableBody">
+                  <?php
+                  // ---------- PHP PROCESSING ----------
+
+                  // 1) ADD ITEM QUANTITY (NEW)
+                  if (isset($_POST['addItemQuantity'])) {
+                    $itemName = trim($_POST['itemName']);
+                    $quantityToAdd = (int) $_POST['quantityToAdd'];
+
+                    if ($quantityToAdd > 0) {
+                      $stmt = $conn->prepare("UPDATE inventory SET total_stock = total_stock + ? WHERE item_name = ?");
+                      $stmt->bind_param("is", $quantityToAdd, $itemName);
+
+                      if ($stmt->execute()) {
+                        $message = "Successfully added $quantityToAdd to $itemName inventory.";
+                      } else {
+                        $message = "Error updating inventory: " . $conn->error;
+                      }
+
+                      $stmt->close();
+                    } else {
+                      $message = "Invalid quantity. Please enter a positive number.";
+                    }
+
+                    echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+                  }
+
+                  // 2) NEW REQUEST
+                  if (isset($_POST['saveItemRequest'])) {
+                    $name = trim($_POST['residentName']);
+                    $item = trim($_POST['itemSelect']);
+                    $quantity = (int) $_POST['quantity'];
+                    $purpose = trim($_POST['purpose']);
+                    $eventDT = $_POST['eventDatetime'];
+
+                    $stmt = $conn->prepare("SELECT total_stock, on_loan FROM inventory WHERE item_name=?");
+                    $stmt->bind_param("s", $item);
+                    $stmt->execute();
+                    $inv = $stmt->get_result()->fetch_assoc();
+                    $stmt->close();
+
+                    $reserved = 0;
+                    $rs = $conn->prepare("SELECT SUM(quantity) AS r FROM tblitemrequest WHERE item=? AND RequestStatus IN ('Pending','Approved','On Loan') AND event_datetime=?");
+                    $rs->bind_param("ss", $item, $eventDT);
+                    $rs->execute();
+                    if ($row = $rs->get_result()->fetch_assoc()) $reserved = $row['r'] ?? 0;
+                    $rs->close();
+
+                    $available = $inv['total_stock'] - $inv['on_loan'] - $reserved;
+
+                    if ($quantity > $available) {
+                      $message = "Request denied: Only $available $item(s) available.";
+                    } else {
+                      $status = 'Pending';
+                      $ins = $conn->prepare("INSERT INTO tblitemrequest (name,Purpose,item,quantity,event_datetime,date,RequestStatus) VALUES (?,?,?,?,?,NOW(),?)");
+                      $ins->bind_param("sssiss", $name, $purpose, $item, $quantity, $eventDT, $status);
+                      $ins->execute();
+                      $ins->close();
+                      $message = "Request submitted successfully.";
+                    }
+
+                    echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+                  }
+
+                  // 3) PROCESS RETURN
+                  if (isset($_POST['processReturn'])) {
+                    $id = (int) $_POST['returnId'];
+                    $damageStatus = $_POST['damageStatus'];
+                    $returnDate = date('Y-m-d H:i:s');
+
+                    $q = $conn->query("SELECT item, quantity FROM tblitemrequest WHERE id=$id AND RequestStatus='On Loan'")->fetch_assoc();
+                    if ($q) {
+                      $conn->query("UPDATE inventory SET on_loan = GREATEST(on_loan - {$q['quantity']}, 0) WHERE item_name = '{$q['item']}'");
+
+                      if ($damageStatus === 'Damaged') {
+                        $conn->query("UPDATE inventory SET total_stock = GREATEST(total_stock - {$q['quantity']}, 0) WHERE item_name = '{$q['item']}'");
+                      }
+
+                      $conn->query("UPDATE tblitemrequest SET RequestStatus='Returned', return_date='$returnDate', damage_status='$damageStatus' WHERE id=$id");
+                      $message = "Item returned successfully.";
+                    } else {
+                      $message = "Error: Invalid return request.";
+                    }
+
+                    echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+                  }
+
+                  // 4) OTHER ACTION BUTTONS
+                  if (isset($_POST['action'], $_POST['id'])) {
+                    $id = (int) $_POST['id'];
+                    $action = $_POST['action'];
+
+                    switch ($action) {
+                      case 'approve':
+                        $req = $conn->query("SELECT item, quantity, event_datetime FROM tblitemrequest WHERE id=$id")->fetch_assoc();
+                        $item = $req['item'];
+                        $quantity = $req['quantity'];
+                        $eventDT = $req['event_datetime'];
+
+                        $inv = $conn->query("SELECT total_stock, on_loan FROM inventory WHERE item_name='$item'")->fetch_assoc();
+
+                        $reserved = 0;
+                        $rs = $conn->query("SELECT SUM(quantity) AS r FROM tblitemrequest WHERE item='$item' AND RequestStatus IN ('Pending','Approved','On Loan') AND event_datetime='$eventDT' AND id != $id");
+                        if ($row = $rs->fetch_assoc()) $reserved = $row['r'] ?? 0;
+
+                        $available = $inv['total_stock'] - $inv['on_loan'] - $reserved;
+
+                        if ($quantity > $available) {
+                          $message = "Cannot approve: Only $available $item(s) available.";
+                        } else {
+                          $conn->query("UPDATE tblitemrequest SET RequestStatus='Approved' WHERE id=$id");
+                          $message = "Request approved successfully.";
+                        }
+
+                        echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+                        break;
+
+                      case 'reject':
+                        $reason = $conn->real_escape_string($_POST['reason'] ?? 'Not specified');
+                        $conn->query("UPDATE tblitemrequest SET RequestStatus='Cancelled', Reason='$reason' WHERE id=$id");
+                        $message = "Cancel Request.";
+                        echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+                        break;
+
+                      case 'release':
+                        $q = $conn->query("SELECT item, quantity FROM tblitemrequest WHERE id=$id")->fetch_assoc();
+                        $conn->query("UPDATE inventory SET on_loan = on_loan + {$q['quantity']} WHERE item_name = '{$q['item']}'");
+                        $conn->query("UPDATE tblitemrequest SET RequestStatus='On Loan' WHERE id=$id");
+                        $message = "Item released successfully.";
+                        echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+                        break;
+                    }
+                  }
+
+                  // 5) DISPLAY TABLE
+                  $res = $conn->query("SELECT * FROM tblitemrequest ORDER BY date DESC");
+                  if ($res && $res->num_rows > 0) {
+                    while ($row = $res->fetch_assoc()) {
+                      echo "<tr>
               <td>" . htmlspecialchars($row['name']) . "</td>
               <td>" . htmlspecialchars($row['item']) . "</td>
               <td>" . htmlspecialchars($row['quantity']) . "</td>
@@ -2632,175 +2655,176 @@ function alertNotPaid() {
               <td>" . htmlspecialchars($row['damage_status'] ?? 'N/A') . "</td>
               <td>";
 
-            echo "<button class='action-btn action-view' data-id='{$row['id']}' onclick='viewRequest(this)'><i class='fa fa-eye'></i> View</button>";
+                      echo "<button class='action-btn action-view' data-id='{$row['id']}' onclick='viewRequest(this)'><i class='fa fa-eye'></i> View</button>";
 
-            if ($row['RequestStatus'] == 'Pending' || $row['RequestStatus'] == 'Pending/Waitlist') {
-              echo actionBtn($row['id'], 'release', 'Release');
-              echo actionBtn($row['id'], 'reject', 'Cancel');
-            } elseif ($row['RequestStatus'] == 'Approved') {
-              echo actionBtn($row['id'], 'release', 'Release');
-            } elseif ($row['RequestStatus'] == 'On Loan') {
-              echo "<button class='action-btn action-return' onclick=\"openReturnModal({$row['id']})\"><i class='fa fa-undo'></i> Return</button>";
+                      if ($row['RequestStatus'] == 'Pending' || $row['RequestStatus'] == 'Pending/Waitlist') {
+                        echo actionBtn($row['id'], 'release', 'Release');
+                        echo actionBtn($row['id'], 'reject', 'Cancel');
+                      } elseif ($row['RequestStatus'] == 'Approved') {
+                        echo actionBtn($row['id'], 'release', 'Release');
+                      } elseif ($row['RequestStatus'] == 'On Loan') {
+                        echo "<button class='action-btn action-return' onclick=\"openReturnModal({$row['id']})\"><i class='fa fa-undo'></i> Return</button>";
+                      }
+                      echo "</td></tr>";
+                    }
+                  } else {
+                    echo "<tr><td colspan='7'>No item requests found.</td></tr>";
+                  }
+                  $conn->close();
+
+                  function actionBtn($id, $action, $label)
+                  {
+                    $icons = [
+                      'approve' => 'fa-check',
+                      'reject'  => 'fa-times',
+                      'release' => 'fa-box-open'
+                    ];
+                    $class = "action-btn action-$action";
+                    $icon = isset($icons[$action]) ? "<i class='fa {$icons[$action]}'></i>" : "";
+                    return "<form method='post' style='display:inline'><input type='hidden' name='id' value='$id'><button name='action' value='$action' class='$class'>$icon $label</button></form>";
+                  }
+                  ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <script>
+            // Fetch verified residents from the database
+            // CONSOLIDATED JAVASCRIPT - Replace ALL your script tags with this single script
+
+            // Fetch verified residents from the database
+            let verifiedResidents = [];
+
+            // Load verified residents on page load
+            document.addEventListener('DOMContentLoaded', function() {
+              fetchVerifiedResidents();
+              initializeModalControls();
+              initializeAddQuantityCalculation();
+            });
+
+            function fetchVerifiedResidents() {
+              fetch('get_verified_residents.php')
+                .then(response => response.json())
+                .then(data => {
+                  verifiedResidents = data;
+                })
+                .catch(error => {
+                  console.error('Error fetching residents:', error);
+                });
             }
-            echo "</td></tr>";
-          }
-        } else {
-          echo "<tr><td colspan='7'>No item requests found.</td></tr>";
-        }
-        $conn->close();
 
-        function actionBtn($id, $action, $label) {
-          $icons = [
-            'approve' => 'fa-check',
-            'reject'  => 'fa-times',
-            'release' => 'fa-box-open'
-          ];
-          $class = "action-btn action-$action";
-          $icon = isset($icons[$action]) ? "<i class='fa {$icons[$action]}'></i>" : "";
-          return "<form method='post' style='display:inline'><input type='hidden' name='id' value='$id'><button name='action' value='$action' class='$class'>$icon $label</button></form>";
-        }
-        ?>
-      </tbody>
-    </table>
-  </div>
-</div>
-<script>
-// Fetch verified residents from the database
-// CONSOLIDATED JAVASCRIPT - Replace ALL your script tags with this single script
+            // Initialize all modal controls
+            function initializeModalControls() {
+              // Request Modal
+              const openRequestBtn = document.getElementById('openRequestModalBtn');
+              const requestModal = document.getElementById('requestModal');
+              const requestModalClose = document.querySelector('.request-modal-close');
 
-// Fetch verified residents from the database
-let verifiedResidents = [];
+              if (openRequestBtn) {
+                openRequestBtn.onclick = function() {
+                  requestModal.style.display = 'block';
+                };
+              }
 
-// Load verified residents on page load
-document.addEventListener('DOMContentLoaded', function() {
-  fetchVerifiedResidents();
-  initializeModalControls();
-  initializeAddQuantityCalculation();
-});
+              if (requestModalClose) {
+                requestModalClose.onclick = function() {
+                  requestModal.style.display = 'none';
+                  document.getElementById('requestForm').reset();
+                  document.getElementById('residentNameHidden').value = '';
+                  document.getElementById('residentUserId').value = '';
+                  document.getElementById('autocompleteDropdown').classList.remove('show');
+                };
+              }
 
-function fetchVerifiedResidents() {
-  fetch('get_verified_residents.php')
-    .then(response => response.json())
-    .then(data => {
-      verifiedResidents = data;
-    })
-    .catch(error => {
-      console.error('Error fetching residents:', error);
-    });
-}
+              // Add Quantity Modal
+              const openAddQuantityBtn = document.getElementById('openAddQuantityBtn');
+              const addQuantityModal = document.getElementById('addQuantityModal');
+              const addQuantityModalClose = document.querySelector('.add-quantity-modal-close');
 
-// Initialize all modal controls
-function initializeModalControls() {
-  // Request Modal
-  const openRequestBtn = document.getElementById('openRequestModalBtn');
-  const requestModal = document.getElementById('requestModal');
-  const requestModalClose = document.querySelector('.request-modal-close');
-  
-  if (openRequestBtn) {
-    openRequestBtn.onclick = function() {
-      requestModal.style.display = 'block';
-    };
-  }
-  
-  if (requestModalClose) {
-    requestModalClose.onclick = function() {
-      requestModal.style.display = 'none';
-      document.getElementById('requestForm').reset();
-      document.getElementById('residentNameHidden').value = '';
-      document.getElementById('residentUserId').value = '';
-      document.getElementById('autocompleteDropdown').classList.remove('show');
-    };
-  }
-  
-  // Add Quantity Modal
-  const openAddQuantityBtn = document.getElementById('openAddQuantityBtn');
-  const addQuantityModal = document.getElementById('addQuantityModal');
-  const addQuantityModalClose = document.querySelector('.add-quantity-modal-close');
-  
-  if (openAddQuantityBtn) {
-    openAddQuantityBtn.onclick = function() {
-      addQuantityModal.style.display = 'block';
-    };
-  }
-  
-  if (addQuantityModalClose) {
-    addQuantityModalClose.onclick = function() {
-      addQuantityModal.style.display = 'none';
-      document.getElementById('addQuantityForm').reset();
-      document.getElementById('newTotalDisplay').style.display = 'none';
-    };
-  }
-  
-  // Close modals when clicking outside
-  window.onclick = function(event) {
-    if (event.target == requestModal) {
-      requestModal.style.display = 'none';
-      document.getElementById('requestForm').reset();
-      document.getElementById('residentNameHidden').value = '';
-      document.getElementById('residentUserId').value = '';
-      document.getElementById('autocompleteDropdown').classList.remove('show');
-    }
-    
-    if (event.target == addQuantityModal) {
-      addQuantityModal.style.display = 'none';
-      document.getElementById('addQuantityForm').reset();
-      document.getElementById('newTotalDisplay').style.display = 'none';
-    }
-  };
-}
+              if (openAddQuantityBtn) {
+                openAddQuantityBtn.onclick = function() {
+                  addQuantityModal.style.display = 'block';
+                };
+              }
 
-// Autocomplete functionality
-function initializeAutocomplete() {
-  const residentInput = document.getElementById('residentNameInput');
-  const dropdown = document.getElementById('autocompleteDropdown');
-  const hiddenNameInput = document.getElementById('residentNameHidden');
-  const hiddenUserIdInput = document.getElementById('residentUserId');
-  
-  if (!residentInput) return;
-  
-  residentInput.addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase().trim();
-    
-    if (searchTerm.length === 0) {
-      dropdown.classList.remove('show');
-      hiddenNameInput.value = '';
-      hiddenUserIdInput.value = '';
-      return;
-    }
+              if (addQuantityModalClose) {
+                addQuantityModalClose.onclick = function() {
+                  addQuantityModal.style.display = 'none';
+                  document.getElementById('addQuantityForm').reset();
+                  document.getElementById('newTotalDisplay').style.display = 'none';
+                };
+              }
 
-    const filtered = verifiedResidents.filter(resident => {
-      const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`.toLowerCase();
-      return fullName.includes(searchTerm);
-    });
+              // Close modals when clicking outside
+              window.onclick = function(event) {
+                if (event.target == requestModal) {
+                  requestModal.style.display = 'none';
+                  document.getElementById('requestForm').reset();
+                  document.getElementById('residentNameHidden').value = '';
+                  document.getElementById('residentUserId').value = '';
+                  document.getElementById('autocompleteDropdown').classList.remove('show');
+                }
 
-    displayDropdown(filtered, dropdown, hiddenNameInput, hiddenUserIdInput);
-  });
-  
-  // Close dropdown when clicking outside
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('.autocomplete-container')) {
-      dropdown.classList.remove('show');
-    }
-  });
-}
+                if (event.target == addQuantityModal) {
+                  addQuantityModal.style.display = 'none';
+                  document.getElementById('addQuantityForm').reset();
+                  document.getElementById('newTotalDisplay').style.display = 'none';
+                }
+              };
+            }
 
-function displayDropdown(residents, dropdown, hiddenNameInput, hiddenUserIdInput) {
-  dropdown.innerHTML = '';
+            // Autocomplete functionality
+            function initializeAutocomplete() {
+              const residentInput = document.getElementById('residentNameInput');
+              const dropdown = document.getElementById('autocompleteDropdown');
+              const hiddenNameInput = document.getElementById('residentNameHidden');
+              const hiddenUserIdInput = document.getElementById('residentUserId');
 
-  if (residents.length === 0) {
-    dropdown.innerHTML = '<div class="no-results">No verified residents found</div>';
-    dropdown.classList.add('show');
-    return;
-  }
+              if (!residentInput) return;
 
-  residents.forEach(resident => {
-    const item = document.createElement('div');
-    item.className = 'autocomplete-item';
-    
-    const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
-    const initials = `${resident.Firstname.charAt(0)}${resident.Lastname.charAt(0)}`;
-    
-    item.innerHTML = `
+              residentInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+
+                if (searchTerm.length === 0) {
+                  dropdown.classList.remove('show');
+                  hiddenNameInput.value = '';
+                  hiddenUserIdInput.value = '';
+                  return;
+                }
+
+                const filtered = verifiedResidents.filter(resident => {
+                  const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`.toLowerCase();
+                  return fullName.includes(searchTerm);
+                });
+
+                displayDropdown(filtered, dropdown, hiddenNameInput, hiddenUserIdInput);
+              });
+
+              // Close dropdown when clicking outside
+              document.addEventListener('click', function(e) {
+                if (!e.target.closest('.autocomplete-container')) {
+                  dropdown.classList.remove('show');
+                }
+              });
+            }
+
+            function displayDropdown(residents, dropdown, hiddenNameInput, hiddenUserIdInput) {
+              dropdown.innerHTML = '';
+
+              if (residents.length === 0) {
+                dropdown.innerHTML = '<div class="no-results">No verified residents found</div>';
+                dropdown.classList.add('show');
+                return;
+              }
+
+              residents.forEach(resident => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+
+                const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+                const initials = `${resident.Firstname.charAt(0)}${resident.Lastname.charAt(0)}`;
+
+                item.innerHTML = `
       <div class="resident-info">
         <div class="resident-avatar">${initials}</div>
         <div class="resident-details">
@@ -2809,91 +2833,91 @@ function displayDropdown(residents, dropdown, hiddenNameInput, hiddenUserIdInput
         </div>
       </div>
     `;
-    
-    item.addEventListener('click', function() {
-      selectResident(resident, fullName, hiddenNameInput, hiddenUserIdInput, dropdown);
-    });
-    
-    dropdown.appendChild(item);
-  });
 
-  dropdown.classList.add('show');
-}
+                item.addEventListener('click', function() {
+                  selectResident(resident, fullName, hiddenNameInput, hiddenUserIdInput, dropdown);
+                });
 
-function selectResident(resident, fullName, hiddenNameInput, hiddenUserIdInput, dropdown) {
-  document.getElementById('residentNameInput').value = fullName;
-  hiddenNameInput.value = fullName;
-  hiddenUserIdInput.value = resident.UserID;
-  dropdown.classList.remove('show');
-}
+                dropdown.appendChild(item);
+              });
 
-// Initialize autocomplete after DOM is ready
-document.addEventListener('DOMContentLoaded', initializeAutocomplete);
+              dropdown.classList.add('show');
+            }
 
-// Add Quantity Modal - Calculate new total
-function initializeAddQuantityCalculation() {
-  const quantityInput = document.getElementById('quantityToAdd');
-  const itemSelect = document.getElementById('itemNameSelect');
-  
-  if (!quantityInput || !itemSelect) return;
-  
-  // Calculate when quantity changes
-  quantityInput.addEventListener('input', function() {
-    calculateNewTotal(itemSelect, quantityInput);
-  });
-  
-  // Calculate when item changes
-  itemSelect.addEventListener('change', function() {
-    calculateNewTotal(itemSelect, quantityInput);
-  });
-}
+            function selectResident(resident, fullName, hiddenNameInput, hiddenUserIdInput, dropdown) {
+              document.getElementById('residentNameInput').value = fullName;
+              hiddenNameInput.value = fullName;
+              hiddenUserIdInput.value = resident.UserID;
+              dropdown.classList.remove('show');
+            }
 
-function calculateNewTotal(itemSelect, quantityInput) {
-  const selectedOption = itemSelect.options[itemSelect.selectedIndex];
-  const newTotalDisplay = document.getElementById('newTotalDisplay');
-  const newTotalValue = document.getElementById('newTotalValue');
-  
-  if (selectedOption.value && quantityInput.value) {
-    const currentStock = parseInt(selectedOption.getAttribute('data-current-stock')) || 0;
-    const quantityToAdd = parseInt(quantityInput.value) || 0;
-    const newTotal = currentStock + quantityToAdd;
-    
-    newTotalValue.textContent = newTotal;
-    newTotalDisplay.style.display = 'block';
-  } else {
-    newTotalDisplay.style.display = 'none';
-  }
-}
+            // Initialize autocomplete after DOM is ready
+            document.addEventListener('DOMContentLoaded', initializeAutocomplete);
 
-// Function to open return modal
-function openReturnModal(id) {
-  document.getElementById('returnId').value = id;
-  document.getElementById('returnModal').style.display = 'block';
-}
+            // Add Quantity Modal - Calculate new total
+            function initializeAddQuantityCalculation() {
+              const quantityInput = document.getElementById('quantityToAdd');
+              const itemSelect = document.getElementById('itemNameSelect');
 
-// Function to view request details
-function viewRequest(btn) {
-  var id = btn.getAttribute('data-id');
-  fetch('get_request_details.php?id=' + id)
-    .then(response => response.json())
-    .then(data => {
-      if (data.error) {
-        alert('Error: ' + data.error);
-        return;
-      }
-      
-      // Determine status color
-      const statusColors = {
-        'Pending': '#f39c12',
-        'Approved': '#27ae60',
-        'Rejected': '#e74c3c',
-        'Returned': '#3498db',
-        'Overdue': '#c0392b'
-      };
-      const statusColor = statusColors[data.RequestStatus] || '#95a5a6';
-      
-      // Populate modal with improved styling
-      document.getElementById('viewDetails').innerHTML = `
+              if (!quantityInput || !itemSelect) return;
+
+              // Calculate when quantity changes
+              quantityInput.addEventListener('input', function() {
+                calculateNewTotal(itemSelect, quantityInput);
+              });
+
+              // Calculate when item changes
+              itemSelect.addEventListener('change', function() {
+                calculateNewTotal(itemSelect, quantityInput);
+              });
+            }
+
+            function calculateNewTotal(itemSelect, quantityInput) {
+              const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+              const newTotalDisplay = document.getElementById('newTotalDisplay');
+              const newTotalValue = document.getElementById('newTotalValue');
+
+              if (selectedOption.value && quantityInput.value) {
+                const currentStock = parseInt(selectedOption.getAttribute('data-current-stock')) || 0;
+                const quantityToAdd = parseInt(quantityInput.value) || 0;
+                const newTotal = currentStock + quantityToAdd;
+
+                newTotalValue.textContent = newTotal;
+                newTotalDisplay.style.display = 'block';
+              } else {
+                newTotalDisplay.style.display = 'none';
+              }
+            }
+
+            // Function to open return modal
+            function openReturnModal(id) {
+              document.getElementById('returnId').value = id;
+              document.getElementById('returnModal').style.display = 'block';
+            }
+
+            // Function to view request details
+            function viewRequest(btn) {
+              var id = btn.getAttribute('data-id');
+              fetch('get_request_details.php?id=' + id)
+                .then(response => response.json())
+                .then(data => {
+                  if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                  }
+
+                  // Determine status color
+                  const statusColors = {
+                    'Pending': '#f39c12',
+                    'Approved': '#27ae60',
+                    'Rejected': '#e74c3c',
+                    'Returned': '#3498db',
+                    'Overdue': '#c0392b'
+                  };
+                  const statusColor = statusColors[data.RequestStatus] || '#95a5a6';
+
+                  // Populate modal with improved styling
+                  document.getElementById('viewDetails').innerHTML = `
         <div style="background: #27ae60; padding: 20px; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px;">
           <h2 style="color: white; margin: 0; font-size: 24px;">Request Details</h2>
           <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 14px;">ID: #${data.id}</p>
@@ -2971,23 +2995,23 @@ function viewRequest(btn) {
           </div>
         ` : ''}
       `;
-      document.getElementById('requestDetailsModal').style.display = 'block';
-    })
-    .catch(error => {
-      alert('Failed to load details: ' + error);
-    });
-}
+                  document.getElementById('requestDetailsModal').style.display = 'block';
+                })
+                .catch(error => {
+                  alert('Failed to load details: ' + error);
+                });
+            }
 
-function reloadItemRequestsPanel(message) {
-  var modal = document.getElementById('popupModal');
-  var msg = document.getElementById('popupMessage');
-  msg.textContent = message;
-  modal.style.display = 'block';
-  setTimeout(function () {
-    window.location.href = window.location.pathname + "?panel=itemrequestsPanel";
-  }, 1000);
-}
-</script>
+            function reloadItemRequestsPanel(message) {
+              var modal = document.getElementById('popupModal');
+              var msg = document.getElementById('popupMessage');
+              msg.textContent = message;
+              modal.style.display = 'block';
+              setTimeout(function() {
+                window.location.href = window.location.pathname + "?panel=itemrequestsPanel";
+              }, 1000);
+            }
+          </script>
 
 
 
@@ -3057,15 +3081,16 @@ function reloadItemRequestsPanel(message) {
             <td>" . htmlspecialchars($row['status']) . "</td>
             <td>" . htmlspecialchars($row['created_at']) . "</td>
             <td>" . htmlspecialchars($row['closed_at']) . "</td>
-            <td>
-                <button class='action-btn-2 view-blotter' data-id='" . $row['blotter_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
+            <td>";
+                      echo "<button class='action-btn-2 view-blotter' data-id='" . htmlspecialchars($row['blotter_id']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                     <i class='fas fa-eye'></i>
-                </button>
-                <button class='action-btn-2 update-blotter' data-id='" . $row['blotter_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
+                </button> ";
+                      if (!in_array($row['status'], ['closed', 'closed_resolved', 'closed_unresolved'], true)) {
+                        echo "<button class='action-btn-2 update-blotter' data-id='" . htmlspecialchars($row['blotter_id']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                     <i class='fas fa-edit'></i>
-                </button>
-            </td>
-        </tr>";
+                </button>";
+                      }
+                      echo "</td></tr>";
                     }
                   } else {
                     echo "<tr><td colspan='9'>No blotter records found.</td></tr>";
@@ -3109,49 +3134,53 @@ function reloadItemRequestsPanel(message) {
               <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
                 <span class="close-btn" onclick="closeBlotterModal()">&times;</span>
                 <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                    style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                  <img src="/BarangaySystem/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                    style="width: 70%; max-width: 120px; border-radius: 50%;" />
                 </div>
                 <h1 style="text-align:center;">Create Blotter Report</h1>
                 <form id="blotterForm" method="POST" action="../Process/blotter/create_blotter.php" class="modal-form" enctype="multipart/form-data">
-                  <label style="font-weight:bold;">Full Name of Complainant</label>
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-
-                    <div class="form-group">
-                      <label for="complainant_lastname">Lastname</label>
-                      <input type="text" name="complainant_lastname" placeholder="Lastname" required>
+                  <!-- Complainant Details -->
+                  <h3>Complainant Details</h3>
+                  <div id="complainantContainer">
+                    <div class="complainant-fields">
+                      <h6>Full name of the Complainant</h6>
+                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                        <div class="form-group">
+                          <label>Lastname</label>
+                          <input type="text" name="complainant_lastname[]" placeholder="Lastname" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Firstname</label>
+                          <input type="text" name="complainant_firstname[]" placeholder="Firstname" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Middlename</label>
+                          <input type="text" name="complainant_middlename[]" placeholder="Middlename">
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" name="complainant_address[]" required>
+                      </div>
+                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                        <div class="form-group">
+                          <label>Age</label>
+                          <input type="number" name="complainant_age[]" maxlength="3" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Contact No</label>
+                          <input type="number" min="0" name="complainant_contact_no[]" maxlength="11" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
+                          <input type="email" name="complainant_email[]">
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
+                      <hr>
                     </div>
-
-                    <div class="form-group">
-                      <label for="complainant_firstname">Firstname</label>
-                      <input type="text" name="complainant_firstname" placeholder="Firstname" required>
-                    </div>
-
-
-                    <div class="form-group">
-                      <label for="complainant_middlename">Middlename</label>
-                      <input type="text" name="complainant_middlename" placeholder="Middlename">
-                    </div>
-
-
                   </div>
-                  <div class="form-group">
-                    <label>Address</label>
-                    <input type="text" name="complainant_address" required>
-                  </div>
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label>Age</label>
-                      <input type="number" name="complainant_age" maxlength="3" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Contact No</label>
-                      <input type="number" min="0" name="complainant_contact_no" maxlength="11" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Email</label>
-                      <input type="email" name="complainant_email">
-                    </div>
-                  </div>
+                  <button type="button" class="btn btn-success btn-sm" id="addComplainantBtn">+ Add Complainant</button>
                   <br>
                   <hr>
 
@@ -3168,7 +3197,7 @@ function reloadItemRequestsPanel(message) {
                     </div>
                     <div class="form-group">
                       <label>Type of Incident</label>
-                      <select name="incident_type" id="incident_type">
+                      <select name="incident_type" id="incident_type" required>
                         <option value="" disabled selected>Select Incident Type</option>
                         <option value="Theft">Theft</option>
                         <option value="Assault">Assault</option>
@@ -3203,7 +3232,7 @@ function reloadItemRequestsPanel(message) {
                   <div id="accusedContainer">
                     <div class="accused-fields">
                       <h6>Full name of the Respondent</h6>
-                      <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+                      <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
 
 
                         <div class="form-group">
@@ -3224,7 +3253,7 @@ function reloadItemRequestsPanel(message) {
 
 
                         <div class="form-group">
-                          <label>Alias</label>
+                          <label>Alias <span style="color: #888; font-style: italic;">(optional)</span></label>
                           <input type="text" name="accused_alias[]" placeholder="Alias/Nickname">
                         </div>
 
@@ -3243,7 +3272,7 @@ function reloadItemRequestsPanel(message) {
                           <input type="number" min="0" maxlength="11" name="accused_contact_no[]">
                         </div>
                         <div class="form-group">
-                          <label>Email</label>
+                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
                           <input type="email" name="accused_email[]">
                         </div>
                       </div>
@@ -3292,7 +3321,7 @@ function reloadItemRequestsPanel(message) {
                           <input type="number" min="0" maxlength="11" name="witness_contact_no[]">
                         </div>
                         <div class="form-group">
-                          <label>Email</label>
+                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
                           <input type="email" name="witness_email[]">
                         </div>
                       </div>
@@ -3305,7 +3334,7 @@ function reloadItemRequestsPanel(message) {
                   <!-- Image Upload -->
                   <hr>
                   <div class="form-group">
-                    <label>Upload Image(s) (jpg, jpeg, png, gif only) (Optional)</label>
+                    <label>Upload Image(s) (.jpg, .jpeg, .png, .pdf, .doc, .docx) (Optional)</label>
                     <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
 
                     <input type="file" name="blotter_files[]" id="blotter_files" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
@@ -3323,55 +3352,32 @@ function reloadItemRequestsPanel(message) {
           </div> <!--- end of modal -->
 
 
+
+
           <!-- View Blotter Modal -->
           <div id="viewBlotterModal" class="popup" style="display:none;">
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
               <span class="close-btn" onclick="closeViewBlotterModal()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                <img src="/BarangaySystem/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
               <h1 style="text-align:center;">Blotter Report Details</h1>
               <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
                 Blotter ID: <span id="view_blotter_id"></span>
               </div>
+              <!-- <div style="font-size:15px; margin-bottom:15px;">
+                Officer on Duty: <span id="view_officer_on_duty"></span>
+              </div> -->
+
 
               <form class="modal-form">
                 <!-- Complainant -->
-                <label style="font-weight:bold;">Full Name of Complainant</label>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Last Name</label>
-                    <input type="text" id="view_complainant_lastname" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>First Name</label>
-                    <input type="text" id="view_complainant_firstname" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Middle Name</label>
-                    <input type="text" id="view_complainant_middlename" readonly>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Address</label>
-                  <input type="text" id="view_complainant_address" readonly>
-                </div>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Age</label>
-                    <input type="number" id="view_complainant_age" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Contact No</label>
-                    <input type="text" id="view_complainant_contact_no" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="view_complainant_email" readonly>
-                  </div>
-                </div>
+                <h3>Complainant Details</h3>
+                <div id="view_complainantContainer"></div>
+
                 <br>
-                <hr>
+
                 <!-- Blotter Details -->
                 <h3>Blotter Details</h3>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
@@ -3394,7 +3400,7 @@ function reloadItemRequestsPanel(message) {
                 </div>
 
                 <hr>
-                <!-- Accused Details -->
+                <!-- Respondent Details -->
                 <h3>Respondent Details</h3>
                 <div id="view_accusedContainer"></div>
 
@@ -3413,6 +3419,7 @@ function reloadItemRequestsPanel(message) {
 
 
                 <!-- Hearing Details Section -->
+
                 <h3 id="hearingDetailsHeader" style="display:none;">Hearing Details</h3>
                 <div id="hearingDetailsSection" style="display:none;">
                   <label id="hearingNoLabel"></label>
@@ -3520,6 +3527,21 @@ function reloadItemRequestsPanel(message) {
               </div>
             </div>
 
+            <!-- Post-Hearing Outcome Modal -->
+            <div id="postHearingModal" class="custom-confirm-overlay" style="display:none;">
+              <div class="custom-confirm-box">
+                <p>The hearing outcome is 'No Agreement'. What would you like to do?</p>
+                <div class="custom-confirm-actions">
+                  <button id="postHearingCloseBlotter" class="custom-confirm-btn yes">Close Blotter</button>
+                  <button id="postHearingScheduleHearing" class="custom-confirm-btn no">Schedule Hearing</button>
+                </div>
+              </div>
+            </div>
+
+
+
+
+
 
 
 
@@ -3588,6 +3610,31 @@ function reloadItemRequestsPanel(message) {
                 btn.style.display = 'none';
               });
 
+              // NEW: Add event listener for adding complainants
+              document.getElementById('addComplainantBtn').addEventListener('click', function() {
+                const container = document.getElementById('complainantContainer');
+                const complainantFields = container.querySelector('.complainant-fields');
+                const newFields = complainantFields.cloneNode(true);
+
+                // Clear input values
+                newFields.querySelectorAll('input').forEach(input => input.value = '');
+
+                // Show remove button
+                newFields.querySelector('.remove-complainant-btn').style.display = 'inline-block';
+
+                // Add event to remove button
+                newFields.querySelector('.remove-complainant-btn').onclick = function() {
+                  newFields.remove();
+                };
+
+                container.appendChild(newFields);
+              });
+
+              // Hide remove button for the first complainant
+              document.querySelectorAll('.remove-complainant-btn').forEach(btn => {
+                btn.style.display = 'none';
+              });
+
 
               // Show/hide "Please specify" field based on incident type selection
               document.getElementById('incident_type').addEventListener('change', function() {
@@ -3600,11 +3647,44 @@ function reloadItemRequestsPanel(message) {
                   document.getElementById('incident_type_other').required = false;
                 }
               });
+
+
+              // NEW: Add form submission validation
+              document.getElementById('blotterForm').addEventListener('submit', function(e) {
+                const incidentType = document.getElementById('incident_type').value;
+
+                // Check if incident_type is selected
+                if (!incidentType) {
+                  alert('Please select a type of incident.');
+                  e.preventDefault(); // Prevent form submission
+                  return;
+                }
+
+                // If "Other" is selected, ensure incident_type_other is filled
+                if (incidentType === 'Other') {
+                  const otherValue = document.getElementById('incident_type_other').value.trim();
+                  if (!otherValue) {
+                    alert('Please specify the incident type.');
+                    e.preventDefault(); // Prevent form submission
+                    return;
+                  }
+                }
+              });
             </script>
 
 
 
           </div> <!-- end of blotter complaint panel-->
+
+          <!-- Image Viewer Modal -->
+          <div id="imageViewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
+            <img id="viewerImg" style="max-width:90%; max-height:90%;" />
+            <span onclick="closeImageViewer()" style="position:absolute; top:10px; right:10px; color:white; font-size:30px; cursor:pointer;">&times;</span>
+          </div>
+
+
+
+
 
 
           <!-- Update Blotter Modal -->
@@ -3612,7 +3692,8 @@ function reloadItemRequestsPanel(message) {
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
               <span class="close-btn" onclick="closeUpdateBlotterModal()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4">              </div>
+                <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4">
+              </div>
               <h1 style="text-align:center;">Update Blotter Report</h1>
               <form id="updateBlotterForm" method="POST" action="../Process/blotter/update_blotter.php" class="modal-form" enctype="multipart/form-data">
                 <!-- Fields will be filled by JS -->
@@ -3641,26 +3722,32 @@ function reloadItemRequestsPanel(message) {
             </div>
           </div>
 
+
+
+
+
+
           <!-- blottered individuals panel -->
           <div id="blotteredIndividualsPanel" class="panel-content">
             <h1>Blottered Individuals</h1>
 
             <form method="GET" action="" class="govdoc-search-form" style="display:flex;gap:10px;align-items:center;">
               <div class="govdoc-search-group">
-                <input type="text" name="search_blottered" class="govdoc-search-input" placeholder="Search by Name"
+                <input type="text" name="search_blottered" class="govdoc-search-input"
+                  placeholder="Search by Name"
                   value="<?php echo isset($_GET['search_blottered']) ? htmlspecialchars($_GET['search_blottered']) : ''; ?>" />
                 <button type="submit" class="govdoc-search-button">
                   <i class="fas fa-search"></i> Search
                 </button>
               </div>
               <label for="blotter_status" style="margin-left:10px;">Case Status:</label>
-              <select name="blotter_status" id="blotter_status" onchange="this.form.submit()">
-                <option value="both" <?php if (!isset($_GET['blotter_status']) || $_GET['blotter_status'] == 'both')
-                  echo 'selected'; ?>>Both</option>
-                <option value="active" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'active')
-                  echo 'selected'; ?>>Active</option>
-                <option value="closed" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed')
-                  echo 'selected'; ?>>Closed</option>
+              <select name="blotter_status" class="govdoc-status-filter" id="blotter_status" onchange="this.form.submit()">
+                <option value="active" <?php if (!isset($_GET['blotter_status']) || $_GET['blotter_status'] == 'active') echo 'selected'; ?>>Active</option>
+                <option value="hearing_scheduled" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'hearing_scheduled') echo 'selected'; ?>>Hearing Scheduled</option>
+                <option value="closed" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed') echo 'selected'; ?>>Closed</option>
+                <option value="closed_resolved" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed_resolved') echo 'selected'; ?>>Closed Resolved</option>
+                <option value="closed_unresolved" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed_unresolved') echo 'selected'; ?>>Closed Unresolved</option>
+                <option value="all" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'all') echo 'selected'; ?>>All</option>
               </select>
             </form>
             <div class="scrollable-table-container">
@@ -3668,6 +3755,7 @@ function reloadItemRequestsPanel(message) {
                 <thead>
                   <tr>
                     <th>ID</th>
+                    <th>BLOTTER ID</th>
                     <th>LAST NAME</th>
                     <th>FIRST NAME</th>
                     <th>MIDDLE NAME</th>
@@ -3675,7 +3763,7 @@ function reloadItemRequestsPanel(message) {
                     <th>ADDRESS</th>
                     <th>CONTACT NO</th>
                     <th>EMAIL</th>
-                    <th>BLOTTER ID</th>
+                    <th>STATUS</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -3684,8 +3772,7 @@ function reloadItemRequestsPanel(message) {
 
 
                   $conn = new mysqli($servername, $username, $password, $database);
-                  if ($conn->connect_error)
-                    die("Connection failed: " . $conn->connect_error);
+                  if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
                   // Search by name
                   $search_sql = "";
@@ -3696,52 +3783,73 @@ function reloadItemRequestsPanel(message) {
 
                   // Filter by status
                   $status_filter = "";
-                  if (isset($_GET['blotter_status']) && $_GET['blotter_status'] !== 'both') {
-                    $status = $_GET['blotter_status'] === 'closed' ? 'closed' : 'active';
-                    $status_filter = "AND b.status = '$status'";
+                  $selected_status = isset($_GET['blotter_status']) ? $_GET['blotter_status'] : 'active';
+                  switch ($selected_status) {
+                    case 'all':
+                      // No filter
+                      break;
+                    case 'active':
+                      $status_filter = "AND (b.status = 'active' OR b.status = 'hearing_scheduled')";
+                      break;
+                    case 'hearing_scheduled':
+                      $status_filter = "AND b.status = 'hearing_scheduled'";
+                      break;
+                    case 'closed':
+                      $status_filter = "AND (b.status = 'closed' OR b.status = 'closed_resolved' OR b.status = 'closed_unresolved')";
+                      break;
+                    case 'closed_resolved':
+                      $status_filter = "AND b.status = 'closed_resolved'";
+                      break;
+                    case 'closed_unresolved':
+                      $status_filter = "AND b.status = 'closed_unresolved'";
+                      break;
+                    default:
+                      $status_filter = "AND (b.status = 'active' OR b.status = 'hearing_scheduled')";
                   }
 
                   $sql = "
-          SELECT 
-            bp.blotter_participant_id,
-            bp.lastname,
-            bp.firstname,
-            bp.middlename,
-            bp.age,
-            bp.address,
-            bp.contact_no,
-            bp.email,
-            bp.blotter_id
-          FROM blotter_participantstbl bp
-          JOIN blottertbl b ON bp.blotter_id = b.blotter_id
-          WHERE bp.participant_type = 'accused'
-            $status_filter
-            $search_sql
-          ORDER BY bp.blotter_participant_id DESC
-        ";
+                    SELECT 
+                      bp.blotter_participant_id,
+                      bp.lastname,
+                      bp.firstname,
+                      bp.middlename,
+                      bp.age,
+                      bp.address,
+                      bp.contact_no,
+                      bp.email,
+                      bp.blotter_id,
+                      b.status
+                    FROM blotter_participantstbl bp
+                    JOIN blottertbl b ON bp.blotter_id = b.blotter_id
+                    WHERE bp.participant_type = 'accused'
+                      $status_filter
+                      $search_sql
+                    ORDER BY bp.blotter_participant_id DESC
+                    ";
 
                   $result = $conn->query($sql);
                   if ($result && $result->num_rows > 0) {
                     while ($row = $result->fetch_assoc()) {
                       echo "<tr>
-              <td>" . htmlspecialchars($row['blotter_participant_id']) . "</td>
-              <td>" . htmlspecialchars($row['lastname']) . "</td>
-              <td>" . htmlspecialchars($row['firstname']) . "</td>
-              <td>" . htmlspecialchars($row['middlename']) . "</td>
-              <td>" . htmlspecialchars($row['age']) . "</td>
-              <td>" . htmlspecialchars($row['address']) . "</td>
-              <td>" . htmlspecialchars($row['contact_no']) . "</td>
-              <td>" . htmlspecialchars($row['email']) . "</td>
-              <td>" . htmlspecialchars($row['blotter_id']) . "</td>
-              <td>
-                <button class='action-btn-2 view' data-id='" . $row['blotter_participant_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
-                  <i class='fas fa-eye'></i>
-                </button>
-              </td>
-            </tr>";
+                      <td>" . htmlspecialchars($row['blotter_participant_id']) . "</td>
+                      <td>" . htmlspecialchars($row['blotter_id']) . "</td>
+                      <td>" . htmlspecialchars($row['lastname']) . "</td>
+                      <td>" . htmlspecialchars($row['firstname']) . "</td>
+                      <td>" . htmlspecialchars($row['middlename']) . "</td>
+                      <td>" . htmlspecialchars($row['age']) . "</td>
+                      <td>" . htmlspecialchars($row['address']) . "</td>
+                      <td>" . htmlspecialchars($row['contact_no']) . "</td>
+                      <td>" . htmlspecialchars($row['email']) . "</td>
+                      <td>" . htmlspecialchars($row['status']) . "</td>
+                      <td>
+                        <button class='action-btn-2 view-blottered-info' data-id='" . $row['blotter_participant_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
+                          <i class='fas fa-eye'></i>
+                        </button>
+                      </td>
+                      </tr>";
                     }
                   } else {
-                    echo "<tr><td colspan='10'>No blottered individuals found.</td></tr>";
+                    echo "<tr><td colspan='11'>No blottered individuals found.</td></tr>";
                   }
                   $conn->close();
                   ?>
@@ -3750,9 +3858,80 @@ function reloadItemRequestsPanel(message) {
             </div>
           </div> <!-- end of blottered individuals panel-->
 
+          <!-- Blottered Individual Modal -->
+          <div id="viewBlotteredModal" class="popup" style="display:none;">
+            <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
+              <span class="close-btn" onclick="closeViewBlotteredModal()">&times;</span>
+              <div style="text-align: center;">
+                <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+              </div>
+              <h1 style="text-align:center;">Blottered Individual Details</h1>
+              <br>
+              <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
+                Blotter ID: <span id="blottered_blotter_id"></span>
+                <br>
+                ID: <span id="blottered_participant_id"></span>
+              </div>
+              <form class="modal-form">
+                <h3>Respondent Details</h3>
+                <label style="font-weight:bold;">Full Name of Respondent</label>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="blottered_lastname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="blottered_firstname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" id="blottered_middlename" readonly>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" id="blottered_address" readonly>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" id="blottered_age" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" id="blottered_contact_no" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="blottered_email" readonly>
+                  </div>
+                </div>
+                <hr>
+                <!-- Uploaded Files Section -->
+                <h3>Uploaded Files</h3>
+                <div class="scrollable-table-container">
+                  <table class="styled-table" id="blottered_files_table">
+                    <thead>
+                      <tr>
+                        <th>Thumbnail</th>
+                        <th>File Name</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="blottered_filesContainer">
+                      <!-- Files will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </form>
+            </div>
+          </div>
 
 
-    <div id="announcementPanel" class="panel-content">
+
+          <div id="announcementPanel" class="panel-content">
             <h1>Announcements</h1>
             <p>Manage announcements with images and text for the community.</p>
 
@@ -4018,7 +4197,7 @@ function reloadItemRequestsPanel(message) {
 
             <?php
             // Database connection
-            
+
 
             $reportType = $_GET['report_type'] ?? '';
             $startDate = $_GET['start_date'] ?? date('Y-m-01');
@@ -4031,7 +4210,7 @@ function reloadItemRequestsPanel(message) {
               switch ($reportType) {
 
                 // RESIDENT DEMOGRAPHICS REPORT
-            
+
                 case 'residents':
                   echo '<h3>Resident Demographics Report</h3>';
                   $stmt = $connection->prepare("SELECT Gender, COUNT(*) as count FROM userloginfo WHERE Birthdate BETWEEN ? AND ? GROUP BY Gender");
@@ -4073,7 +4252,7 @@ function reloadItemRequestsPanel(message) {
 
 
                 // DOCUMENT REQUESTS REPORT
-            
+
                 case 'documents':
                   echo '<h3>Document Requests Report</h3>';
                   $stmt = $connection->prepare("SELECT RequestStatus, COUNT(*) as count 
@@ -4339,8 +4518,8 @@ function reloadItemRequestsPanel(message) {
                   }
                   break;
                 // --------------------------------------
-// ITEM REQUESTS REPORT
-// --------------------------------------
+                // ITEM REQUESTS REPORT
+                // --------------------------------------
                 case 'items':
                   echo '<h3>Item Requests Report</h3>';
 
@@ -4406,8 +4585,8 @@ function reloadItemRequestsPanel(message) {
                   }
                   break;
                 // --------------------------------------
-// COLLECTIONS / PAYMENTS REPORT
-// --------------------------------------
+                // COLLECTIONS / PAYMENTS REPORT
+                // --------------------------------------
                 case 'collections':
                   echo '<h3>Collections Report</h3>';
 
@@ -4502,7 +4681,9 @@ function reloadItemRequestsPanel(message) {
                 let csv = Array.from(table.querySelectorAll('tr')).map(row =>
                   Array.from(row.querySelectorAll('th,td')).map(col => `"${col.innerText}"`).join(',')
                 ).join('\n');
-                const blob = new Blob([csv], { type: 'text/csv' });
+                const blob = new Blob([csv], {
+                  type: 'text/csv'
+                });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = 'report.csv';
@@ -4511,7 +4692,9 @@ function reloadItemRequestsPanel(message) {
 
               // PDF Export (requires jsPDF + autoTable)
               document.getElementById('exportPdf').addEventListener('click', async () => {
-                const { jsPDF } = window.jspdf;
+                const {
+                  jsPDF
+                } = window.jspdf;
                 const doc = new jsPDF('l', 'pt', 'a4');
                 const title = document.querySelector('#reportContent h3')?.innerText || 'Report';
 
@@ -4540,9 +4723,13 @@ function reloadItemRequestsPanel(message) {
 
                 // --- Optional Watermark ---
                 const watermarkSize = 200;
-                doc.setGState(new doc.GState({ opacity: 0.1 }));
+                doc.setGState(new doc.GState({
+                  opacity: 0.1
+                }));
                 doc.addImage(logo, 'PNG', (pageWidth - watermarkSize) / 2, (pageHeight - watermarkSize) / 2, watermarkSize, watermarkSize);
-                doc.setGState(new doc.GState({ opacity: 1 }));
+                doc.setGState(new doc.GState({
+                  opacity: 1
+                }));
 
                 // --- Table ---
                 const table = document.querySelector('#reportContent table');
@@ -4568,9 +4755,14 @@ function reloadItemRequestsPanel(message) {
                     textColor: [255, 255, 255],
                     fontStyle: 'bold',
                   },
-                  alternateRowStyles: { fillColor: [245, 245, 245] },
+                  alternateRowStyles: {
+                    fillColor: [245, 245, 245]
+                  },
                   theme: 'grid',
-                  margin: { left: 30, right: 30 },
+                  margin: {
+                    left: 30,
+                    right: 30
+                  },
                   didDrawPage: (data) => {
                     // Footer
                     const pageCount = doc.internal.getNumberOfPages();
@@ -4596,7 +4788,9 @@ function reloadItemRequestsPanel(message) {
                 entries.forEach(entry => {
                   if (entry.isIntersecting) entry.target.classList.add('visible');
                 });
-              }, { threshold: 0.2 });
+              }, {
+                threshold: 0.2
+              });
 
               document.querySelectorAll('.stat-card').forEach(card => observer.observe(card));
 
@@ -5043,7 +5237,7 @@ function reloadItemRequestsPanel(message) {
               });
             </script>
 
-            
+
 
             <!-- Scripts -->
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -5096,7 +5290,7 @@ function reloadItemRequestsPanel(message) {
               }
 
               // Event listeners for modal close
-              document.addEventListener('DOMContentLoaded', function () {
+              document.addEventListener('DOMContentLoaded', function() {
                 const closeBtn = document.getElementById('closeModal');
                 if (closeBtn) {
                   closeBtn.addEventListener('click', hideSuccessModal);
@@ -5105,7 +5299,7 @@ function reloadItemRequestsPanel(message) {
                 // Close modal on outside click (optional)
                 const modal = document.getElementById('successModal');
                 if (modal) {
-                  modal.addEventListener('click', function (event) {
+                  modal.addEventListener('click', function(event) {
                     if (event.target === modal) {
                       hideSuccessModal();
                     }
@@ -5113,7 +5307,7 @@ function reloadItemRequestsPanel(message) {
                 }
               });
 
-              window.addEventListener("DOMContentLoaded", function () {
+              window.addEventListener("DOMContentLoaded", function() {
                 console.log("DOM loaded - Starting panel activation"); // Debug log
                 const urlParams = new URLSearchParams(window.location.search);
                 console.log("URL Params:", Object.fromEntries(urlParams)); // Debug: Log all params
@@ -5437,7 +5631,7 @@ function reloadItemRequestsPanel(message) {
               }
 
               // Close dropdown if clicking outside
-              window.addEventListener('click', function (e) {
+              window.addEventListener('click', function(e) {
                 const menu = document.getElementById("dropdownMenu");
                 if (menu && !e.target.closest('.dropdown')) {
                   menu.style.display = "none";
@@ -5534,7 +5728,7 @@ function reloadItemRequestsPanel(message) {
       </div>
       
     `;
-                } else if  (data.Docutype === "Indigency Form") {
+                } else if (data.Docutype === "Indigency Form") {
                   htmlContent = `
       <img src="/Capstone/Assets/sampaguitalogo.png"
          style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
@@ -5592,7 +5786,7 @@ function reloadItemRequestsPanel(message) {
     </div>
   </div>
     `;
-    } else if  (data.Docutype === "Employment Form") {
+                } else if (data.Docutype === "Employment Form") {
                   htmlContent = `
       <img src="/Capstone/Assets/sampaguitalogo.png"
          style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
@@ -5652,7 +5846,7 @@ function reloadItemRequestsPanel(message) {
     </div>
   </div>
     `;
-               } else if (data.certificate_type === "No Income") {
+                } else if (data.certificate_type === "No Income") {
                   htmlContent = `
      <br><br><img src="/Capstone/Assets/sampaguitalogo.png"
          style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
@@ -6043,195 +6237,195 @@ function reloadItemRequestsPanel(message) {
               }
             </script>
 
-         <script>
-let selectedDocData = null; // Global variable to store selected document data
+            <script>
+              let selectedDocData = null; // Global variable to store selected document data
 
-// Function to open the modal and save the selected document's data
-function openPrintModal(data) {
-  selectedDocData = data; // Store the selected document for later printing
+              // Function to open the modal and save the selected document's data
+              function openPrintModal(data) {
+                selectedDocData = data; // Store the selected document for later printing
 
-  document.getElementById("modal_refno").value = data.refno;
-  document.getElementById("modal_name").value = data.Firstname + ' ' + data.Lastname;
-  document.getElementById("modal_type").value = data.Docutype;
-  document.getElementById("modal_address").value = data.Address || "N/A";
-  document.getElementById("modal_date").value = data.DateRequested || new Date().toLocaleDateString();
+                document.getElementById("modal_refno").value = data.refno;
+                document.getElementById("modal_name").value = data.Firstname + ' ' + data.Lastname;
+                document.getElementById("modal_type").value = data.Docutype;
+                document.getElementById("modal_address").value = data.Address || "N/A";
+                document.getElementById("modal_date").value = data.DateRequested || new Date().toLocaleDateString();
 
-  // ✅ Automatically set amount based on document type
-  const amountField = document.getElementById("modal_amount");
-  const docType = data.Docutype ? data.Docutype.toLowerCase().trim() : "";
+                // ✅ Automatically set amount based on document type
+                const amountField = document.getElementById("modal_amount");
+                const docType = data.Docutype ? data.Docutype.toLowerCase().trim() : "";
 
-  // ₱100 documents
-  const hundredPesoDocs = ["barangay certificate", "cedula", "employment form"];
+                // ₱100 documents
+                const hundredPesoDocs = ["barangay certificate", "cedula", "employment form"];
 
-  // Free documents
-  const freeDocs = ["indigency form", "first time job seeker"];
+                // Free documents
+                const freeDocs = ["indigency form", "first time job seeker"];
 
-  if (hundredPesoDocs.includes(docType)) {
-    amountField.value = 100;
-    amountField.readOnly = true;
-  } else if (freeDocs.includes(docType)) {
-    amountField.value = 0;
-    amountField.readOnly = true;
-  } else {
-    amountField.value = "";
-    amountField.readOnly = false;
-  }
+                if (hundredPesoDocs.includes(docType)) {
+                  amountField.value = 100;
+                  amountField.readOnly = true;
+                } else if (freeDocs.includes(docType)) {
+                  amountField.value = 0;
+                  amountField.readOnly = true;
+                } else {
+                  amountField.value = "";
+                  amountField.readOnly = false;
+                }
 
-  const modal = new bootstrap.Modal(document.getElementById('printFormModal'));
-  modal.show();
-}
+                const modal = new bootstrap.Modal(document.getElementById('printFormModal'));
+                modal.show();
+              }
 
-// Handle form submission
-document.getElementById("printForm").addEventListener("submit", function (event) {
-  event.preventDefault(); // Prevent default form submission
+              // Handle form submission
+              document.getElementById("printForm").addEventListener("submit", function(event) {
+                event.preventDefault(); // Prevent default form submission
 
-  const formData = new FormData(this);
+                const formData = new FormData(this);
 
-  fetch("Payment.php", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => response.text())
-    .then((response) => {
-     if (response.trim() === "success") {
-  alert("Payment recorded successfully. You can now print the document.");
-  bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
-  window.location.reload(); // Refresh page to show Print button
+                fetch("Payment.php", {
+                    method: "POST",
+                    body: formData,
+                  })
+                  .then((response) => response.text())
+                  .then((response) => {
+                    if (response.trim() === "success") {
+                      alert("Payment recorded successfully. You can now print the document.");
+                      bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
+                      window.location.reload(); // Refresh page to show Print button
 
-        if (selectedDocData) {
-          generateCertificate(selectedDocData); // This handles different Docutype values
-        } else {
-          alert("No document selected for printing.");
-        }
-      } else {
-        alert("Error: " + response);
-      }
-    })
-    .catch((error) => {
-      console.error("Error submitting payment:", error);
-      alert("Something went wrong. Please try again.");
-    });
-});
-</script>
+                      if (selectedDocData) {
+                        generateCertificate(selectedDocData); // This handles different Docutype values
+                      } else {
+                        alert("No document selected for printing.");
+                      }
+                    } else {
+                      alert("Error: " + response);
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Error submitting payment:", error);
+                    alert("Something went wrong. Please try again.");
+                  });
+              });
+            </script>
 
- <script>
-let selectedDocData = null; // Global variable to store selected document data
+            <script>
+              // let selectedDocData = null; // Global variable to store selected document data
 
-// Function to open the modal and save the selected document's data
-function openNoBirthCertificatePrintModal(data) {
-  selectedDocData = data; // Store the selected document for later printing
+              // Function to open the modal and save the selected document's data
+              function openNoBirthCertificatePrintModal(data) {
+                selectedDocData = data; // Store the selected document for later printing
 
-  document.getElementById("noBirthCertificate_modal_refno").value = data.refno;
-  document.getElementById("noBirthCertificate_modal_name").value = data.Firstname + ' ' + data.Lastname;
-  document.getElementById("noBirthCertificate_modal_type").value = data.Docutype;
-  document.getElementById("noBirthCertificate_modal_date").value = data.DateRequested || new Date().toLocaleDateString();
+                document.getElementById("noBirthCertificate_modal_refno").value = data.refno;
+                document.getElementById("noBirthCertificate_modal_name").value = data.Firstname + ' ' + data.Lastname;
+                document.getElementById("noBirthCertificate_modal_type").value = data.Docutype;
+                document.getElementById("noBirthCertificate_modal_date").value = data.DateRequested || new Date().toLocaleDateString();
 
-  // ✅ Automatically set amount based on document type
-  const amountField = document.getElementById("noBirthCertificate_modal_amount");
-  const docType = data.Docutype ? data.Docutype.toLowerCase().trim() : "";
+                // ✅ Automatically set amount based on document type
+                const amountField = document.getElementById("noBirthCertificate_modal_amount");
+                const docType = data.Docutype ? data.Docutype.toLowerCase().trim() : "";
 
-  // ₱100 documents
-  const hundredPesoDocs = ["no birth certificate"];
+                // ₱100 documents
+                const hundredPesoDocs = ["no birth certificate"];
 
-  // Free documents
- 
-
-  if (hundredPesoDocs.includes(docType)) {
-    amountField.value = 100;
-    amountField.readOnly = true;
-  
-  } else {
-    amountField.value = "";
-    amountField.readOnly = false;
-  }
-
-  const modal = new bootstrap.Modal(document.getElementById('printFormModal'));
-  modal.show();
-}
-
-// Handle form submission
-document.getElementById("printForm").addEventListener("submit", function (event) {
-  event.preventDefault(); // Prevent default form submission
-
-  const formData = new FormData(this);
-
-  fetch("Paymentbirthcertificate.php", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => response.text())
-    .then((response) => {
-      if (response.trim() === "success") {
-        alert("Payment recorded. Now printing...");
-        bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
-
-        if (selectedDocData) {
-          generateCertificate(selectedDocData); // This handles different Docutype values
-        } else {
-          alert("No document selected for printing.");
-        }
-      } else {
-        alert("Error: " + response);
-      }
-    })
-    .catch((error) => {
-      console.error("Error submitting payment:", error);
-      alert("Something went wrong. Please try again.");
-    });
-});
-</script>
+                // Free documents
 
 
+                if (hundredPesoDocs.includes(docType)) {
+                  amountField.value = 100;
+                  amountField.readOnly = true;
 
-           <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const viewButtons = document.querySelectorAll(".action-btn-2.view");
-    const modal = document.getElementById("viewModal");
-    const closeBtn = document.querySelector(".close-btn");
+                } else {
+                  amountField.value = "";
+                  amountField.readOnly = false;
+                }
 
-    viewButtons.forEach(button => {
-      button.addEventListener("click", function () {
-        // Fill in text fields
-        document.getElementById("modalId").value = this.dataset.id;
-        document.getElementById("modalFirstname").value = this.dataset.firstname;
-        document.getElementById("modalLastname").value = this.dataset.lastname;
-        document.getElementById("modalMiddlename").value = this.dataset.middlename;
-        document.getElementById("modalEmail").value = this.dataset.email;
-        document.getElementById("modalContact").value = this.dataset.contact;
-        document.getElementById("modalBirthday").value = this.dataset.birthdate;
-        document.getElementById("modalGender").value = this.dataset.gender;
-        document.getElementById("modalAddress").value = this.dataset.address;
-        document.getElementById("modalBirthplace").value = this.dataset.birthplace;
-        document.getElementById("modalCivilStat").value = this.dataset.civilstatus;
-        document.getElementById("modalNationality").value = this.dataset.nationality;
-        document.getElementById("modalAccountStatus").value = this.dataset.accountstatus;
+                const modal = new bootstrap.Modal(document.getElementById('printFormModal'));
+                modal.show();
+              }
 
-        // Display the Valid ID (Base64)
-        const validIDImg = document.getElementById("modalValidID");
-        if (this.dataset.validid && this.dataset.validid.trim() !== "") {
-          validIDImg.src = "data:image/jpeg;base64," + this.dataset.validid;
-        } else {
-          validIDImg.src = "/Capstone/Assets/no-valid-id.png"; // fallback image
-        }
+              // Handle form submission
+              document.getElementById("printForm").addEventListener("submit", function(event) {
+                event.preventDefault(); // Prevent default form submission
 
-        // Show modal
-        modal.style.display = "block";
-      });
-    });
+                const formData = new FormData(this);
 
-    // Close modal on click (X)
-    closeBtn.addEventListener("click", () => {
-      modal.style.display = "none";
-    });
+                fetch("Paymentbirthcertificate.php", {
+                    method: "POST",
+                    body: formData,
+                  })
+                  .then((response) => response.text())
+                  .then((response) => {
+                    if (response.trim() === "success") {
+                      alert("Payment recorded. Now printing...");
+                      bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
 
-    // Close when clicking outside the modal
-    window.addEventListener("click", (event) => {
-      if (event.target === modal) {
-        modal.style.display = "none";
-      }
-    });
-  });
-</script>
+                      if (selectedDocData) {
+                        generateCertificate(selectedDocData); // This handles different Docutype values
+                      } else {
+                        alert("No document selected for printing.");
+                      }
+                    } else {
+                      alert("Error: " + response);
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Error submitting payment:", error);
+                    alert("Something went wrong. Please try again.");
+                  });
+              });
+            </script>
+
+
+
+            <script>
+              document.addEventListener("DOMContentLoaded", function() {
+                const viewButtons = document.querySelectorAll(".action-btn-2.view");
+                const modal = document.getElementById("viewModal");
+                const closeBtn = document.querySelector(".close-btn");
+
+                viewButtons.forEach(button => {
+                  button.addEventListener("click", function() {
+                    // Fill in text fields
+                    document.getElementById("modalId").value = this.dataset.id;
+                    document.getElementById("modalFirstname").value = this.dataset.firstname;
+                    document.getElementById("modalLastname").value = this.dataset.lastname;
+                    document.getElementById("modalMiddlename").value = this.dataset.middlename;
+                    document.getElementById("modalEmail").value = this.dataset.email;
+                    document.getElementById("modalContact").value = this.dataset.contact;
+                    document.getElementById("modalBirthday").value = this.dataset.birthdate;
+                    document.getElementById("modalGender").value = this.dataset.gender;
+                    document.getElementById("modalAddress").value = this.dataset.address;
+                    document.getElementById("modalBirthplace").value = this.dataset.birthplace;
+                    document.getElementById("modalCivilStat").value = this.dataset.civilstatus;
+                    document.getElementById("modalNationality").value = this.dataset.nationality;
+                    document.getElementById("modalAccountStatus").value = this.dataset.accountstatus;
+
+                    // Display the Valid ID (Base64)
+                    const validIDImg = document.getElementById("modalValidID");
+                    if (this.dataset.validid && this.dataset.validid.trim() !== "") {
+                      validIDImg.src = "data:image/jpeg;base64," + this.dataset.validid;
+                    } else {
+                      validIDImg.src = "/Capstone/Assets/no-valid-id.png"; // fallback image
+                    }
+
+                    // Show modal
+                    modal.style.display = "block";
+                  });
+                });
+
+                // Close modal on click (X)
+                closeBtn.addEventListener("click", () => {
+                  modal.style.display = "none";
+                });
+
+                // Close when clicking outside the modal
+                window.addEventListener("click", (event) => {
+                  if (event.target === modal) {
+                    modal.style.display = "none";
+                  }
+                });
+              });
+            </script>
 
 
             <script>
@@ -6328,7 +6522,7 @@ document.getElementById("printForm").addEventListener("submit", function (event)
                 document.getElementById('addOpenGuardianship').style.display = 'none';
               }
             </script>
-             <script>
+            <script>
               function openbirthcertificateModal() {
                 const modal = document.getElementById('addOpenbirthcertificate');
                 const refInput = modal.querySelector('input[name="refno"]');
@@ -6363,7 +6557,7 @@ document.getElementById("printForm").addEventListener("submit", function (event)
             </script>
             <script>
               document.querySelectorAll('.spectate').forEach(button => {
-                button.addEventListener('click', function () {
+                button.addEventListener('click', function() {
                   document.getElementById('govdocReqId').value = this.dataset.reqid;
                   document.getElementById('govdocFirstname').value = this.dataset.firstname;
                   document.getElementById('govdocLastname').value = this.dataset.lastname;
@@ -6409,13 +6603,13 @@ document.getElementById("printForm").addEventListener("submit", function (event)
                 document.getElementById("customConfirm").style.display = "flex";
               }
 
-              document.getElementById("customConfirmYes").addEventListener("click", function () {
+              document.getElementById("customConfirmYes").addEventListener("click", function() {
                 if (approveUrl) {
                   window.location.href = approveUrl; // proceed with approval
                 }
               });
 
-              document.getElementById("customConfirmNo").addEventListener("click", function () {
+              document.getElementById("customConfirmNo").addEventListener("click", function() {
                 document.getElementById("customConfirm").style.display = "none";
                 approveUrl = null;
               });
@@ -6431,23 +6625,23 @@ document.getElementById("printForm").addEventListener("submit", function (event)
                 document.getElementById("customDeclineConfirm").style.display = "flex";
               }
 
-              document.getElementById("customDeclineConfirmYes").addEventListener("click", function () {
+              document.getElementById("customDeclineConfirmYes").addEventListener("click", function() {
                 document.getElementById("customDeclineConfirm").style.display = "none";
                 document.getElementById("declineReasonModal").style.display = "flex";
               });
 
-              document.getElementById("customDeclineConfirmNo").addEventListener("click", function () {
+              document.getElementById("customDeclineConfirmNo").addEventListener("click", function() {
                 document.getElementById("customDeclineConfirm").style.display = "none";
                 declineUrl = null;
               });
 
-              document.getElementById("declineReasonCancel").addEventListener("click", function () {
+              document.getElementById("declineReasonCancel").addEventListener("click", function() {
                 document.getElementById("declineReasonModal").style.display = "none";
                 declineUrl = null;
                 document.getElementById("declineReasonText").value = "";
               });
 
-              document.getElementById("declineReasonSubmit").addEventListener("click", function () {
+              document.getElementById("declineReasonSubmit").addEventListener("click", function() {
                 const reason = document.getElementById("declineReasonText").value.trim();
                 if (!reason) {
                   alert("Please enter a reason for declining.");
@@ -6460,211 +6654,211 @@ document.getElementById("printForm").addEventListener("submit", function (event)
               });
             </script>
             <script>
-              document.querySelector('.close-btn-govdoc').addEventListener('click', function () {
+              document.querySelector('.close-btn-govdoc').addEventListener('click', function() {
                 document.getElementById('govdocViewModal').style.display = 'none';
               });
 
-              window.addEventListener('click', function (e) {
+              window.addEventListener('click', function(e) {
                 if (e.target == document.getElementById('govdocViewModal')) {
                   document.getElementById('govdocViewModal').style.display = 'none';
                 }
               });
             </script>
 
-           <script>
-let selectedBusinessDocData = null;
+            <script>
+              let selectedBusinessDocData = null;
 
-function openBusinessPrintModal(data) {
-  if (typeof data === "string") {
-    data = JSON.parse(data);
-  }
-  selectedBusinessDocData = data;
+              function openBusinessPrintModal(data) {
+                if (typeof data === "string") {
+                  data = JSON.parse(data);
+                }
+                selectedBusinessDocData = data;
 
-  document.getElementById("business_modal_refno").value = data.refno;
-  document.getElementById("business_modal_owner").value = data.OwnerName;
-  document.getElementById("business_modal_type").value = data.RequestType;
-  document.getElementById("business_modal_date").value = data.RequestedDate || new Date().toLocaleDateString();
+                document.getElementById("business_modal_refno").value = data.refno;
+                document.getElementById("business_modal_owner").value = data.OwnerName;
+                document.getElementById("business_modal_type").value = data.RequestType;
+                document.getElementById("business_modal_date").value = data.RequestedDate || new Date().toLocaleDateString();
 
-  // ✅ Automatically set amount based on business document type
-  const amountField = document.getElementById("business_modal_amount");
-  const docType = data.RequestType ? data.RequestType.toLowerCase().trim() : "";
+                // ✅ Automatically set amount based on business document type
+                const amountField = document.getElementById("business_modal_amount");
+                const docType = data.RequestType ? data.RequestType.toLowerCase().trim() : "";
 
-  // ₱200 document types
-  const twoHundredDocs = ["permit", "closure"];
+                // ₱200 document types
+                const twoHundredDocs = ["permit", "closure"];
 
-  if (twoHundredDocs.includes(docType)) {
-    amountField.value = 200;
-    amountField.readOnly = true; // Optional: lock field so user can’t change it
-  } else {
-    amountField.value = "";
-    amountField.readOnly = false;
-  }
+                if (twoHundredDocs.includes(docType)) {
+                  amountField.value = 200;
+                  amountField.readOnly = true; // Optional: lock field so user can’t change it
+                } else {
+                  amountField.value = "";
+                  amountField.readOnly = false;
+                }
 
-  const modal = new bootstrap.Modal(document.getElementById('businessPrintFormModal'));
-  modal.show();
-}
+                const modal = new bootstrap.Modal(document.getElementById('businessPrintFormModal'));
+                modal.show();
+              }
 
-document.getElementById("businessPrintForm").addEventListener("submit", function (event) {
-  event.preventDefault();
+              document.getElementById("businessPrintForm").addEventListener("submit", function(event) {
+                event.preventDefault();
 
-  const formData = new FormData(this);
+                const formData = new FormData(this);
 
-  fetch("Paymentbusiness.php", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => response.text())
-    .then((response) => {
-      if (response.trim() === "success") {
-        alert("Payment recorded. Now printing...");
-        bootstrap.Modal.getInstance(document.getElementById('businessPrintFormModal')).hide();
+                fetch("Paymentbusiness.php", {
+                    method: "POST",
+                    body: formData,
+                  })
+                  .then((response) => response.text())
+                  .then((response) => {
+                    if (response.trim() === "success") {
+                      alert("Payment recorded. Now printing...");
+                      bootstrap.Modal.getInstance(document.getElementById('businessPrintFormModal')).hide();
 
-        if (selectedBusinessDocData) {
-          generateCertificate(selectedBusinessDocData);
-        } else {
-          alert("No business permit selected for printing.");
-        }
-      } else {
-        alert("Error: " + response);
-      }
-    })
-    .catch((error) => {
-      console.error("Error submitting payment:", error);
-      alert("Something went wrong. Please try again.");
-    });
-});
-</script>
-
-
-          <script>
-let selectedUnemploymentDocData = null;
-
-function openUnemploymentPrintModal(data) {
-  if (typeof data === "string") {
-    data = JSON.parse(data);
-  }
-  selectedUnemploymentDocData = data;
-
-  document.getElementById("unemployment_modal_refno").value = data.refno;
-  document.getElementById("unemployment_modal_name").value = data.fullname;
-  document.getElementById("unemployment_modal_type").value = data.certificate_type;
-  document.getElementById("unemployment_modal_date").value = data.request_date || new Date().toLocaleDateString();
-
-  // ✅ Automatically set amount based on certificate type
-  const amountField = document.getElementById("unemployment_modal_amount");
-  const docType = data.certificate_type ? data.certificate_type.toLowerCase().trim() : "";
-
-  // ₱100 document types
-  const oneHundredDocs = ["no income", "no fixed income"];
-
-  if (oneHundredDocs.includes(docType)) {
-    amountField.value = 100;
-    amountField.readOnly = true; // lock field
-  } else {
-    amountField.value = "";
-    amountField.readOnly = false;
-  }
-
-  const modal = new bootstrap.Modal(document.getElementById('unemploymentPrintFormModal'));
-  modal.show();
-}
-
-document.getElementById("unemploymentPrintForm").addEventListener("submit", function (event) {
-  event.preventDefault();
-
-  const formData = new FormData(this);
-
-  fetch("Paymentunemployment.php", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => response.text())
-    .then((response) => {
-      if (response.trim() === "success") {
-        alert("Payment recorded. Now printing...");
-        bootstrap.Modal.getInstance(document.getElementById('unemploymentPrintFormModal')).hide();
-
-        if (selectedUnemploymentDocData) {
-          generateCertificate(selectedUnemploymentDocData);
-        } else {
-          alert("No unemployment certificate selected for printing.");
-        }
-      } else {
-        alert("Error: " + response);
-      }
-    })
-    .catch((error) => {
-      console.error("Error submitting payment:", error);
-      alert("Something went wrong. Please try again.");
-    });
-});
-</script>
+                      if (selectedBusinessDocData) {
+                        generateCertificate(selectedBusinessDocData);
+                      } else {
+                        alert("No business permit selected for printing.");
+                      }
+                    } else {
+                      alert("Error: " + response);
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Error submitting payment:", error);
+                    alert("Something went wrong. Please try again.");
+                  });
+              });
+            </script>
 
 
-           <script>
-let selectedGuardianShipDocData = null;
+            <script>
+              let selectedUnemploymentDocData = null;
 
-function openGuardianshipPrintModal(data) {
-  if (typeof data === "string") {
-    data = JSON.parse(data);
-  }
-  selectedGuardianShipDocData = data;
+              function openUnemploymentPrintModal(data) {
+                if (typeof data === "string") {
+                  data = JSON.parse(data);
+                }
+                selectedUnemploymentDocData = data;
 
-  document.getElementById("guardianship_modal_refno").value = data.refno;
-  document.getElementById("guardianship_modal_name").value = data.applicant_name;
-  document.getElementById("guardianship_modal_type").value = data.request_type;
-  document.getElementById("guardianship_modal_date").value =
-    data.request_date || new Date().toLocaleDateString();
+                document.getElementById("unemployment_modal_refno").value = data.refno;
+                document.getElementById("unemployment_modal_name").value = data.fullname;
+                document.getElementById("unemployment_modal_type").value = data.certificate_type;
+                document.getElementById("unemployment_modal_date").value = data.request_date || new Date().toLocaleDateString();
 
-  // ✅ Automatically set amount based on document type
-  const amountField = document.getElementById("guardianship_modal_amount");
-  const docType = data.request_type ? data.request_type.toLowerCase().trim() : "";
+                // ✅ Automatically set amount based on certificate type
+                const amountField = document.getElementById("unemployment_modal_amount");
+                const docType = data.certificate_type ? data.certificate_type.toLowerCase().trim() : "";
 
-  if (docType === "solo parent") {
-    amountField.value = 0;
-    amountField.readOnly = true;
-  } else if (docType === "guardianship") {
-    amountField.value = 50;
-    amountField.readOnly = true;
-  } else {
-    amountField.value = "";
-    amountField.readOnly = false;
-  }
+                // ₱100 document types
+                const oneHundredDocs = ["no income", "no fixed income"];
 
-  const modal = new bootstrap.Modal(document.getElementById("guardianshipPrintFormModal"));
-  modal.show();
-}
+                if (oneHundredDocs.includes(docType)) {
+                  amountField.value = 100;
+                  amountField.readOnly = true; // lock field
+                } else {
+                  amountField.value = "";
+                  amountField.readOnly = false;
+                }
 
-document.getElementById("guardianshipPrintForm").addEventListener("submit", function (event) {
-  event.preventDefault();
+                const modal = new bootstrap.Modal(document.getElementById('unemploymentPrintFormModal'));
+                modal.show();
+              }
 
-  const formData = new FormData(this);
+              document.getElementById("unemploymentPrintForm").addEventListener("submit", function(event) {
+                event.preventDefault();
 
-  fetch("PaymentGuardianship.php", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => response.text())
-    .then((response) => {
-      if (response.trim() === "success") {
-        alert("Payment recorded. Now printing...");
-        bootstrap.Modal.getInstance(document.getElementById("guardianshipPrintFormModal")).hide();
+                const formData = new FormData(this);
 
-        if (selectedGuardianShipDocData) {
-          generateCertificate(selectedGuardianShipDocData);
-        } else {
-          alert("No guardianship document selected for printing.");
-        }
-      } else {
-        alert("Error: " + response);
-      }
-    })
-    .catch((error) => {
-      console.error("Error submitting payment:", error);
-      alert("Something went wrong. Please try again.");
-    });
-});
-</script>
+                fetch("Paymentunemployment.php", {
+                    method: "POST",
+                    body: formData,
+                  })
+                  .then((response) => response.text())
+                  .then((response) => {
+                    if (response.trim() === "success") {
+                      alert("Payment recorded. Now printing...");
+                      bootstrap.Modal.getInstance(document.getElementById('unemploymentPrintFormModal')).hide();
+
+                      if (selectedUnemploymentDocData) {
+                        generateCertificate(selectedUnemploymentDocData);
+                      } else {
+                        alert("No unemployment certificate selected for printing.");
+                      }
+                    } else {
+                      alert("Error: " + response);
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Error submitting payment:", error);
+                    alert("Something went wrong. Please try again.");
+                  });
+              });
+            </script>
+
+
+            <script>
+              let selectedGuardianShipDocData = null;
+
+              function openGuardianshipPrintModal(data) {
+                if (typeof data === "string") {
+                  data = JSON.parse(data);
+                }
+                selectedGuardianShipDocData = data;
+
+                document.getElementById("guardianship_modal_refno").value = data.refno;
+                document.getElementById("guardianship_modal_name").value = data.applicant_name;
+                document.getElementById("guardianship_modal_type").value = data.request_type;
+                document.getElementById("guardianship_modal_date").value =
+                  data.request_date || new Date().toLocaleDateString();
+
+                // ✅ Automatically set amount based on document type
+                const amountField = document.getElementById("guardianship_modal_amount");
+                const docType = data.request_type ? data.request_type.toLowerCase().trim() : "";
+
+                if (docType === "solo parent") {
+                  amountField.value = 0;
+                  amountField.readOnly = true;
+                } else if (docType === "guardianship") {
+                  amountField.value = 50;
+                  amountField.readOnly = true;
+                } else {
+                  amountField.value = "";
+                  amountField.readOnly = false;
+                }
+
+                const modal = new bootstrap.Modal(document.getElementById("guardianshipPrintFormModal"));
+                modal.show();
+              }
+
+              document.getElementById("guardianshipPrintForm").addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                const formData = new FormData(this);
+
+                fetch("PaymentGuardianship.php", {
+                    method: "POST",
+                    body: formData,
+                  })
+                  .then((response) => response.text())
+                  .then((response) => {
+                    if (response.trim() === "success") {
+                      alert("Payment recorded. Now printing...");
+                      bootstrap.Modal.getInstance(document.getElementById("guardianshipPrintFormModal")).hide();
+
+                      if (selectedGuardianShipDocData) {
+                        generateCertificate(selectedGuardianShipDocData);
+                      } else {
+                        alert("No guardianship document selected for printing.");
+                      }
+                    } else {
+                      alert("Error: " + response);
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Error submitting payment:", error);
+                    alert("Something went wrong. Please try again.");
+                  });
+              });
+            </script>
 
 
             <script>
@@ -6704,18 +6898,53 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       }
 
                       document.getElementById('view_blotter_id').textContent = data.blotter.blotter_id;
+                      //document.getElementById('view_officer_on_duty').textContent = data.blotter.officer_on_duty;
+
 
                       // Fill complainant fields
-                      const complainant = data.participants.find(p => p.participant_type === 'complainant');
-                      if (complainant) {
-                        document.getElementById('view_complainant_lastname').value = complainant.lastname;
-                        document.getElementById('view_complainant_firstname').value = complainant.firstname;
-                        document.getElementById('view_complainant_middlename').value = complainant.middlename;
-                        document.getElementById('view_complainant_address').value = complainant.address;
-                        document.getElementById('view_complainant_age').value = complainant.age;
-                        document.getElementById('view_complainant_contact_no').value = complainant.contact_no;
-                        document.getElementById('view_complainant_email').value = complainant.email;
-                      }
+                      // Fill ALL complainants (instead of just one)
+                      const complainantsContainer = document.getElementById('view_complainantContainer');
+                      complainantsContainer.innerHTML = '';
+                      data.participants.filter(p => p.participant_type === 'complainant').forEach(complainant => {
+                        complainantsContainer.innerHTML += `
+                          <div class="complainant-fields">
+                            <h6>Full name of the Complainant</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" value="${complainant.lastname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" value="${complainant.firstname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" value="${complainant.middlename}" readonly>
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" value="${complainant.address}" readonly>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" value="${complainant.age === null ? '' : complainant.age}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" value="${complainant.contact_no === null ? '' : complainant.contact_no}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" value="${complainant.email}" readonly>
+                              </div>
+                            </div>
+                            <hr>
+                          </div>
+                        `;
+                      });
                       // Fill blotter details
                       document.getElementById('view_incident_datetime').value = data.blotter.datetime_of_incident;
                       document.getElementById('view_incident_location').value = data.blotter.location_of_incident;
@@ -6727,48 +6956,48 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       accusedContainer.innerHTML = '';
                       data.participants.filter(p => p.participant_type === 'accused').forEach(accused => {
                         accusedContainer.innerHTML += `
-            <div class="accused-fields">
-              <h6>Full name of the Respondent</h6>
-              <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
-                <div class="form-group">
-                  <label>Last Name</label>
-                <input type="text" value="${accused.lastname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>First Name</label>
-                  <input type="text" value="${accused.firstname}" readonly style="grid-column: span 2;">
-                </div>
-                <div class="form-group">
-                  <label>Middle Name</label>
-                  <input type="text" value="${accused.middlename}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Alias</label>
-                  <input type="text" value="${accused.alias}" size="3" readonly>
-                </div>
+                          <div class="accused-fields">
+                            <h6>Full name of the Respondent</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                              <input type="text" value="${accused.lastname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" value="${accused.firstname}" readonly style="grid-column: span 2;">
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" value="${accused.middlename}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Alias</label>
+                                <input type="text" value="${accused.alias}" size="3" readonly>
+                              </div>
 
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <input type="text" value="${accused.address}" readonly>
-              </div>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Age</label>
-                  <input type="number" value="${accused.age === null ? '' : accused.age}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Contact No</label>
-                  <input type="text" value="${accused.contact_no === null ? '' : accused.contact_no}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" value="${accused.email}" readonly>
-                </div>
-              </div>
-              <hr>
-            </div>
-          `;
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" value="${accused.address}" readonly>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" value="${accused.age === null ? '' : accused.age}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" value="${accused.contact_no === null ? '' : accused.contact_no}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" value="${accused.email}" readonly>
+                              </div>
+                            </div>
+                            <hr>
+                          </div>
+                        `;
                       });
 
                       // Fill witnesses
@@ -6784,43 +7013,43 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       }
                       data.participants.filter(p => p.participant_type === 'witness').forEach(witness => {
                         witnessesContainer.innerHTML += `
-            <div class="witness-fields">
-              <h6>Full name of the Witness</h6>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Last Name</label>
-                  <input type="text" value="${witness.lastname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>First Name</label>
-                  <input type="text" value="${witness.firstname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Middle Name</label>
-                  <input type="text" value="${witness.middlename}" readonly>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <input type="text" value="${witness.address}" readonly>
-              </div>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Age</label>
-                  <input type="number" value="${witness.age === null ? '' : witness.age}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Contact No</label>
-                  <input type="text" value="${witness.contact_no === null ? '' : witness.contact_no}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" value="${witness.email}" readonly>
-                </div>
-              </div>
-              <hr>
-            </div>
-          `;
+                            <div class="witness-fields">
+                              <h6>Full name of the Witness</h6>
+                              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                  <label>Last Name</label>
+                                  <input type="text" value="${witness.lastname}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>First Name</label>
+                                  <input type="text" value="${witness.firstname}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Middle Name</label>
+                                  <input type="text" value="${witness.middlename}" readonly>
+                                </div>
+                              </div>
+                              <div class="form-group">
+                                <label>Address</label>
+                                <input type="text" value="${witness.address}" readonly>
+                              </div>
+                              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                  <label>Age</label>
+                                  <input type="number" value="${witness.age === null ? '' : witness.age}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Contact No</label>
+                                  <input type="text" value="${witness.contact_no === null ? '' : witness.contact_no}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Email</label>
+                                  <input type="email" value="${witness.email}" readonly>
+                                </div>
+                              </div>
+                              <hr>
+                            </div>
+                          `;
                       });
 
                       // Fetch hearing details (latest for editing, all for history)
@@ -6936,6 +7165,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
 
 
+
                       // FILL UPLOADED Files
                       const filesContainer = document.getElementById('view_filesContainer');
                       filesContainer.innerHTML = '';
@@ -6946,32 +7176,64 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
                           // Show image preview if it's an image
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/Capston/Capstones/Capstones/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                           } else {
                             // Default file icon if not image
                             thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
                           }
 
-                          filesContainer.innerHTML += `
-      <tr>
-        <td style="text-align:center;">${thumbHTML}</td>
-        <td>${file.file_name}</td>
-        <td>
-          <a href="/Capston/Capstones/Capstones/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
-            <i class="fas fa-download"></i> Download
-          </a>
-          
-        </td>
-      </tr>
-    `;
+                          if (file.file_type.startsWith('image/')) {
+                            filesContainer.innerHTML += `
+                                  <tr>
+                                    <td style="text-align:center;">${thumbHTML}</td>
+                                    <td>${file.file_name}</td>
+                                    <td>
+                                    <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                                    <i class="fas fa-download"></i> Download
+                                    </a>
+                                    <button onclick="viewImage('/BarangaySystem/BarangaySystem/${file.file_path}')" class="btn btn-primary" style="padding:5px 10px;">
+                                      <i class="fas fa-eye"></i> View
+                                    </button>
+                                      
+                                    </td>
+                                  </tr>
+                                `;
+                          } else {
+                            filesContainer.innerHTML += `
+                                <tr>
+                                  <td style="text-align:center;">${thumbHTML}</td>
+                                  <td>${file.file_name}</td>
+                                  <td>
+                                    <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                                      <i class="fas fa-download"></i> Download
+                                    </a>
+                                    
+                                  </td>
+                                </tr>
+                              `;
+                          }
                         });
                       } else {
                         filesContainer.innerHTML = `
-    <tr>
-      <td colspan="3" style="text-align:center;">No uploaded files found.</td>
-    </tr>
-  `;
+                            <tr>
+                              <td colspan="3" style="text-align:center;">No uploaded files found.</td>
+                            </tr>
+                          `;
                       }
+
+
+                      if (data.blotter && (data.blotter.status === 'closed_resolved' || data.blotter.status === 'closed_unresolved' || data.blotter.status === 'closed')) {
+                        const actionBtn = document.getElementById('actionDropdownBtn');
+                        if (actionBtn) {
+                          actionBtn.style.display = 'none';
+                        }
+                      } else {
+                        const actionBtn = document.getElementById('actionDropdownBtn');
+                        if (actionBtn) {
+                          actionBtn.style.display = 'inline-block';
+                        }
+                      }
+
 
 
 
@@ -7028,6 +7290,17 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   );
                 }
               });
+
+
+              // Add these functions at the end of the script or in a suitable place
+              function viewImage(src) {
+                document.getElementById('viewerImg').src = src;
+                document.getElementById('imageViewer').style.display = 'flex';
+              }
+
+              function closeImageViewer() {
+                document.getElementById('imageViewer').style.display = 'none';
+              }
 
 
 
@@ -7131,7 +7404,13 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       // Disable the save button as well to prevent further saves
                       saveHearingBtn.disabled = true;
                       saveHearingBtn.textContent = 'Saved';
-                      // Section remains visible; it will hide on page reload when fully recorded
+
+                      // NEW: Check outcome and show modal if 'no_agreement', else reload
+                      if (outcome === 'no_agreement') {
+                        document.getElementById('postHearingModal').style.display = 'flex';
+                      } else {
+                        location.reload();
+                      }
                     } else {
                       alert((res && res.message) ? res.message : 'Failed to save hearing');
                     }
@@ -7143,8 +7422,36 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   });
                 });
               }
-            </script>
 
+              // NEW: Event listeners for post-hearing modal buttons
+              document.getElementById('postHearingCloseBlotter').addEventListener('click', function() {
+                if (!currentBlotterId) return alert('Unable to determine blotter ID.');
+                fetch('../Process/blotter/closeblotter.php', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'id=' + encodeURIComponent(currentBlotterId) + '&status=closed_unresolved'
+                  })
+                  .then(response => response.text())
+                  .then(result => {
+                    if (result.trim() === 'success') {
+                      alert('Blotter closed as unresolved.');
+                      document.getElementById('postHearingModal').style.display = 'none';
+                      document.getElementById('viewBlotterModal').style.display = 'none';
+                      location.reload();
+                    } else {
+                      alert('Failed to close blotter: ' + result);
+                    }
+                  })
+                  .catch(() => alert('Error closing blotter.'));
+              });
+
+              document.getElementById('postHearingScheduleHearing').addEventListener('click', function() {
+                document.getElementById('postHearingModal').style.display = 'none';
+                document.getElementById('scheduleHearingModal').style.display = 'flex';
+              });
+            </script>
 
 
 
@@ -7170,43 +7477,55 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       html += `
                     <div style="font-size:16px; font-weight:bold; margin-bottom:10px; margin-top:30px;">
                       Blotter ID: ${data.blotter.blotter_id}
-                    </div>
-                    
-                    
-                    <label style="font-weight:bold;">Full Name of Complainant</label>
-        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Last Name</label>
-            <input type="text" name="complainant_lastname" value="${data.participants.find(p=>p.participant_type==='complainant').lastname}" required>
-          </div>
-          <div class="form-group">
-            <label>First Name</label>
-            <input type="text" name="complainant_firstname" value="${data.participants.find(p=>p.participant_type==='complainant').firstname}" required>
-          </div>
-          <div class="form-group">
-            <label>Middle Name</label>
-            <input type="text" name="complainant_middlename" value="${data.participants.find(p=>p.participant_type==='complainant').middlename}">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Address</label>
-          <input type="text" name="complainant_address" value="${data.participants.find(p=>p.participant_type==='complainant').address}" required>
-        </div>
-        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Age</label>
-            <input type="number" name="complainant_age" value="${data.participants.find(p=>p.participant_type==='complainant').age}">
-          </div>
-          <div class="form-group">
-            <label>Contact No</label>
-            <input type="text" name="complainant_contact_no" value="${data.participants.find(p=>p.participant_type==='complainant').contact_no}">
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" name="complainant_email" value="${data.participants.find(p=>p.participant_type==='complainant').email}">
-          </div>
-        </div>
-        <br><hr>`;
+                    </div>`;
+                      html += `<h3>Complainant Details</h3>
+                      <div id="update_complainantContainer">`;
+
+                      data.participants.filter(p => p.participant_type === 'complainant').forEach((complainant, i) => {
+                        html += `
+                        <div class="complainant-fields">
+                          <input type="hidden" name="complainant_id[]" value="${complainant.blotter_participant_id}">
+                          <h6>Full name of the Complainant</h6>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Last Name</label>
+                              <input type="text" name="complainant_lastname[]" value="${complainant.lastname}" required>
+                            </div>
+                            <div class="form-group">
+                              <label>First Name</label>
+                              <input type="text" name="complainant_firstname[]" value="${complainant.firstname}" required>
+                            </div>
+                            <div class="form-group">
+                              <label>Middle Name</label>
+                              <input type="text" name="complainant_middlename[]" value="${complainant.middlename}">
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" name="complainant_address[]" value="${complainant.address}" required>
+                          </div>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Age</label>
+                              <input type="number" name="complainant_age[]" value="${complainant.age === null ? '' : complainant.age}">
+                            </div>
+                            <div class="form-group">
+                              <label>Contact No</label>
+                              <input type="text" name="complainant_contact_no[]" value="${complainant.contact_no === null ? '' : complainant.contact_no}">
+                            </div>
+                            <div class="form-group">
+                              <label>Email</label>
+                              <input type="email" name="complainant_email[]" value="${complainant.email}">
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" onclick="removeComplainantRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                          <hr>
+                        </div>
+                      `;
+                      });
+                      html += `</div>
+                      <button type="button" class="btn btn-success btn-sm" id="updateAddComplainantBtn">+ Add Complainant</button>
+                      <br><hr>`;
 
                       // Blotter Details
                       html += `<h3>Blotter Details</h3>
@@ -7238,7 +7557,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
           <div class="accused-fields">
             <input type="hidden" name="accused_id[]" value="${accused.blotter_participant_id}">
             <h6>Full name of the Respondent</h6>
-            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+            <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
               <div class="form-group">
                 <label>Last Name</label>
                 <input type="text" name="accused_lastname[]" value="${accused.lastname}" required>
@@ -7280,7 +7599,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
           `;
                       });
                       html += `</div>
-        <button type="button" class="btn btn-success btn-sm" id="updateAddAccusedBtn">+ Add Accused</button>
+        <button type="button" class="btn btn-success btn-sm" id="updateAddAccusedBtn">+ Add Respondent</button>
         <br><hr>`;
 
                       // Witnesses
@@ -7350,7 +7669,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                         data.files.forEach(file => {
                           let thumbHTML = '';
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/Capston/Capstones/Capstones/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                           } else {
                             thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
                           }
@@ -7378,7 +7697,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       <hr>
                       <h3>Upload Files</h3>
                         <div class="form-group">
-                          <label>Upload Image(s) (jpg, jpeg, png, gif only) (Optional)</label>
+                          <label>Upload Image(s) (jpg, jpeg, png, pdf, docx only) (Optional)</label>
                           <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
                           <input type="file" name="blotter_files[]" multiple accept="image/*,application/pdf,.doc,.docx">
                         </div> 
@@ -7390,9 +7709,134 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       document.getElementById('updateBlotterFields').innerHTML = html;
                       document.getElementById('updateBlotterModal').style.display = 'flex';
 
+
+
+                      // Add function to manage complainant remove buttons
+                      function updateComplainantRemoveButtons() {
+                        const complainantContainer = document.getElementById('update_complainantContainer');
+                        if (!complainantContainer) return;
+
+                        const complainantRows = complainantContainer.querySelectorAll('.complainant-fields');
+                        const removeButtons = complainantContainer.querySelectorAll('.remove-complainant-btn');
+
+                        if (complainantRows.length === 1) {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                          });
+                        } else {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            btn.style.cursor = 'pointer';
+                          });
+                        }
+                      }
+                      updateComplainantRemoveButtons(); // Initial call
+
+                      // Remove complainant row
+                      window.removeComplainantRow = function(btn) {
+                        const container = document.getElementById('update_complainantContainer');
+                        const complainantRows = container.querySelectorAll('.complainant-fields');
+
+                        if (complainantRows.length <= 1) {
+                          alert('At least one complainant must remain.');
+                          return;
+                        }
+
+                        btn.closest('.complainant-fields').remove();
+                        updateComplainantRemoveButtons();
+                      };
+
+                      // Add complainant button
+                      document.getElementById('updateAddComplainantBtn').onclick = function() {
+                        const container = document.getElementById('update_complainantContainer');
+                        const div = document.createElement('div');
+                        div.className = 'complainant-fields';
+                        div.innerHTML = `
+                            <h6>Full name of the Complainant</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" name="complainant_lastname[]" required>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" name="complainant_firstname[]" required>
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" name="complainant_middlename[]">
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" name="complainant_address[]" required>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" name="complainant_age[]">
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" name="complainant_contact_no[]">
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="complainant_email[]">
+                              </div>
+                            </div>
+                            <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" onclick="removeComplainantRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                            <hr>
+                          `;
+                        container.appendChild(div);
+                        updateComplainantRemoveButtons();
+                      };
+
+
+                      // Add this function to check and update remove button states for accused
+                      function updateAccusedRemoveButtons() {
+                        const accusedContainer = document.getElementById('update_accusedContainer');
+                        if (!accusedContainer) return;
+
+                        const accusedRows = accusedContainer.querySelectorAll('.accused-fields');
+                        const removeButtons = accusedContainer.querySelectorAll('.remove-accused-btn');
+
+                        // Disable all remove buttons if there's only one accused
+                        if (accusedRows.length === 1) {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                          });
+                        } else {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            btn.style.cursor = 'pointer';
+                          });
+                        }
+                      }
+                      // Initial call to set button states
+                      updateAccusedRemoveButtons();
+
+
+
                       // Remove accused row (removes hidden input so it will be deleted in DB)
                       window.removeAccusedRow = function(btn) {
+                        const container = document.getElementById('update_accusedContainer');
+                        const accusedRows = container.querySelectorAll('.accused-fields');
+
+                        // Prevent removal if only one accused remains
+                        if (accusedRows.length <= 1) {
+                          alert('At least one accused must remain.');
+                          return;
+                        }
+
                         btn.closest('.accused-fields').remove();
+                        updateAccusedRemoveButtons(); // Update button states after removal
                       };
 
                       // Remove witness row (removes hidden input so it will be deleted in DB)
@@ -7401,52 +7845,54 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       };
 
                       // Add accused/witness dynamic add
+                      // Modify the updateAddAccusedBtn.onclick function
                       document.getElementById('updateAddAccusedBtn').onclick = function() {
                         const container = document.getElementById('update_accusedContainer');
                         const div = document.createElement('div');
                         div.className = 'accused-fields';
                         div.innerHTML = `
-            <h6>Full name of the Accused</h6>
-            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
-              <div class="form-group" >
-                <label>Last Name</label>
-                <input type="text" name="accused_lastname[]" required>
-              </div>
-              <div class="form-group">
-                <label>First Name</label>
-                <input type="text" name="accused_firstname[]" required>
-              </div>
-              <div class="form-group">
-                <label>Middle Name</label>
-                <input type="text" name="accused_middlename[]">
-              </div>
-              <div class="form-group">
-                <label>Alias</label>
-                <input type="text" name="accused_alias[]">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Address</label>
-              <input type="text" name="accused_address[]">
-            </div>
-            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-              <div class="form-group">
-                <label>Age</label>
-                <input type="number" name="accused_age[]">
-              </div>
-              <div class="form-group">
-                <label>Contact No</label>
-                <input type="number" name="accused_contact_no[]">
-              </div>
-              <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="accused_email[]">
-              </div>
-            </div>
-            <button type="button" class="btn btn-danger btn-sm remove-accused-btn" onclick="removeAccusedRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
-            <hr>
-          `;
+                          <h6>Full name of the Respondent</h6>
+                          <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Last Name</label>
+                              <input type="text" name="accused_lastname[]" required>
+                            </div>
+                            <div class="form-group">
+                              <label>First Name</label>
+                              <input type="text" name="accused_firstname[]" required>
+                            </div>
+                            <div class="form-group">
+                              <label>Middle Name</label>
+                              <input type="text" name="accused_middlename[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Alias</label>
+                              <input type="text" name="accused_alias[]">
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" name="accused_address[]">
+                          </div>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Age</label>
+                              <input type="number" name="accused_age[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Contact No</label>
+                              <input type="number" name="accused_contact_no[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Email</label>
+                              <input type="email" name="accused_email[]">
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-danger btn-sm remove-accused-btn" onclick="removeAccusedRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                          <hr>
+                        `;
                         container.appendChild(div);
+                        updateAccusedRemoveButtons(); // Update button states after adding
                       };
 
                       document.getElementById('updateAddWitnessBtn').onclick = function() {
@@ -7536,8 +7982,85 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
               });
             </script>
 
+            <!-- View Blottered Individual Script -->
             <script>
-              (function () {
+              function closeViewBlotteredModal() {
+                document.getElementById('viewBlotteredModal').style.display = 'none';
+              }
+
+              document.querySelectorAll('.view-blottered-info').forEach(btn => {
+                btn.addEventListener('click', function() {
+                  const participantId = this.getAttribute('data-id');
+                  // Fetch participant and files info
+                  fetch('../Process/blotter/viewblottered.php?id=' + encodeURIComponent(participantId))
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data.error) {
+                        alert(data.error);
+                        return;
+                      }
+                      // Fill respondent fields
+                      document.getElementById('blottered_blotter_id').textContent = data.participant.blotter_id;
+                      document.getElementById('blottered_participant_id').textContent = data.participant.blotter_participant_id;
+                      document.getElementById('blottered_lastname').value = data.participant.lastname;
+                      document.getElementById('blottered_firstname').value = data.participant.firstname;
+                      document.getElementById('blottered_middlename').value = data.participant.middlename;
+                      document.getElementById('blottered_address').value = data.participant.address;
+                      document.getElementById('blottered_age').value = data.participant.age;
+                      document.getElementById('blottered_contact_no').value = data.participant.contact_no;
+                      document.getElementById('blottered_email').value = data.participant.email;
+
+                      // Fill files table
+                      const filesContainer = document.getElementById('blottered_filesContainer');
+                      filesContainer.innerHTML = '';
+                      if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                          let thumbHTML = '';
+                          if (file.file_type.startsWith('image/')) {
+                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            filesContainer.innerHTML += `
+                            <tr>
+                              <td style="text-align:center;">${thumbHTML}</td>
+                              <td>${file.file_name}</td>
+                              <td>
+                                <button onclick="viewImage('/BarangaySystem/BarangaySystem/${file.file_path}')" class="btn btn-primary" style="padding:5px 10px;">
+                                  <i class="fas fa-eye"></i> View
+                                </button>
+                              </td>
+                            </tr>
+                          `;
+                          } else {
+                            thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
+                            filesContainer.innerHTML += `
+                        <tr>
+                          <td style="text-align:center;">${thumbHTML}</td>
+                          <td>${file.file_name}</td>
+                          <td>
+                            <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                              <i class="fas fa-download"></i> Download
+                            </a>
+                          </td>
+                        </tr>
+                      `;
+                          }
+                        });
+                      } else {
+                        filesContainer.innerHTML = `
+                      <tr>
+                        <td colspan="3" style="text-align:center;">No uploaded files found.</td>
+                      </tr>
+                    `;
+                      }
+
+                      document.getElementById('viewBlotteredModal').style.display = 'flex';
+                    })
+                    .catch(() => alert('Failed to fetch blottered individual details.'));
+                });
+              });
+            </script>
+
+            <script>
+              (function() {
                 // utility to hide known background modals/popups
                 function hideBackgroundModals() {
                   const selectors = [
@@ -7584,13 +8107,17 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                     document.body.classList.remove('modal-open');
                   }
 
-                  overlay.addEventListener('click', function (ev) {
+                  overlay.addEventListener('click', function(ev) {
                     if (ev.target === overlay || ev.target.id === 'vb_image_close') removeViewer();
                   });
-                  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') removeViewer(); }, { once: true });
+                  document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') removeViewer();
+                  }, {
+                    once: true
+                  });
                 }
 
-                document.addEventListener('click', function (e) {
+                document.addEventListener('click', function(e) {
                   const a = e.target.closest('a.action-btn-2.view');
                   if (!a) return;
                   const href = a.getAttribute('href') || '';
@@ -7636,11 +8163,15 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                     if (m) m.remove();
                     document.body.classList.remove('modal-open');
                   }
-                  modal.addEventListener('click', ev => { if (ev.target === modal) closeModal(); });
+                  modal.addEventListener('click', ev => {
+                    if (ev.target === modal) closeModal();
+                  });
                   modal.querySelector('#vb_close').addEventListener('click', closeModal);
                   modal.querySelector('#vb_close2').addEventListener('click', closeModal);
 
-                  fetch(href, { credentials: 'same-origin' })
+                  fetch(href, {
+                      credentials: 'same-origin'
+                    })
                     .then(response => response.json())
                     .then(json => {
                       if (json.error) {
@@ -7656,7 +8187,10 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                         img.src = d.ProofPath;
                         img.alt = d.BusinessName ? 'Proof for ' + d.BusinessName : 'Proof Image';
                         img.style.display = 'block';
-                        img.onclick = ev => { ev.stopPropagation(); showImageViewer(img.src, img.alt); };
+                        img.onclick = ev => {
+                          ev.stopPropagation();
+                          showImageViewer(img.src, img.alt);
+                        };
                       } else {
                         img.style.display = 'none';
                       }
@@ -7874,8 +8408,11 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
 
             <script>
-              (function () {
-                function escapeHtml(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+              (function() {
+                function escapeHtml(s) {
+                  if (s === null || s === undefined) return '';
+                  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                }
 
                 // hide known popups so background forms don't remain visible/interactive
                 function hideBackgroundModals() {
@@ -7900,11 +8437,23 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   overlay.innerHTML = `<div class="vb-img-wrapper"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt || '')}" /><button id="doc_img_close">&times;</button></div>`;
                   document.body.appendChild(overlay);
                   document.body.classList.add('modal-open');
-                  overlay.addEventListener('click', function (e) { if (e.target === overlay || e.target.id === 'doc_img_close') { overlay.remove(); document.body.classList.remove('modal-open'); } });
-                  document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { overlay.remove(); document.body.classList.remove('modal-open'); } }, { once: true });
+                  overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay || e.target.id === 'doc_img_close') {
+                      overlay.remove();
+                      document.body.classList.remove('modal-open');
+                    }
+                  });
+                  document.addEventListener('keydown', function esc(e) {
+                    if (e.key === 'Escape') {
+                      overlay.remove();
+                      document.body.classList.remove('modal-open');
+                    }
+                  }, {
+                    once: true
+                  });
                 }
 
-                document.addEventListener('click', function (e) {
+                document.addEventListener('click', function(e) {
                   const a = e.target.closest('a[href*="viewdocument.php"], button[data-viewdocument-id]');
                   if (!a) return;
 
@@ -7961,15 +8510,27 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
                   document.body.appendChild(modal);
 
-                  function closeModal() { const m = document.getElementById('viewDocumentModal'); if (m) m.remove(); document.body.classList.remove('modal-open'); }
-                  modal.addEventListener('click', function (ev) { if (ev.target === modal) closeModal(); });
+                  function closeModal() {
+                    const m = document.getElementById('viewDocumentModal');
+                    if (m) m.remove();
+                    document.body.classList.remove('modal-open');
+                  }
+                  modal.addEventListener('click', function(ev) {
+                    if (ev.target === modal) closeModal();
+                  });
                   modal.querySelector('#vd_close').addEventListener('click', closeModal);
                   modal.querySelector('#vd_close2').addEventListener('click', closeModal);
 
-                  fetch(href, { credentials: 'same-origin' })
+                  fetch(href, {
+                      credentials: 'same-origin'
+                    })
                     .then(r => r.json())
                     .then(json => {
-                      if (json.error) { closeModal(); alert(json.error || 'Failed to load'); return; }
+                      if (json.error) {
+                        closeModal();
+                        alert(json.error || 'Failed to load');
+                        return;
+                      }
                       const d = json.data || {};
                       const content = document.getElementById('vd_content');
                       const img = document.getElementById('vd_cert_img');
@@ -7978,7 +8539,10 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                         img.src = d.CertificateImage;
                         img.alt = d.Docutype ? 'Certificate - ' + d.Docutype : 'Certificate Image';
                         img.style.display = 'block';
-                        img.onclick = function (ev) { ev.stopPropagation(); showImageViewer(img.src, img.alt); };
+                        img.onclick = function(ev) {
+                          ev.stopPropagation();
+                          showImageViewer(img.src, img.alt);
+                        };
                       } else {
                         img.style.display = 'none';
                       }
@@ -8002,14 +8566,21 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
           </label>
         `).join('');
                     })
-                    .catch(err => { console.error(err); closeModal(); alert('Failed to load document details.'); });
+                    .catch(err => {
+                      console.error(err);
+                      closeModal();
+                      alert('Failed to load document details.');
+                    });
                 });
               })();
             </script>
 
             <script>
-              (function () {
-                function escapeHtml(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+              (function() {
+                function escapeHtml(s) {
+                  if (s === null || s === undefined) return '';
+                  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                }
 
                 // reuse helper that hides other popups so background forms won't show
                 function hideBackgroundModals() {
@@ -8034,12 +8605,24 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   overlay.innerHTML = `<div class="vb-img-wrapper"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt || '')}" /><button id="unemp_img_close">&times;</button></div>`;
                   document.body.appendChild(overlay);
                   document.body.classList.add('modal-open');
-                  overlay.addEventListener('click', function (e) { if (e.target === overlay || e.target.id === 'unemp_img_close') { overlay.remove(); document.body.classList.remove('modal-open'); } });
-                  document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { overlay.remove(); document.body.classList.remove('modal-open'); } }, { once: true });
+                  overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay || e.target.id === 'unemp_img_close') {
+                      overlay.remove();
+                      document.body.classList.remove('modal-open');
+                    }
+                  });
+                  document.addEventListener('keydown', function esc(e) {
+                    if (e.key === 'Escape') {
+                      overlay.remove();
+                      document.body.classList.remove('modal-open');
+                    }
+                  }, {
+                    once: true
+                  });
                 }
 
                 // click handler for unemployment view links/buttons
-                document.addEventListener('click', function (e) {
+                document.addEventListener('click', function(e) {
                   const trigger = e.target.closest('a[href*="viewunemployment.php"], button[data-viewunemployment-id]');
                   if (!trigger) return;
 
@@ -8085,16 +8668,28 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                     document.head.appendChild(style);
                   }
 
-                  function closeModal() { const m = document.getElementById('viewUnemploymentModal'); if (m) m.remove(); document.body.classList.remove('modal-open'); }
-                  modal.addEventListener('click', function (ev) { if (ev.target === modal) closeModal(); });
+                  function closeModal() {
+                    const m = document.getElementById('viewUnemploymentModal');
+                    if (m) m.remove();
+                    document.body.classList.remove('modal-open');
+                  }
+                  modal.addEventListener('click', function(ev) {
+                    if (ev.target === modal) closeModal();
+                  });
                   modal.querySelector('#vunemp_close').addEventListener('click', closeModal);
                   modal.querySelector('#vunemp_close2').addEventListener('click', closeModal);
 
                   // fetch data and populate fields
-                  fetch(href, { credentials: 'same-origin' })
+                  fetch(href, {
+                      credentials: 'same-origin'
+                    })
                     .then(r => r.json())
                     .then(json => {
-                      if (json.error) { closeModal(); alert(json.error || 'Failed to load record.'); return; }
+                      if (json.error) {
+                        closeModal();
+                        alert(json.error || 'Failed to load record.');
+                        return;
+                      }
                       const d = json.data || {};
                       const content = document.getElementById('vunemp_content');
 
@@ -8128,7 +8723,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
             </script>
 
             <script>
-              (function () {
+              (function() {
                 function escapeHtml(s) {
                   if (s === null || s === undefined) return '';
                   return String(s)
@@ -8153,7 +8748,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                 }
 
                 // Click handler for guardianship view links
-                document.addEventListener('click', function (e) {
+                document.addEventListener('click', function(e) {
                   const a = e.target.closest('a.action-btn-2.view');
                   if (!a) return;
                   const href = a.getAttribute('href') || '';
@@ -8197,12 +8792,16 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                     if (m) m.remove();
                     document.body.classList.remove('modal-open');
                   }
-                  modal.addEventListener('click', ev => { if (ev.target === modal) closeModal(); });
+                  modal.addEventListener('click', ev => {
+                    if (ev.target === modal) closeModal();
+                  });
                   modal.querySelector('#vg_close').addEventListener('click', closeModal);
                   modal.querySelector('#vg_close2').addEventListener('click', closeModal);
 
                   // Fetch data and populate modal
-                  fetch(href, { credentials: 'same-origin' })
+                  fetch(href, {
+                      credentials: 'same-origin'
+                    })
                     .then(response => response.json())
                     .then(json => {
                       if (json.error) {
@@ -8242,77 +8841,79 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                 });
               })();
             </script>
-        <script>
-(function () {
-  function escapeHtml(s) {
-    if (s === null || s === undefined) return '';
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
+            <script>
+              (function() {
+                function escapeHtml(s) {
+                  if (s === null || s === undefined) return '';
+                  return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                }
 
-  function hideBackgroundModals() {
-    const selectors = [
-      '.modal', '.document-popup', '.business-popup', '.unemployment-popup', '.guardianship-popup',
-      '#viewDocumentModal', '#viewUnemploymentModal', '#viewGuardianshipModal'
-    ];
-    selectors.forEach(sel => {
-      document.querySelectorAll(sel).forEach(el => {
-        if (el.style) el.style.display = 'none';
-        el.classList.remove('show');
-      });
-    });
-  }
+                function hideBackgroundModals() {
+                  const selectors = [
+                    '.modal', '.document-popup', '.business-popup', '.unemployment-popup', '.guardianship-popup',
+                    '#viewDocumentModal', '#viewUnemploymentModal', '#viewGuardianshipModal'
+                  ];
+                  selectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                      if (el.style) el.style.display = 'none';
+                      el.classList.remove('show');
+                    });
+                  });
+                }
 
-  function showImageViewer(src, alt) {
-    const prev = document.getElementById('user_image_modal');
-    if (prev) prev.remove();
-    const overlay = document.createElement('div');
-    overlay.id = 'user_image_modal';
-    overlay.className = 'vb-overlay';
-    overlay.innerHTML = `
+                function showImageViewer(src, alt) {
+                  const prev = document.getElementById('user_image_modal');
+                  if (prev) prev.remove();
+                  const overlay = document.createElement('div');
+                  overlay.id = 'user_image_modal';
+                  overlay.className = 'vb-overlay';
+                  overlay.innerHTML = `
       <div class="vb-img-wrapper">
         <img src="${escapeHtml(src)}" alt="${escapeHtml(alt || '')}" />
         <button id="user_img_close">&times;</button>
       </div>`;
-    document.body.appendChild(overlay);
-    document.body.classList.add('modal-open');
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay || e.target.id === 'user_img_close') {
-        overlay.remove();
-        document.body.classList.remove('modal-open');
-      }
-    });
-    document.addEventListener('keydown', function esc(e) {
-      if (e.key === 'Escape') {
-        overlay.remove();
-        document.body.classList.remove('modal-open');
-      }
-    }, { once: true });
-  }
+                  document.body.appendChild(overlay);
+                  document.body.classList.add('modal-open');
+                  overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay || e.target.id === 'user_img_close') {
+                      overlay.remove();
+                      document.body.classList.remove('modal-open');
+                    }
+                  });
+                  document.addEventListener('keydown', function esc(e) {
+                    if (e.key === 'Escape') {
+                      overlay.remove();
+                      document.body.classList.remove('modal-open');
+                    }
+                  }, {
+                    once: true
+                  });
+                }
 
-  document.addEventListener('click', function (e) {
-    const a = e.target.closest('a[href*="viewusers.php"], button[data-viewuser-id]');
-    if (!a) return;
+                document.addEventListener('click', function(e) {
+                  const a = e.target.closest('a[href*="viewusers.php"], button[data-viewuser-id]');
+                  if (!a) return;
 
-    let href = a.getAttribute('href') || '';
-    const id = a.dataset.viewuserId || null;
-    if (!href && id) href = 'viewusers.php?id=' + encodeURIComponent(id);
-    if (!href.includes('viewusers.php')) return;
+                  let href = a.getAttribute('href') || '';
+                  const id = a.dataset.viewuserId || null;
+                  if (!href && id) href = 'viewusers.php?id=' + encodeURIComponent(id);
+                  if (!href.includes('viewusers.php')) return;
 
-    e.preventDefault();
-    hideBackgroundModals();
+                  e.preventDefault();
+                  hideBackgroundModals();
 
-    // Remove existing modal if open
-    const prev = document.getElementById('viewUserModal');
-    if (prev) prev.remove();
+                  // Remove existing modal if open
+                  const prev = document.getElementById('viewUserModal');
+                  if (prev) prev.remove();
 
-    const modal = document.createElement('div');
-    modal.id = 'viewUserModal';
-    modal.className = 'vb-modal';
-    modal.innerHTML = `
+                  const modal = document.createElement('div');
+                  modal.id = 'viewUserModal';
+                  modal.className = 'vb-modal';
+                  modal.innerHTML = `
       <div class="vb-card" style="max-width:720px;">
         <button id="vu_close" class="vb-close" aria-label="Close">&times;</button>
         <div class="vb-header">
@@ -8338,206 +8939,273 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
       </div>
     `;
 
-    document.body.appendChild(modal);
-    document.body.classList.add('modal-open');
-    if (!document.getElementById('modalOpenStyle')) {
-      const style = document.createElement('style');
-      style.id = 'modalOpenStyle';
-      style.innerHTML = 'body.modal-open{overflow:hidden;height:100%;}';
-      document.head.appendChild(style);
-    }
+                  document.body.appendChild(modal);
+                  document.body.classList.add('modal-open');
+                  if (!document.getElementById('modalOpenStyle')) {
+                    const style = document.createElement('style');
+                    style.id = 'modalOpenStyle';
+                    style.innerHTML = 'body.modal-open{overflow:hidden;height:100%;}';
+                    document.head.appendChild(style);
+                  }
 
-    let userData = {};
-    let isEditMode = false;
+                  let userData = {};
+                  let isEditMode = false;
 
-    function closeModal() {
-      const m = document.getElementById('viewUserModal');
-      if (m) m.remove();
-      document.body.classList.remove('modal-open');
-    }
+                  function closeModal() {
+                    const m = document.getElementById('viewUserModal');
+                    if (m) m.remove();
+                    document.body.classList.remove('modal-open');
+                  }
 
-    function showAlert(message, type) {
-      const alert = document.getElementById('vu_alert');
-      alert.style.display = 'block';
-      alert.style.background = type === 'success' ? '#d4edda' : '#f8d7da';
-      alert.style.color = type === 'success' ? '#155724' : '#721c24';
-      alert.style.border = type === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
-      alert.textContent = message;
-      setTimeout(() => { alert.style.display = 'none'; }, 5000);
-    }
+                  function showAlert(message, type) {
+                    const alert = document.getElementById('vu_alert');
+                    alert.style.display = 'block';
+                    alert.style.background = type === 'success' ? '#d4edda' : '#f8d7da';
+                    alert.style.color = type === 'success' ? '#155724' : '#721c24';
+                    alert.style.border = type === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+                    alert.textContent = message;
+                    setTimeout(() => {
+                      alert.style.display = 'none';
+                    }, 5000);
+                  }
 
-    function renderFields(editMode) {
-      const content = document.getElementById('vu_content');
-      
-      const fields = [
-        { label: 'User ID', key: 'UserID', readonly: true },
-        { label: 'Firstname', key: 'Firstname', readonly: false },
-        { label: 'Lastname', key: 'Lastname', readonly: false },
-        { label: 'Middlename', key: 'Middlename', readonly: false },
-        { label: 'Gender', key: 'Gender', readonly: false, type: 'select', options: ['Male', 'Female'] },
-        { label: 'Birthdate', key: 'Birthdate', readonly: false, type: 'date' },
-        { label: 'Email', key: 'Email', readonly: false, type: 'email' },
-        { label: 'Contact No.', key: 'ContactNo', readonly: false },
-        { label: 'Address', key: 'Address', readonly: false, fullWidth: true },
-        { label: 'Birthplace', key: 'Birthplace', readonly: false },
-        { label: 'Civil Status', key: 'CivilStatus', readonly: false, type: 'select', options: ['Single', 'Married', 'Widowed', 'Separated'] },
-        { label: 'Nationality', key: 'Nationality', readonly: false },
-        { label: 'Account Status', key: 'AccountStatus', readonly: true }
-      ];
+                  function renderFields(editMode) {
+                    const content = document.getElementById('vu_content');
 
-      content.innerHTML = fields.map(field => {
-        const value = userData[field.key] || '';
-        const isReadonly = field.readonly || !editMode;
-        const style = field.fullWidth ? 'grid-column:1/-1;' : '';
-        
-        let inputHtml;
-        if (field.type === 'select' && editMode && !field.readonly) {
-          inputHtml = `
+                    const fields = [{
+                        label: 'User ID',
+                        key: 'UserID',
+                        readonly: true
+                      },
+                      {
+                        label: 'Firstname',
+                        key: 'Firstname',
+                        readonly: false
+                      },
+                      {
+                        label: 'Lastname',
+                        key: 'Lastname',
+                        readonly: false
+                      },
+                      {
+                        label: 'Middlename',
+                        key: 'Middlename',
+                        readonly: false
+                      },
+                      {
+                        label: 'Gender',
+                        key: 'Gender',
+                        readonly: false,
+                        type: 'select',
+                        options: ['Male', 'Female']
+                      },
+                      {
+                        label: 'Birthdate',
+                        key: 'Birthdate',
+                        readonly: false,
+                        type: 'date'
+                      },
+                      {
+                        label: 'Email',
+                        key: 'Email',
+                        readonly: false,
+                        type: 'email'
+                      },
+                      {
+                        label: 'Contact No.',
+                        key: 'ContactNo',
+                        readonly: false
+                      },
+                      {
+                        label: 'Address',
+                        key: 'Address',
+                        readonly: false,
+                        fullWidth: true
+                      },
+                      {
+                        label: 'Birthplace',
+                        key: 'Birthplace',
+                        readonly: false
+                      },
+                      {
+                        label: 'Civil Status',
+                        key: 'CivilStatus',
+                        readonly: false,
+                        type: 'select',
+                        options: ['Single', 'Married', 'Widowed', 'Separated']
+                      },
+                      {
+                        label: 'Nationality',
+                        key: 'Nationality',
+                        readonly: false
+                      },
+                      {
+                        label: 'Account Status',
+                        key: 'AccountStatus',
+                        readonly: true
+                      }
+                    ];
+
+                    content.innerHTML = fields.map(field => {
+                      const value = userData[field.key] || '';
+                      const isReadonly = field.readonly || !editMode;
+                      const style = field.fullWidth ? 'grid-column:1/-1;' : '';
+
+                      let inputHtml;
+                      if (field.type === 'select' && editMode && !field.readonly) {
+                        inputHtml = `
             <select name="${field.key}" ${isReadonly ? 'disabled' : ''} style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;background:white;">
               ${field.options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
             </select>
           `;
-        } else {
-          const inputType = field.type || 'text';
-          inputHtml = `<input 
+                      } else {
+                        const inputType = field.type || 'text';
+                        inputHtml = `<input 
             type="${inputType}" 
             name="${field.key}" 
             value="${escapeHtml(value)}" 
             ${isReadonly ? 'readonly' : ''} 
             style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;${isReadonly ? 'background:#f5f5f5;' : 'background:white;'}"
           />`;
-        }
+                      }
 
-        return `
+                      return `
           <label class="vb-field" style="${style}">
             <span style="font-weight:600;color:#555;font-size:12px;text-transform:uppercase;margin-bottom:5px;display:block;">${escapeHtml(field.label)}</span>
             ${inputHtml}
           </label>
         `;
-      }).join('');
-    }
+                    }).join('');
+                  }
 
-    function toggleEditMode(edit) {
-      isEditMode = edit;
-      document.getElementById('vu_edit_btn').style.display = edit ? 'none' : 'inline-block';
-      document.getElementById('vu_save_btn').style.display = edit ? 'inline-block' : 'none';
-      document.getElementById('vu_cancel_btn').style.display = edit ? 'inline-block' : 'none';
-      renderFields(edit);
-    }
+                  function toggleEditMode(edit) {
+                    isEditMode = edit;
+                    document.getElementById('vu_edit_btn').style.display = edit ? 'none' : 'inline-block';
+                    document.getElementById('vu_save_btn').style.display = edit ? 'inline-block' : 'none';
+                    document.getElementById('vu_cancel_btn').style.display = edit ? 'inline-block' : 'none';
+                    renderFields(edit);
+                  }
 
-    modal.addEventListener('click', ev => { if (ev.target === modal) closeModal(); });
-    modal.querySelector('#vu_close').addEventListener('click', closeModal);
-    modal.querySelector('#vu_close2').addEventListener('click', closeModal);
-    
-    modal.querySelector('#vu_edit_btn').addEventListener('click', () => {
-      toggleEditMode(true);
-    });
+                  modal.addEventListener('click', ev => {
+                    if (ev.target === modal) closeModal();
+                  });
+                  modal.querySelector('#vu_close').addEventListener('click', closeModal);
+                  modal.querySelector('#vu_close2').addEventListener('click', closeModal);
 
-    modal.querySelector('#vu_cancel_btn').addEventListener('click', () => {
-      toggleEditMode(false);
-    });
+                  modal.querySelector('#vu_edit_btn').addEventListener('click', () => {
+                    toggleEditMode(true);
+                  });
 
-    modal.querySelector('#vu_save_btn').addEventListener('click', () => {
-      const form = document.getElementById('vu_form');
-      const formData = new FormData(form);
-      const updateData = {};
-      
-      for (let [key, value] of formData.entries()) {
-        updateData[key] = value;
-      }
-      
-      // Send update request
-      fetch(href.split('?')[0], {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify(updateData)
-      })
-      .then(r => r.json())
-      .then(json => {
-        if (json.success) {
-          showAlert('User information updated successfully!', 'success');
-          // Update userData with new values
-          Object.assign(userData, updateData);
-          toggleEditMode(false);
-        } else {
-          showAlert(json.error || 'Failed to update user information', 'error');
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        showAlert('Error updating user information', 'error');
-      });
-    });
+                  modal.querySelector('#vu_cancel_btn').addEventListener('click', () => {
+                    toggleEditMode(false);
+                  });
 
-    modal.querySelector('#vu_delete_btn').addEventListener('click', () => {
-      if (!confirm('Are you sure you want to delete this user account? This action cannot be undone.')) {
-        return;
-      }
-      
-      // Send delete request
-      fetch('viewusers.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          UserID: userData.UserID,
-          action: 'delete'
-        })
-      })
-      .then(r => r.json())
-      .then(json => {
-        if (json.success) {
-          alert('User account deleted successfully!');
-          closeModal();
-          // Reload the page to refresh the user list
-          window.location.reload();
-        } else {
-          showAlert(json.error || 'Failed to delete user account', 'error');
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        showAlert('Error deleting user account', 'error');
-      });
-    });
+                  modal.querySelector('#vu_save_btn').addEventListener('click', () => {
+                    const form = document.getElementById('vu_form');
+                    const formData = new FormData(form);
+                    const updateData = {};
 
-    // Fetch user data
-    fetch(href, { credentials: 'same-origin' })
-      .then(r => r.json())
-      .then(json => {
-        if (json.error) {
-          closeModal();
-          alert(json.error || 'Failed to load user record.');
-          return;
-        }
-        userData = json.data || {};
-        const img = document.getElementById('vu_valid_img');
+                    for (let [key, value] of formData.entries()) {
+                      updateData[key] = value;
+                    }
 
-        // Show Valid ID image if available
-        if (userData.ValidID) {
-          img.src = userData.ValidID;
-          img.style.display = 'block';
-          img.onclick = function (ev) { ev.stopPropagation(); showImageViewer(img.src, 'Valid ID'); };
-        } else {
-          img.style.display = 'none';
-        }
+                    // Send update request
+                    fetch(href.split('?')[0], {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify(updateData)
+                      })
+                      .then(r => r.json())
+                      .then(json => {
+                        if (json.success) {
+                          showAlert('User information updated successfully!', 'success');
+                          // Update userData with new values
+                          Object.assign(userData, updateData);
+                          toggleEditMode(false);
+                        } else {
+                          showAlert(json.error || 'Failed to update user information', 'error');
+                        }
+                      })
+                      .catch(err => {
+                        console.error(err);
+                        showAlert('Error updating user information', 'error');
+                      });
+                  });
 
-        // Render user info in view mode
-        renderFields(false);
-      })
-      .catch(err => {
-        console.error(err);
-        closeModal();
-        alert('Failed to load user details.');
-      });
-  });
-})();
-</script>
+                  modal.querySelector('#vu_delete_btn').addEventListener('click', () => {
+                    if (!confirm('Are you sure you want to delete this user account? This action cannot be undone.')) {
+                      return;
+                    }
+
+                    // Send delete request
+                    fetch('viewusers.php', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                          UserID: userData.UserID,
+                          action: 'delete'
+                        })
+                      })
+                      .then(r => r.json())
+                      .then(json => {
+                        if (json.success) {
+                          alert('User account deleted successfully!');
+                          closeModal();
+                          // Reload the page to refresh the user list
+                          window.location.reload();
+                        } else {
+                          showAlert(json.error || 'Failed to delete user account', 'error');
+                        }
+                      })
+                      .catch(err => {
+                        console.error(err);
+                        showAlert('Error deleting user account', 'error');
+                      });
+                  });
+
+                  // Fetch user data
+                  fetch(href, {
+                      credentials: 'same-origin'
+                    })
+                    .then(r => r.json())
+                    .then(json => {
+                      if (json.error) {
+                        closeModal();
+                        alert(json.error || 'Failed to load user record.');
+                        return;
+                      }
+                      userData = json.data || {};
+                      const img = document.getElementById('vu_valid_img');
+
+                      // Show Valid ID image if available
+                      if (userData.ValidID) {
+                        img.src = userData.ValidID;
+                        img.style.display = 'block';
+                        img.onclick = function(ev) {
+                          ev.stopPropagation();
+                          showImageViewer(img.src, 'Valid ID');
+                        };
+                      } else {
+                        img.style.display = 'none';
+                      }
+
+                      // Render user info in view mode
+                      renderFields(false);
+                    })
+                    .catch(err => {
+                      console.error(err);
+                      closeModal();
+                      alert('Failed to load user details.');
+                    });
+                });
+              })();
+            </script>
 </body>
 
 </html>

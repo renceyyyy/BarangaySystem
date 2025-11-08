@@ -9,11 +9,45 @@ $requestorName = $requestorBirthday = $requestorAddress = $purpose = "";
 $errors = [];
 $success = false;
 $success_ref_no = "";
+$isUpdateSuccess = false; // Track if update was successful
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../Login/login.php");
     exit();
+}
+
+// Check if we're in update mode
+$isUpdateMode = false;
+$updateRefNo = null;
+$pendingRequest = null;
+
+if (isset($_GET['update'])) {
+    $updateRefNo = $_GET['update'];
+    $isUpdateMode = true;
+    
+    // Fetch pending request data
+    $pendingCheckSql = "SELECT * FROM no_birthcert_tbl WHERE refno = ? AND user_id = ? AND RequestStatus = 'Pending'";
+    $pendingStmt = $conn->prepare($pendingCheckSql);
+    if ($pendingStmt) {
+        $pendingStmt->bind_param("si", $updateRefNo, $_SESSION['user_id']);
+        $pendingStmt->execute();
+        $result = $pendingStmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $pendingRequest = $result->fetch_assoc();
+            // Pre-fill form with pending request data
+            $requestorName = $pendingRequest['requestor_name'] ?? '';
+            $requestorBirthday = $pendingRequest['requestor_birthday'] ?? '';
+            $requestorAddress = $pendingRequest['requestor_address'] ?? '';
+            $purpose = $pendingRequest['purpose'] ?? '';
+        } else {
+            // Invalid update request
+            header("Location: ../Pages/UserReports.php");
+            exit();
+        }
+        $pendingStmt->close();
+    }
 }
 
 // Fetch user data from database
@@ -30,32 +64,52 @@ if ($user_stmt) {
     if ($user_result->num_rows > 0) {
         $user_data = $user_result->fetch_assoc();
 
-        // Pre-populate form fields with user data
-        $firstname = $user_data['Firstname'] ?? '';
-        $lastname = $user_data['Lastname'] ?? '';
-        $middlename = $user_data['Middlename'] ?? '';
-        $birthdate = $user_data['Birthdate'] ?? '';
-        $address = $user_data['Address'] ?? '';
+        // Only pre-populate if NOT in update mode
+        if (!$isUpdateMode) {
+            // Pre-populate form fields with user data
+            $firstname = $user_data['Firstname'] ?? '';
+            $lastname = $user_data['Lastname'] ?? '';
+            $middlename = $user_data['Middlename'] ?? '';
+            $birthdate = $user_data['Birthdate'] ?? '';
+            $address = $user_data['Address'] ?? '';
 
-        // Check for default values and replace them with empty strings
-        if ($firstname === 'uncompleted') $firstname = '';
-        if ($lastname === 'uncompleted') $lastname = '';
-        if ($middlename === 'uncompleted') $middlename = '';
-        if ($birthdate === '0') $birthdate = '';
-        if ($address === 'uncompleted') $address = '';
+            // Check for default values and replace them with empty strings
+            if ($firstname === 'uncompleted') $firstname = '';
+            if ($lastname === 'uncompleted') $lastname = '';
+            if ($middlename === 'uncompleted') $middlename = '';
+            if ($birthdate === '0') $birthdate = '';
+            if ($address === 'uncompleted') $address = '';
 
-        // Build requestor name from user data
-        $requestorName = trim("$firstname " . ($middlename ? "$middlename " : "") . "$lastname");
-        
-        // Set other fields from user data
-        $requestorBirthday = $birthdate;
-        $requestorAddress = $address;
+            // Build requestor name from user data
+            $requestorName = trim("$firstname " . ($middlename ? "$middlename " : "") . "$lastname");
+            
+            // Set other fields from user data
+            $requestorBirthday = $birthdate;
+            $requestorAddress = $address;
+        }
     }
     $user_stmt->close();
 }
 
 // Handle form submission
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["no_birthcert_request"])) {
+    // Check for existing pending request (only for new submissions)
+    if (!$isUpdateMode) {
+        $pendingCheckSql = "SELECT refno FROM no_birthcert_tbl WHERE user_id = ? AND RequestStatus = 'Pending' LIMIT 1";
+        $pendingStmt = $conn->prepare($pendingCheckSql);
+        if ($pendingStmt) {
+            $pendingStmt->bind_param("i", $user_id);
+            $pendingStmt->execute();
+            $pendingResult = $pendingStmt->get_result();
+            
+            if ($pendingResult->num_rows > 0) {
+                $pendingData = $pendingResult->fetch_assoc();
+                $errors[] = "You have a pending No Birth Certificate request (Ref: " . htmlspecialchars($pendingData['refno']) . "). Please wait for approval or update your existing request before submitting a new one.";
+            }
+            $pendingStmt->close();
+        }
+    }
+    
     // Validate terms and conditions agreement
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
@@ -94,66 +148,100 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["no_birthcert_request"
 
     // If no errors, process the form
     if (empty($errors)) {
-        // Generate reference number
-        $refno = date('Ymd') . rand(1000, 9999);
-
         try {
-            // Check if table exists, create if not
-            $table_check = $conn->query("SHOW TABLES LIKE 'no_birthcert_tbl'");
-            if ($table_check->num_rows == 0) {
-                $create_table = "CREATE TABLE no_birthcert_tbl (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    refno VARCHAR(50) NOT NULL,
-                    requestor_name VARCHAR(100) NOT NULL,
-                    requestor_birthday DATE NOT NULL,
-                    requestor_address TEXT NOT NULL,
-                    purpose TEXT NOT NULL,
-                    request_date DATETIME NOT NULL,
-                    RequestStatus ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
-                    user_id INT NULL,
-                    UNIQUE KEY (refno)
-                )";
-
-                if (!$conn->query($create_table)) {
-                    throw new Exception("Error creating table: " . $conn->error);
-                }
-            }
-
             // Get user ID
             $userId = $_SESSION['user_id'];
-
-            // Insert into database
-            $sql = "INSERT INTO no_birthcert_tbl (
-                refno, requestor_name, requestor_birthday, 
-                requestor_address, purpose, request_date, user_id
-            ) VALUES (?, ?, ?, ?, ?, NOW(), ?)";
-
-            $stmt = $conn->prepare($sql);
-
-            if ($stmt === false) {
-                throw new Exception("Prepare failed: " . $conn->error);
-            }
-
-            $stmt->bind_param(
-                "sssssi",
-                $refno,
-                $requestorName,
-                $requestorBirthday,
-                $requestorAddress,
-                $purpose,
-                $userId
-            );
-
-            if ($stmt->execute()) {
-                $success = true;
-                $success_ref_no = $refno;
-                // Reset form but keep user data for future applications
-                $purpose = "";
+            
+            if ($isUpdateMode) {
+                // UPDATE existing pending request
+                $sql = "UPDATE no_birthcert_tbl SET 
+                        requestor_name = ?, requestor_birthday = ?, 
+                        requestor_address = ?, purpose = ?
+                        WHERE refno = ? AND user_id = ? AND RequestStatus = 'Pending'";
+                
+                $stmt = $conn->prepare($sql);
+                if ($stmt === false) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+                
+                $stmt->bind_param(
+                    "sssssi",
+                    $requestorName,
+                    $requestorBirthday,
+                    $requestorAddress,
+                    $purpose,
+                    $updateRefNo,
+                    $userId
+                );
+                
+                if ($stmt->execute()) {
+                    $success = true;
+                    $success_ref_no = $updateRefNo;
+                    $isUpdateSuccess = true; // Flag to show update success message
+                } else {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
+                
+                $stmt->close();
             } else {
-                throw new Exception("Execute failed: " . $stmt->error);
-            }
+                // INSERT new request
+                // Generate reference number
+                $refno = date('Ymd') . rand(1000, 9999);
 
-            $stmt->close();
+                // Check if table exists, create if not
+                $table_check = $conn->query("SHOW TABLES LIKE 'no_birthcert_tbl'");
+                if ($table_check->num_rows == 0) {
+                    $create_table = "CREATE TABLE no_birthcert_tbl (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        refno VARCHAR(50) NOT NULL,
+                        requestor_name VARCHAR(100) NOT NULL,
+                        requestor_birthday DATE NOT NULL,
+                        requestor_address TEXT NOT NULL,
+                        purpose TEXT NOT NULL,
+                        request_date DATETIME NOT NULL,
+                        RequestStatus ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+                        user_id INT NULL,
+                        UNIQUE KEY (refno)
+                    )";
+
+                    if (!$conn->query($create_table)) {
+                        throw new Exception("Error creating table: " . $conn->error);
+                    }
+                }
+
+                // Insert into database
+                $sql = "INSERT INTO no_birthcert_tbl (
+                    refno, requestor_name, requestor_birthday, 
+                    requestor_address, purpose, request_date, user_id
+                ) VALUES (?, ?, ?, ?, ?, NOW(), ?)";
+
+                $stmt = $conn->prepare($sql);
+
+                if ($stmt === false) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+
+                $stmt->bind_param(
+                    "sssssi",
+                    $refno,
+                    $requestorName,
+                    $requestorBirthday,
+                    $requestorAddress,
+                    $purpose,
+                    $userId
+                );
+
+                if ($stmt->execute()) {
+                    $success = true;
+                    $success_ref_no = $refno;
+                    // Reset form but keep user data for future applications
+                    $purpose = "";
+                } else {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
+
+                $stmt->close();
+            }
         } catch (Exception $e) {
             $errors[] = $e->getMessage();
         }
@@ -352,11 +440,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["no_birthcert_request"
     </div>
     
     <div class="container">
-        <h1>No Birth Certificate Application</h1>
+        <h1><?php echo $isUpdateMode ? 'Update No Birth Certificate Application' : 'No Birth Certificate Application'; ?></h1>
         
-        <div class="user-info-note">
-            <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary.
-        </div>
+        <?php if ($isUpdateMode): ?>
+            <div class="user-info-note" style="background-color: #e6f7ff; border-left-color: #1890ff;">
+                <strong>Update Mode:</strong> You are updating your pending request (Reference: <?php echo htmlspecialchars($updateRefNo); ?>). Modify the information below and submit to update your request.
+            </div>
+        <?php else: ?>
+            <div class="user-info-note">
+                <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary.
+            </div>
+        <?php endif; ?>
         
         <div class="form-description">
             <p><strong>Purpose:</strong> Use this form to apply for documentation when you don't have a birth certificate. This application helps establish your identity and personal details for official purposes.</p>
@@ -412,7 +506,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["no_birthcert_request"
             <?php echo displayTermsAndConditions('birthCertForm'); ?>
             
             <div class="form-group" style="text-align: center; margin-top: 30px;">
-                <button type="submit" class="btn" id="submitBtn">Submit Application</button>
+                <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Application' : 'Submit Application'; ?></button>
             </div>
         </form>
     </div>
@@ -462,6 +556,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["no_birthcert_request"
 
             // Show success message if submission was successful
             <?php if ($success): ?>
+                <?php if (isset($isUpdateSuccess) && $isUpdateSuccess): ?>
+                    document.querySelector('.success-message h3').textContent = 'Request Updated Successfully!';
+                    document.querySelector('.success-message p:nth-of-type(1)').textContent = 'Your no birth certificate request has been updated.';
+                <?php endif; ?>
                 successMessage.classList.add('show');
                 overlay.classList.add('show');
             <?php endif; ?>

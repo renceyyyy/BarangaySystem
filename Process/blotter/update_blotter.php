@@ -1,5 +1,5 @@
 <?php
-
+session_start();
 require_once '../db_connection.php';
 $conn = getDBConnection();
 
@@ -28,16 +28,15 @@ function generateFileId($conn)
 }
 
 // Helper: Generate participant ID
-function generateParticipantId($conn)
+function generateParticipantId($conn, $blotter_id)
 {
-    $last_id = null;
-    $date = date('Ymd');
-    $prefix = "PTCP-$date-";
+    $prefix = "PTCP-$blotter_id-";
     $sql = "SELECT blotter_participant_id FROM blotter_participantstbl WHERE blotter_participant_id LIKE ? ORDER BY blotter_participant_id DESC LIMIT 1";
     $like = $prefix . '%';
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("s", $like);
     $stmt->execute();
+    $last_id = null;
     $stmt->bind_result($last_id);
     $stmt->fetch();
     $stmt->close();
@@ -75,32 +74,70 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt->execute();
     $stmt->close();
 
-    // --- 2. Update complainant ---
-    $complainant_lastname = trim($_POST['complainant_lastname'] ?? '');
-    $complainant_firstname = trim($_POST['complainant_firstname'] ?? '');
-    $complainant_middlename = trim($_POST['complainant_middlename'] ?? '');
-    $complainant_address = trim($_POST['complainant_address'] ?? '');
-    $complainant_age = intval($_POST['complainant_age'] ?? 0);
-    $complainant_contact_no = trim($_POST['complainant_contact_no'] ?? '');
-    $complainant_email = trim($_POST['complainant_email'] ?? '');
-
-    // Find complainant participant ID
-    $sql = "SELECT blotter_participant_id FROM blotter_participantstbl WHERE blotter_id=? AND participant_type='complainant' LIMIT 1";
+    // --- 2. Update, Insert, Delete complainants ---
+    $existing_complainants = [];
+    $sql = "SELECT blotter_participant_id FROM blotter_participantstbl WHERE blotter_id=? AND participant_type='complainant'";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("s", $blotter_id);
     $stmt->execute();
-    $stmt->bind_result($complainant_id);
-    $stmt->fetch();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $existing_complainants[] = $row['blotter_participant_id'];
+    }
     $stmt->close();
 
-    if ($complainant_id) {
-        $sql = "UPDATE blotter_participantstbl SET
+    $form_complainant_ids = $_POST['complainant_id'] ?? [];
+    $form_complainant_lastname = $_POST['complainant_lastname'] ?? [];
+    $form_complainant_firstname = $_POST['complainant_firstname'] ?? [];
+    $form_complainant_middlename = $_POST['complainant_middlename'] ?? [];
+    $form_complainant_address = $_POST['complainant_address'] ?? [];
+    $form_complainant_age = $_POST['complainant_age'] ?? [];
+    $form_complainant_contact_no = $_POST['complainant_contact_no'] ?? [];
+    $form_complainant_email = $_POST['complainant_email'] ?? [];
+
+    $handled_complainant_ids = [];
+    foreach ($form_complainant_lastname as $i => $lastname) {
+        $id = $form_complainant_ids[$i] ?? '';
+        $firstname = $form_complainant_firstname[$i] ?? '';
+        $middlename = $form_complainant_middlename[$i] ?? '';
+        $address = $form_complainant_address[$i] ?? '';
+        $age = (isset($form_complainant_age[$i]) && $form_complainant_age[$i] !== '') ? intval($form_complainant_age[$i]) : null;
+        $contact_no = (isset($form_complainant_contact_no[$i]) && $form_complainant_contact_no[$i] !== '') ? $form_complainant_contact_no[$i] : null;
+        $email = $form_complainant_email[$i] ?? '';
+
+        if ($id && in_array($id, $existing_complainants)) {
+            // Update
+            $sql = "UPDATE blotter_participantstbl SET
             lastname=?, firstname=?, middlename=?, address=?, age=?, contact_no=?, email=?
             WHERE blotter_participant_id=?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ssssisss", $complainant_lastname, $complainant_firstname, $complainant_middlename, $complainant_address, $complainant_age, $complainant_contact_no, $complainant_email, $complainant_id);
-        $stmt->execute();
-        $stmt->close();
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("ssssiiss", $lastname, $firstname, $middlename, $address, $age, $contact_no, $email, $id);
+            $stmt->execute();
+            $stmt->close();
+            $handled_complainant_ids[] = $id;
+        } else {
+            // Insert new
+            $new_id = generateParticipantId($conn, $blotter_id);
+            $participant_type = 'complainant';
+            $sql = "INSERT INTO blotter_participantstbl (
+            blotter_participant_id, blotter_id, participant_type, lastname, firstname, middlename, alias, address, age, contact_no, email
+        ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("sssssssiis", $new_id, $blotter_id, $participant_type, $lastname, $firstname, $middlename, $address, $age, $contact_no, $email);
+            $stmt->execute();
+            $stmt->close();
+            $handled_complainant_ids[] = $new_id;
+        }
+    }
+    // Delete complainants not present in form
+    foreach ($existing_complainants as $id) {
+        if (!in_array($id, $handled_complainant_ids)) {
+            $sql = "DELETE FROM blotter_participantstbl WHERE blotter_participant_id=?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("s", $id);
+            $stmt->execute();
+            $stmt->close();
+        }
     }
 
     // --- 3. Update, Insert, Delete accused ---
@@ -150,7 +187,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $handled_accused_ids[] = $id;
         } else {
             // Insert new
-            $new_id = generateParticipantId($conn);
+            $new_id = generateParticipantId($conn, $blotter_id);
             $participant_type = 'accused';
             $sql = "INSERT INTO blotter_participantstbl (
                 blotter_participant_id, blotter_id, participant_type, lastname, firstname, middlename, alias, address, age, contact_no, email
@@ -216,7 +253,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $handled_witness_ids[] = $id;
         } else {
             // Insert new
-            $new_id = generateParticipantId($conn);
+            $new_id = generateParticipantId($conn, $blotter_id);
             $participant_type = 'witness';
             $sql = "INSERT INTO blotter_participantstbl (
                 blotter_participant_id, blotter_id, participant_type, lastname, firstname, middlename, alias, address, age, contact_no, email

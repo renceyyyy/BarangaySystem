@@ -335,6 +335,17 @@ if (isset($_GET['reset_notifications']) && isset($_SESSION['user_id'])) {
     <!-- Navigation Bar -->
     <?php include '../Pages/Navbar/navbar.php'; ?>
 
+    <!-- Pending Verification Notice -->
+    <?php if (isset($_SESSION['user_id']) && isset($_SESSION['AccountStatus']) && $_SESSION['AccountStatus'] === 'pending'): ?>
+        <div class="verification-notice pending" style="margin: 0; margin-top: -10px; border-radius: 0; background: linear-gradient(135deg, #e3f2fd 0%, #f3f9ff 100%); border-left: 4px solid #42a5f5; color: #1565c0; padding: 1.25rem 1.5rem; display: flex; align-items: flex-start; gap: 1.25rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);">
+            <i class="fas fa-clock" style="font-size: 1.5rem; margin-top: 0.1rem; flex-shrink: 0;"></i>
+            <div>
+                <strong style="display: block; margin-bottom: 0.4rem; font-size: 1.05rem; font-weight: 700;">Account Pending Verification</strong>
+                <p style="margin: 0; font-size: 0.9rem; line-height: 1.6; opacity: 0.9;">Your profile has been completed. Please wait for admin verification to access all services.</p>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Hero Section -->
     <div class="hero">
         <div class="hero-content">

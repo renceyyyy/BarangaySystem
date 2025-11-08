@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db_connection.php';
+require_once 'activity_logger.php';
 
 // Get database connection
 $conn = getDBConnection();
@@ -49,6 +50,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION['username'] = $user['Username'];
             $_SESSION['role'] = $user['Role'];
             $_SESSION['fullname'] = $user['FullName']; // full name from userloginfo
+
+            // Log login activity
+            logActivity(
+                ActivityLogger::LOGIN,
+                'User logged in successfully',
+                'Login',
+                null,
+                'success'
+            );
 
             // Insert TimeIn into audittrail
             $timeIn = date("Y-m-d H:i:s");

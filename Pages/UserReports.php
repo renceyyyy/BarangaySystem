@@ -13,6 +13,115 @@ require_once '../Process/db_connection.php';
 // Get database connection
 $conn = getDBConnection();
 
+// NEW FEATURE: Check for pending requests by type
+function getPendingRequestTypes($conn, $userId)
+{
+  $pendingTypes = [];
+  
+  // Document requests
+  $sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE UserId = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['document'] = true;
+    }
+    $stmt->close();
+  }
+
+  // Business requests
+  $sql = "SELECT COUNT(*) as count FROM businesstbl WHERE UserId = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['business'] = true;
+    }
+    $stmt->close();
+  }
+
+  // Scholarship
+  $sql = "SELECT COUNT(*) as count FROM scholarship WHERE UserID = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['scholarship'] = true;
+    }
+    $stmt->close();
+  }
+
+  // Unemployment
+  $sql = "SELECT COUNT(*) as count FROM unemploymenttbl WHERE user_id = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['unemployment'] = true;
+    }
+    $stmt->close();
+  }
+
+  // Guardianship
+  $sql = "SELECT COUNT(*) as count FROM guardianshiptbl WHERE user_id = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['guardianship'] = true;
+    }
+    $stmt->close();
+  }
+
+  // No Birth Certificate
+  $sql = "SELECT COUNT(*) as count FROM no_birthcert_tbl WHERE user_id = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['no_birth'] = true;
+    }
+    $stmt->close();
+  }
+
+  // Complaints
+  $sql = "SELECT COUNT(*) as count FROM complaintbl WHERE Userid = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['complaint'] = true;
+    }
+    $stmt->close();
+  }
+
+  return $pendingTypes;
+}
+
+$pendingByType = getPendingRequestTypes($conn, $_SESSION['user_id']);
+// Store in session so navbar can access it
+// Clear the session array first to prevent stale data
+if (empty($pendingByType)) {
+  // No pending requests, ensure session is empty
+  $_SESSION['pending_by_type'] = [];
+} else {
+  $_SESSION['pending_by_type'] = $pendingByType;
+}
+
 function getUserRequests($conn, $userId)
 {
   $requests = [];
@@ -302,6 +411,23 @@ function getStatusBadgeClass($status)
       <p>Track all your submitted requests and their current status</p>
     </div>
 
+    <?php 
+    // Check if there are any pending requests
+    $hasPendingRequests = !empty($pendingByType);
+    if ($hasPendingRequests): 
+    ?>
+      <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+        <i class="fas fa-info-circle" style="color: #856404; font-size: 1.3rem; flex-shrink: 0;"></i>
+        <div>
+          <strong style="color: #856404;">Pending Request(s) Found</strong>
+          <p style="margin: 5px 0 0 0; color: #856404; font-size: 0.95rem;">
+            You have pending request(s). You can access the service forms to update or modify your pending requests. 
+            Click on the "Pending" tab below to view and manage your pending requests.
+          </p>
+        </div>
+      </div>
+    <?php endif; ?>
+
     <?php if (empty($userRequests)): ?>
       <div class="requests-section">
         <div class="no-requests">
@@ -432,6 +558,7 @@ function getStatusBadgeClass($status)
                   <th class="col-reference">Reference No.</th>
                   <th class="col-date">Date Requested</th>
                   <th class="col-status">Status</th>
+                  <th class="col-action" style="text-align: center;">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -448,11 +575,17 @@ function getStatusBadgeClass($status)
                         <?php echo ucfirst(htmlspecialchars($request['status'])); ?>
                       </span>
                     </td>
+                    <td class="col-action" style="text-align: center;">
+                      <a href="#" onclick="updateRequest('<?php echo htmlspecialchars($request['refno']); ?>', '<?php echo htmlspecialchars($request['type']); ?>'); return false;" 
+                         style="color: #0b5ed7; text-decoration: none; font-weight: 500;">
+                        <i class="fas fa-edit"></i> Update
+                      </a>
+                    </td>
                   </tr>
                 <?php endforeach; ?>
                 <?php if (empty($pendingRequests)): ?>
                   <tr>
-                    <td colspan="5" class="no-requests-row">
+                    <td colspan="6" class="no-requests-row">
                       <div class="no-requests-message">
                         <i class="fas fa-check-circle"></i>
                         <p>No pending requests found.</p>
@@ -578,6 +711,26 @@ function getStatusBadgeClass($status)
       const targetTab = document.getElementById(tabName + '-tab');
       if (targetTab) {
         targetTab.classList.add('active');
+      }
+    }
+
+    // NEW FEATURE: Update pending request
+    function updateRequest(refNo, requestType) {
+      // Map request types to their forms
+      const updateMap = {
+        'Document Request': '../NewRequests/NewGovernmentDocs.php?update=' + refNo,
+        'Business Request': '../NewRequests/NewBusinessRequest.php?update=' + refNo,
+        'Scholarship Application': '../NewRequests/NewScholar.php?update=' + refNo,
+        'Unemployment Certificate': '../NewRequests/NewNoFixIncome.php?update=' + refNo,
+        'Guardianship/Solo Parent': '../NewRequests/NewGuardianshipForm.php?update=' + refNo,
+        'No Birth Certificate': '../NewRequests/NewNoBirthCertificate.php?update=' + refNo,
+        'Complaint': '../NewRequests/NewComplain.php?update=' + refNo
+      };
+
+      if (updateMap[requestType]) {
+        window.location.href = updateMap[requestType];
+      } else {
+        alert('Update feature not available for this request type.');
       }
     }
   </script>

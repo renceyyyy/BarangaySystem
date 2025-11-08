@@ -1,9 +1,11 @@
 <?php
-
-require_once '../db_connection.php';
+session_start();
 header('Content-Type: application/json');
-
-$conn = getDBConnection();
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "barangayDb";
+$conn = new mysqli($servername, $username, $password, $database);
 
 $blotter_id = $_GET['id'] ?? '';
 if (!$blotter_id) {
@@ -95,4 +97,3 @@ echo json_encode([
     
 
 ]);
-?>

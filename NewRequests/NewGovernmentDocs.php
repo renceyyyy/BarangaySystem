@@ -10,47 +10,138 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// NEW FEATURE: Check for existing pending request and handle update mode
+$user_id = $_SESSION['user_id'];
+$isUpdateMode = false;
+$updateRefNo = '';
+$pendingRequest = null;
+$errors = []; // Initialize errors array
+$isUpdateSuccess = false; // Track if update was successful
+
+// Check if this is update mode
+if (isset($_GET['update'])) {
+    $updateRefNo = trim($_GET['update']);
+    $isUpdateMode = true;
+    
+    // Fetch the pending request data
+    $check_sql = "SELECT * FROM docsreqtbl WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending' LIMIT 1";
+    $check_stmt = $conn->prepare($check_sql);
+    if ($check_stmt) {
+        $check_stmt->bind_param("si", $updateRefNo, $user_id);
+        $check_stmt->execute();
+        $result = $check_stmt->get_result();
+        if ($result->num_rows > 0) {
+            $pendingRequest = $result->fetch_assoc();
+        } else {
+            // Invalid update request
+            $_SESSION['error_message'] = "Invalid update request or request is no longer pending.";
+            header("Location: ../Pages/UserReports.php");
+            exit();
+        }
+        $check_stmt->close();
+    }
+}
+
+// Get all pending document types for this user (only when creating new)
+$pending_doc_types = [];
+if (!$isUpdateMode) {
+    $pending_check_sql = "SELECT DISTINCT DocuType FROM docsreqtbl WHERE Userid = ? AND RequestStatus = 'Pending'";
+    $pending_stmt = $conn->prepare($pending_check_sql);
+    if ($pending_stmt) {
+        $pending_stmt->bind_param("i", $user_id);
+        $pending_stmt->execute();
+        $pending_result = $pending_stmt->get_result();
+        while ($pending_row = $pending_result->fetch_assoc()) {
+            $pending_doc_types[] = $pending_row['DocuType'];
+        }
+        $pending_stmt->close();
+    }
+}
+
 // Fetch user data from database
 $user_id = $_SESSION['user_id'];
 $user_data = [];
 
-$user_sql = "SELECT Firstname, Lastname, Gender, ContactNo, Address, CivilStatus FROM userloginfo WHERE UserID = ?";
-$user_stmt = $conn->prepare($user_sql);
-if ($user_stmt) {
-    $user_stmt->bind_param("i", $user_id);
-    $user_stmt->execute();
-    $user_result = $user_stmt->get_result();
+// If update mode, use pending request data
+if ($isUpdateMode && $pendingRequest) {
+    $firstname = $pendingRequest['Firstname'] ?? '';
+    $lastname = $pendingRequest['Lastname'] ?? '';
+    $gender = $pendingRequest['Gender'] ?? '';
+    $contactNo = $pendingRequest['ContactNo'] ?? ($pendingRequest['ContactNO'] ?? ''); // Handle both cases
+    $address = $pendingRequest['Address'] ?? '';
+    $civilStatus = $pendingRequest['CivilStatus'] ?? '';
+    $reqPurpose = $pendingRequest['ReqPurpose'] ?? '';
+    $yearsOfResidency = $pendingRequest['YearsOfResidency'] ?? '';
+    $selectedDocType = $pendingRequest['DocuType'] ?? '';
+    // Initialize doctypes array for checkboxes (split by comma if multiple)
+    $doctypes = !empty($selectedDocType) ? array_map('trim', explode(',', $selectedDocType)) : [];
+} else {
+    // Fetch from user profile
+    $user_sql = "SELECT Firstname, Lastname, Gender, ContactNo, Address, CivilStatus FROM userloginfo WHERE UserID = ?";
+    $user_stmt = $conn->prepare($user_sql);
+    if ($user_stmt) {
+        $user_stmt->bind_param("i", $user_id);
+        $user_stmt->execute();
+        $user_result = $user_stmt->get_result();
 
-    if ($user_result->num_rows > 0) {
-        $user_data = $user_result->fetch_assoc();
+        if ($user_result->num_rows > 0) {
+            $user_data = $user_result->fetch_assoc();
 
-        // Pre-populate form fields with user data
-        $firstname = $user_data['Firstname'] ?? '';
-        $lastname = $user_data['Lastname'] ?? '';
-        $gender = $user_data['Gender'] ?? '';
-        $contactNo = $user_data['ContactNo'] ?? '';
-        $address = $user_data['Address'] ?? '';
-        $civilStatus = $user_data['CivilStatus'] ?? '';
+            // Pre-populate form fields with user data
+            $firstname = $user_data['Firstname'] ?? '';
+            $lastname = $user_data['Lastname'] ?? '';
+            $gender = $user_data['Gender'] ?? '';
+            $contactNo = $user_data['ContactNo'] ?? '';
+            $address = $user_data['Address'] ?? '';
+            $civilStatus = $user_data['CivilStatus'] ?? '';
 
-        // Check for default values and replace them with empty strings
-        if ($firstname === 'uncompleted')
-            $firstname = '';
-        if ($lastname === 'uncompleted')
-            $lastname = '';
-        if ($gender === 'uncompleted')
-            $gender = '';
-        if ($contactNo === '0')
-            $contactNo = '';
-        if ($address === 'uncompleted')
-            $address = '';
-        if ($civilStatus === 'uncompleted')
-            $civilStatus = '';
+            // Check for default values and replace them with empty strings
+            if ($firstname === 'uncompleted')
+                $firstname = '';
+            if ($lastname === 'uncompleted')
+                $lastname = '';
+            if ($gender === 'uncompleted')
+                $gender = '';
+            if ($contactNo === '0')
+                $contactNo = '';
+            if ($address === 'uncompleted')
+                $address = '';
+            if ($civilStatus === 'uncompleted')
+                $civilStatus = '';
+        }
+        $user_stmt->close();
     }
-    $user_stmt->close();
+    // Initialize form variables for new request
+    $reqPurpose = '';
+    $yearsOfResidency = '';
+    $selectedDocType = '';
+    $doctypes = []; // Initialize empty array for new requests
 }
 
 // Handle document request
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
+    // Get document types early so we can validate them
+    $doctypes_to_submit = isset($_POST["doctype"]) ? (array) $_POST["doctype"] : [];
+    
+    // NEW FEATURE: Check for pending requests of SPECIFIC document types before allowing submission
+    if (!$isUpdateMode && !empty($doctypes_to_submit)) {
+        foreach ($doctypes_to_submit as $doctype_check) {
+            $doctype_check = trim($doctype_check);
+            $pending_check = "SELECT refno FROM docsreqtbl WHERE Userid = ? AND DocuType = ? AND RequestStatus = 'Pending' LIMIT 1";
+            $pending_check_stmt = $conn->prepare($pending_check);
+            if ($pending_check_stmt) {
+                $pending_check_stmt->bind_param("is", $user_id, $doctype_check);
+                $pending_check_stmt->execute();
+                $pending_check_result = $pending_check_stmt->get_result();
+                if ($pending_check_result->num_rows > 0) {
+                    $pending_data = $pending_check_result->fetch_assoc();
+                    $errors[] = "You have a pending request for " . htmlspecialchars($doctype_check) . " (Ref: " . htmlspecialchars($pending_data['refno']) . "). Please wait for approval or update your existing request before submitting a new one for this document type.";
+                }
+                $pending_check_stmt->close();
+            }
+        }
+    }
+    
     // Validate terms and conditions agreement
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
@@ -110,8 +201,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
     // Handle file upload
     $certificateImage = null;
     $file_upload_error = '';
+    $hasNewFile = false;
+    
     if (isset($_FILES['certificateImage'])) {
         if ($_FILES['certificateImage']['error'] === UPLOAD_ERR_OK) {
+            $hasNewFile = true;
             // Validate file type
             $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
             $fileType = $_FILES['certificateImage']['type'];
@@ -129,56 +223,88 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             if (empty($errors)) {
                 $certificateImage = file_get_contents($_FILES['certificateImage']['tmp_name']);
             }
-        } else {
+        } elseif ($_FILES['certificateImage']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $errors[] = "File upload error occurred.";
+        } elseif (!$isUpdateMode) {
+            // Only require file for new requests
             $errors[] = "Certificate proof image is required.";
         }
-    } else {
+    } elseif (!$isUpdateMode) {
         $errors[] = "Certificate proof image is required.";
     }
 
     // If no errors, process the request
     if (empty($errors)) {
-        // Generate reference number
-        $refno = date('Ymd') . rand(1000, 9999);
         $successCount = 0;
 
         // Start transaction
         $conn->begin_transaction();
 
         try {
-            foreach ($doctypes as $doctype) {
-                $doctype = trim($doctype);
+            if ($isUpdateMode) {
+                // UPDATE existing pending request - update as single record, not loop
+                $docTypeString = implode(',', $doctypes); // Join multiple selected types with comma
+                
+                if ($hasNewFile && $certificateImage) {
+                    // Update with new image
+                    $sql = "UPDATE docsreqtbl SET 
+                        DocuType = ?, Firstname = ?, Lastname = ?,
+                        Gender = ?, ContactNO = ?, ReqPurpose = ?, 
+                        Address = ?, CertificateImage = ?, 
+                        YearsOfResidency = ?, CivilStatus = ?
+                        WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending'";
 
-                $sql = "INSERT INTO docsreqtbl (
-                    Userid, DocuType, Firstname, Lastname,
-                    Gender, ContactNO, ReqPurpose, Address, refno, CertificateImage, 
-                    YearsOfResidency, CivilStatus, DateRequested
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) {
+                        throw new Exception("Prepare failed: " . $conn->error);
+                    }
 
-                $stmt = $conn->prepare($sql);
-                if (!$stmt) {
-                    throw new Exception("Prepare failed: " . $conn->error);
+                    $stmt->bind_param(
+                        "sssssssbissi",
+                        $docTypeString,
+                        $firstname,
+                        $lastname,
+                        $gender,
+                        $contactNo,
+                        $reqPurpose,
+                        $address,
+                        $certificateImage,
+                        $yearsOfResidency,
+                        $civilStatus,
+                        $updateRefNo,
+                        $userId
+                    );
+
+                    // Send long blob data
+                    $stmt->send_long_data(7, $certificateImage);
+                } else {
+                    // Update without changing image
+                    $sql = "UPDATE docsreqtbl SET 
+                        DocuType = ?, Firstname = ?, Lastname = ?,
+                        Gender = ?, ContactNO = ?, ReqPurpose = ?, 
+                        Address = ?, YearsOfResidency = ?, CivilStatus = ?
+                        WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending'";
+
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) {
+                        throw new Exception("Prepare failed: " . $conn->error);
+                    }
+
+                    $stmt->bind_param(
+                        "sssssssissi",
+                        $docTypeString,
+                        $firstname,
+                        $lastname,
+                        $gender,
+                        $contactNo,
+                        $reqPurpose,
+                        $address,
+                        $yearsOfResidency,
+                        $civilStatus,
+                        $updateRefNo,
+                        $userId
+                    );
                 }
-
-                $null = null;
-                $stmt->bind_param(
-                    "issssssssbis",
-                    $userId,
-                    $doctype,
-                    $firstname,
-                    $lastname,
-                    $gender,
-                    $contactNo,
-                    $reqPurpose,
-                    $address,
-                    $refno,
-                    $null,
-                    $yearsOfResidency,
-                    $civilStatus
-                );
-
-                // Send long blob data
-                $stmt->send_long_data(9, $certificateImage);
 
                 if (!$stmt->execute()) {
                     throw new Exception("Execute failed: " . $stmt->error);
@@ -186,22 +312,75 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
                 $successCount++;
                 $stmt->close();
-            }
 
-            $conn->commit();
+                $conn->commit();
 
-            if ($successCount > 0) {
-                $success = true;
-                $success_ref_no = $refno;
+                if ($successCount > 0) {
+                    $success = true;
+                    $success_ref_no = $updateRefNo;
+                    $isUpdateSuccess = true; // Flag to show update success message
+                }
+            } else {
+                // INSERT new request
+                $refno = date('Ymd') . rand(1000, 9999);
+                
+                foreach ($doctypes as $doctype) {
+                    $doctype = trim($doctype);
 
-                // Reset form but keep user data
-                $reqPurpose = "";
-                $doctypes = [];
-                $yearsOfResidency = "";
+                    $sql = "INSERT INTO docsreqtbl (
+                        Userid, DocuType, Firstname, Lastname,
+                        Gender, ContactNO, ReqPurpose, Address, refno, CertificateImage, 
+                        YearsOfResidency, CivilStatus, DateRequested
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) {
+                        throw new Exception("Prepare failed: " . $conn->error);
+                    }
+
+                    $null = null;
+                    $stmt->bind_param(
+                        "issssssssbis",
+                        $userId,
+                        $doctype,
+                        $firstname,
+                        $lastname,
+                        $gender,
+                        $contactNo,
+                        $reqPurpose,
+                        $address,
+                        $refno,
+                        $null,
+                        $yearsOfResidency,
+                        $civilStatus
+                    );
+
+                    // Send long blob data
+                    $stmt->send_long_data(9, $certificateImage);
+
+                    if (!$stmt->execute()) {
+                        throw new Exception("Execute failed: " . $stmt->error);
+                    }
+
+                    $successCount++;
+                    $stmt->close();
+                }
+
+                $conn->commit();
+
+                if ($successCount > 0) {
+                    $success = true;
+                    $success_ref_no = $refno;
+
+                    // Reset form but keep user data
+                    $reqPurpose = "";
+                    $doctypes = [];
+                    $yearsOfResidency = "";
+                }
             }
         } catch (Exception $e) {
             $conn->rollback();
-            $errors[] = "Failed to request documents: " . $e->getMessage();
+            $errors[] = "Failed to process request: " . $e->getMessage();
         }
     }
 }
@@ -439,16 +618,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
     </div>
 
     <div class="container">
-        <h1>Government Document Request Form</h1>
+        <h1><?php echo $isUpdateMode ? 'Update Government Document Request' : 'Government Document Request Form'; ?></h1>
 
+        <?php if ($isUpdateMode): ?>
+        <div class="user-info-note" style="background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460;">
+            <strong>Update Mode:</strong> You are updating your pending request (Ref: <?php echo htmlspecialchars($updateRefNo); ?>). 
+            Modify the information below and click "Update Request" to save changes.
+        </div>
+        <?php else: ?>
         <div class="user-info-note">
             <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and
             update if necessary.
         </div>
+        <?php endif; ?>
 
         <?php if (!empty($errors)): ?>
             <div class="error">
-                <strong>Please fix the following errors:</strong>
+                <strong><?php echo (count($errors) == 1 && strpos($errors[0], 'pending') !== false) ? 'Notice:' : 'Please fix the following errors:'; ?></strong>
                 <ul>
                     <?php foreach ($errors as $error): ?>
                         <li><?php echo htmlspecialchars($error); ?></li>
@@ -527,25 +713,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                     <label>Select Document Type(s) <span class="required">*</span></label>
                     <div class="checkbox-group">
                         <div class="checkbox-item">
-                            <input type="checkbox" id="cedula" name="doctype[]" value="Cedula" <?php echo (isset($doctypes) && in_array('Cedula', $doctypes)) ? 'checked' : ''; ?>>
+                            <input type="checkbox" id="cedula" name="doctype[]" value="Cedula" 
+                                <?php echo (isset($doctypes) && in_array('Cedula', $doctypes)) ? 'checked' : ''; ?>>
                             <label for="cedula">Cedula</label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="checkbox" id="barangay_certificate" name="doctype[]"
-                                value="Barangay Certificate" <?php echo (isset($doctypes) && in_array('Barangay Certificate', $doctypes)) ? 'checked' : ''; ?>>
+                            <input type="checkbox" id="barangay_certificate" name="doctype[]" value="Barangay Certificate" 
+                                <?php echo (isset($doctypes) && in_array('Barangay Certificate', $doctypes)) ? 'checked' : ''; ?>>
                             <label for="barangay_certificate">Barangay Certificate</label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="checkbox" id="employment_form" name="doctype[]" value="Employment Form" <?php echo (isset($doctypes) && in_array('Employment Form', $doctypes)) ? 'checked' : ''; ?>>
+                            <input type="checkbox" id="employment_form" name="doctype[]" value="Employment Form" 
+                                <?php echo (isset($doctypes) && in_array('Employment Form', $doctypes)) ? 'checked' : ''; ?>>
                             <label for="employment_form">Employment Form</label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="checkbox" id="first_time_job_seeker" name="doctype[]"
-                                value="First Time Job Seeker" <?php echo (isset($doctypes) && in_array('First Time Job Seeker', $doctypes)) ? 'checked' : ''; ?>>
+                            <input type="checkbox" id="first_time_job_seeker" name="doctype[]" value="First Time Job Seeker" 
+                                <?php echo (isset($doctypes) && in_array('First Time Job Seeker', $doctypes)) ? 'checked' : ''; ?>>
                             <label for="first_time_job_seeker">First Time Job Seeker</label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="checkbox" id="indigency_form" name="doctype[]" value="Indigency Form" <?php echo (isset($doctypes) && in_array('Indigency Form', $doctypes)) ? 'checked' : ''; ?>>
+                            <input type="checkbox" id="indigency_form" name="doctype[]" value="Indigency Form" 
+                                <?php echo (isset($doctypes) && in_array('Indigency Form', $doctypes)) ? 'checked' : ''; ?>>
                             <label for="indigency_form">Indigency Form</label>
                         </div>
                     </div>
@@ -563,10 +752,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                 <h2>Required Proof</h2>
 
                 <div class="form-group">
-                    <label for="certificateImage">Certificate Proof Image <span class="required">*</span></label>
-                    <input type="file" id="certificateImage" name="certificateImage" class="file-input" required
-                        accept=".jpg,.jpeg,.png,.gif,.pdf">
-                    <div class="file-info">Upload a valid proof document (JPG, PNG, GIF, PDF - Max: 5MB)</div>
+                    <label for="certificateImage">Certificate Proof Image <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
+                    <input type="file" id="certificateImage" name="certificateImage" class="file-input" 
+                        <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
+                    <div class="file-info">
+                        <?php if ($isUpdateMode): ?>
+                            Upload a new proof document to replace the existing one (JPG, PNG, GIF, PDF - Max: 5MB). Leave empty to keep current file.
+                        <?php else: ?>
+                            Upload a valid proof document (JPG, PNG, GIF, PDF - Max: 5MB)
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
 
@@ -574,7 +769,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             <?php echo displayTermsAndConditions('governmentDocsForm'); ?>
 
             <div class="form-group">
-                <button type="submit" class="btn" id="submitBtn">Submit Request</button>
+                <button type="submit" class="btn" id="submitBtn">
+                    <?php echo $isUpdateMode ? 'Update Request' : 'Submit Request'; ?>
+                </button>
             </div>
         </form>
     </div>
@@ -623,6 +820,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             // Show success message if submission was successful
             <?php if (isset($success) && $success): ?>
                 document.getElementById('refNo').textContent = '<?php echo $success_ref_no; ?>';
+                <?php if (isset($isUpdateSuccess) && $isUpdateSuccess): ?>
+                    document.querySelector('.success-message h3').textContent = 'Request Updated Successfully!';
+                    document.querySelector('.success-message p:nth-of-type(1)').textContent = 'Your document request has been updated.';
+                <?php endif; ?>
                 successMessage.classList.add('show');
                 overlay.classList.add('show');
             <?php endif; ?>

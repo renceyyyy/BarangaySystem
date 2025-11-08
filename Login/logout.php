@@ -1,6 +1,7 @@
 <?php
 session_start();
-require_once __DIR__ . '/../Process/db_connection.php'; 
+require_once __DIR__ . '/../Process/db_connection.php';
+require_once __DIR__ . '/../Process/activity_logger.php';
 
 $conn = getDBConnection();
 
@@ -8,6 +9,11 @@ if (isset($_SESSION['username']) && isset($_SESSION['audit_id'])) {
     $username = $_SESSION['username'];
     $audit_id = $_SESSION['audit_id']; // This holds the AuditID
     $timeOut = date("Y-m-d H:i:s");
+
+    // Log logout activity
+    if (isset($_SESSION['user_id'])) {
+        logLogoutActivity($conn, $_SESSION['user_id']);
+    }
 
     $sql = "UPDATE audittrail SET TimeOut = ? WHERE AuditID = ? AND username = ?";
     $stmt = $conn->prepare($sql);

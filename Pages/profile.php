@@ -12,6 +12,13 @@ if (!isset($_SESSION['user_id'])) {
   exit();
 }
 
+// Handle AJAX request to dismiss verified notification
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'dismiss_verified_notice') {
+  $_SESSION['verified_notice_dismissed'] = true;
+  echo json_encode(['success' => true]);
+  exit();
+}
+
 require_once '../Process/db_connection.php';
 $conn = getDBConnection();
 
@@ -569,6 +576,18 @@ $stmt->close();
       }
     }
 
+    @keyframes slideOut {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      to {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+    }
+
     .message.success {
       background: linear-gradient(135deg, #e8f5e9 0%, #f1f8f1 100%);
       color: #2e7d32;
@@ -625,6 +644,33 @@ $stmt->close();
       font-size: 0.9rem;
       line-height: 1.6;
       opacity: 0.9;
+    }
+
+    .close-notice {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: inherit;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto;
+      margin-top: -0.5rem;
+      flex-shrink: 0;
+      opacity: 0.6;
+      transition: opacity 0.2s ease;
+      border-radius: 4px;
+    }
+
+    .close-notice:hover {
+      opacity: 1;
+      background-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .close-notice:active {
+      transform: scale(0.95);
     }
 
     /* Buttons - Enhanced - FIXED */
@@ -949,6 +995,17 @@ $stmt->close();
         border: 1px solid #ddd;
       }
     }
+
+    /* Hide navbar verification notice on profile page - show only profile-specific notice */
+    /* Target navbar verification notice specifically (without pending/verified classes) */
+    .navbar .verification-notice:not(.pending):not(.verified) {
+      display: none !important;
+    }
+
+    /* Also hide the top yellow banner notification in navbar on profile page */
+    body > .verification-notice {
+      display: none !important;
+    }
   </style>
 </head>
 
@@ -968,7 +1025,7 @@ $stmt->close();
     <?php endif; ?>
 
     <!-- Verification Notice -->
-    <?php if ($show_verification_notice): ?>
+    <?php if ($show_verification_notice && !isset($_SESSION['profile_message'])): ?>
       <div class="verification-notice pending">
         <i class="fas fa-clock"></i>
         <div>
@@ -976,13 +1033,16 @@ $stmt->close();
           <p>Your profile has been completed. Please wait for admin verification.</p>
         </div>
       </div>
-    <?php elseif ($user['AccountStatus'] === 'verified'): ?>
-      <div class="verification-notice verified">
+    <?php elseif ($user['AccountStatus'] === 'verified' && !isset($_SESSION['verified_notice_dismissed'])): ?>
+      <div class="verification-notice verified" id="verifiedNotice">
         <i class="fas fa-check-circle"></i>
         <div>
           <strong>Verified Account</strong>
           <p>Your account has been verified by admin.</p>
         </div>
+        <button class="close-notice" onclick="closeVerifiedNotice()" title="Close notification">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
     <?php elseif ($user['AccountStatus'] === 'unverified' && $show_complete_button): ?>
       <div class="verification-notice">
@@ -1328,7 +1388,45 @@ $stmt->close();
           updateAgeField();
         }
       }
+
+      // Check if verified notification was already dismissed
+      initializeVerifiedNotice();
     });
+
+    // Initialize verified account notification
+    function initializeVerifiedNotice() {
+      const notice = document.getElementById('verifiedNotice');
+      if (notice) {
+        // Notification is already hidden server-side if dismissed, so just show it
+        notice.style.display = 'flex';
+      }
+    }
+
+    // Close verified account notification
+    function closeVerifiedNotice() {
+      const notice = document.getElementById('verifiedNotice');
+      if (notice) {
+        // Animate out
+        notice.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(function() {
+          notice.style.display = 'none';
+          
+          // Save to session server-side
+          const formData = new FormData();
+          formData.append('action', 'dismiss_verified_notice');
+          
+          fetch('profile.php', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .catch(error => console.log('Dismissal saved to localStorage'));
+          
+          // Also save to localStorage as backup
+          localStorage.setItem('verifiedNoticeDismissed', 'true');
+        }, 300);
+      }
+    }
   </script>
 </body>
 

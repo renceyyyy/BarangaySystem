@@ -9,10 +9,39 @@ $reason_type = "text";
 $errors = [];
 $success = false;
 $success_ref_id = "";
+$isUpdateSuccess = false; // Track if update was successful
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../Login/login.php");
     exit();
+}
+
+// Check if we're in update mode
+$isUpdateMode = false;
+$updateRefNo = null;
+$pendingRequest = null;
+
+if (isset($_GET['update'])) {
+    $updateRefNo = $_GET['update'];
+    $isUpdateMode = true;
+    
+    // Fetch pending request data
+    $pendingCheckSql = "SELECT * FROM scholarship WHERE ID = ? AND UserID = ? AND RequestStatus = 'Pending'";
+    $pendingStmt = $conn->prepare($pendingCheckSql);
+    if ($pendingStmt) {
+        $pendingStmt->bind_param("si", $updateRefNo, $_SESSION['user_id']);
+        $pendingStmt->execute();
+        $result = $pendingStmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $pendingRequest = $result->fetch_assoc();
+        } else {
+            // Invalid update request
+            header("Location: ../Pages/UserReports.php");
+            exit();
+        }
+        $pendingStmt->close();
+    }
 }
 
 $user_id = $_SESSION['user_id'];
@@ -27,22 +56,52 @@ if ($user_stmt) {
     
     if ($user_result->num_rows > 0) {
         $user_data = $user_result->fetch_assoc();
-        $firstname = $user_data['Firstname'] ?? '';
-        $lastname = $user_data['Lastname'] ?? '';
-        $email = $user_data['Email'] ?? '';
-        $contact_no = $user_data['ContactNo'] ?? '';
-        $address = $user_data['Address'] ?? '';
         
-        if ($firstname === 'uncompleted') $firstname = '';
-        if ($lastname === 'uncompleted') $lastname = '';
-        if ($email === 'uncompleted') $email = '';
-        if ($contact_no === '0') $contact_no = '';
-        if ($address === 'uncompleted') $address = '';
+        // Use pending request data if in update mode, otherwise use profile data
+        if ($isUpdateMode && $pendingRequest) {
+            $firstname = $pendingRequest['Firstname'] ?? '';
+            $lastname = $pendingRequest['Lastname'] ?? '';
+            $email = $pendingRequest['Email'] ?? '';
+            $contact_no = $pendingRequest['ContactNo'] ?? '';
+            $address = $pendingRequest['Address'] ?? '';
+            $reason = $pendingRequest['Reason'] ?? '';
+            // Determine if reason is a file path or text
+            $reason_type = (strpos($reason, '../uploads/scholarship/') === 0) ? 'file' : 'text';
+        } else {
+            $firstname = $user_data['Firstname'] ?? '';
+            $lastname = $user_data['Lastname'] ?? '';
+            $email = $user_data['Email'] ?? '';
+            $contact_no = $user_data['ContactNo'] ?? '';
+            $address = $user_data['Address'] ?? '';
+            
+            if ($firstname === 'uncompleted') $firstname = '';
+            if ($lastname === 'uncompleted') $lastname = '';
+            if ($email === 'uncompleted') $email = '';
+            if ($contact_no === '0') $contact_no = '';
+            if ($address === 'uncompleted') $address = '';
+        }
     }
     $user_stmt->close();
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
+    // Check for existing pending scholarship request (only for new submissions)
+    if (!$isUpdateMode) {
+        $pendingCheckSql = "SELECT ID FROM scholarship WHERE UserID = ? AND RequestStatus = 'Pending' LIMIT 1";
+        $pendingStmt = $conn->prepare($pendingCheckSql);
+        if ($pendingStmt) {
+            $pendingStmt->bind_param("i", $user_id);
+            $pendingStmt->execute();
+            $pendingResult = $pendingStmt->get_result();
+            
+            if ($pendingResult->num_rows > 0) {
+                $pendingData = $pendingResult->fetch_assoc();
+                $errors[] = "You have a pending Scholar Grant Application (Ref: " . htmlspecialchars($pendingData['ID']) . "). Please wait for approval or update your existing request before submitting a new one.";
+            }
+            $pendingStmt->close();
+        }
+    }
+    
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
     }
@@ -90,15 +149,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
     
     foreach ($required_files as $field => $label) {
         if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
-            $errors[] = "$label is required";
-        } elseif ($_FILES[$field]['size'] > 5242880) {
-            $errors[] = "$label must be smaller than 5MB";
-        } else {
-            $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-            $tmp_name = $_FILES[$field]['tmp_name'];
-            $mime = mime_content_type($tmp_name);
-            if (!in_array($mime, $allowed_mime_types)) {
-                $errors[] = "$label must be a JPG, PNG, GIF, or PDF file";
+            // Only require files for new submissions
+            if (!$isUpdateMode) {
+                $errors[] = "$label is required";
+            }
+        } elseif (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+            if ($_FILES[$field]['size'] > 5242880) {
+                $errors[] = "$label must be smaller than 5MB";
+            } else {
+                $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+                $tmp_name = $_FILES[$field]['tmp_name'];
+                $mime = mime_content_type($tmp_name);
+                if (!in_array($mime, $allowed_mime_types)) {
+                    $errors[] = "$label must be a JPG, PNG, GIF, or PDF file";
+                }
             }
         }
     }
@@ -110,29 +174,47 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
         }
         
         $file_paths = [];
+        
+        // Use existing file paths from pending request if in update mode
+        if ($isUpdateMode && $pendingRequest) {
+            $file_paths['school_id'] = $pendingRequest['SchoolID'];
+            $file_paths['barangay_id'] = $pendingRequest['BaranggayID'];
+            $file_paths['cor'] = $pendingRequest['COR'];
+            $file_paths['parents_id'] = $pendingRequest['ParentsID'];
+            $file_paths['birth_certificate'] = $pendingRequest['BirthCertificate'];
+        }
+        
         $all_files_valid = true;
         
+        // Upload new files if provided
         foreach ($required_files as $field => $label) {
-            $file_name = $field . '_' . time() . '_' . uniqid() . '.' . pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION);
-            $file_path = $upload_dir . $file_name;
-            
-            if (move_uploaded_file($_FILES[$field]['tmp_name'], $file_path)) {
-                $file_paths[$field] = $file_path;
-            } else {
-                $errors[] = "Failed to upload $label";
-                $all_files_valid = false;
+            if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+                $file_name = $field . '_' . time() . '_' . uniqid() . '.' . pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION);
+                $file_path = $upload_dir . $file_name;
+                
+                if (move_uploaded_file($_FILES[$field]['tmp_name'], $file_path)) {
+                    $file_paths[$field] = $file_path;
+                } else {
+                    $errors[] = "Failed to upload $label";
+                    $all_files_valid = false;
+                }
             }
         }
         
         if ($reason_type === 'file') {
-            $reason_file_name = 'reason_' . time() . '_' . uniqid() . '.' . pathinfo($_FILES['reason_file']['name'], PATHINFO_EXTENSION);
-            $reason_file_path = $upload_dir . $reason_file_name;
-            
-            if (move_uploaded_file($_FILES['reason_file']['tmp_name'], $reason_file_path)) {
-                $reason = $reason_file_path;
-            } else {
-                $errors[] = "Failed to upload reason document";
-                $all_files_valid = false;
+            if (isset($_FILES['reason_file']) && $_FILES['reason_file']['error'] === UPLOAD_ERR_OK) {
+                $reason_file_name = 'reason_' . time() . '_' . uniqid() . '.' . pathinfo($_FILES['reason_file']['name'], PATHINFO_EXTENSION);
+                $reason_file_path = $upload_dir . $reason_file_name;
+                
+                if (move_uploaded_file($_FILES['reason_file']['tmp_name'], $reason_file_path)) {
+                    $reason = $reason_file_path;
+                } else {
+                    $errors[] = "Failed to upload reason document";
+                    $all_files_valid = false;
+                }
+            } elseif ($isUpdateMode && $pendingRequest && strpos($pendingRequest['Reason'], '../uploads/scholarship/') === 0) {
+                // Keep existing reason file
+                $reason = $pendingRequest['Reason'];
             }
         } else {
             $reason = mysqli_real_escape_string($conn, $reason);
@@ -147,41 +229,82 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             
             $conn->query("SET FOREIGN_KEY_CHECKS=0");
             
-            $sql = "INSERT INTO scholarship 
-                    (UserID, Firstname, Lastname, Email, ContactNo, Address, Reason,
-                     SchoolID, BaranggayID, COR, ParentsID, BirthCertificate, 
-                     RequestStatus, DateApplied)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
-            
-            $stmt = $conn->prepare($sql);
-            if ($stmt) {
-                $stmt->bind_param(
-                    "isssssssssss",
-                    $_SESSION['user_id'],
-                    $firstname,
-                    $lastname,
-                    $email,
-                    $contact_no,
-                    $address,
-                    $reason,
-                    $file_paths['school_id'],
-                    $file_paths['barangay_id'],
-                    $file_paths['cor'],
-                    $file_paths['parents_id'],
-                    $file_paths['birth_certificate']
-                );
+            if ($isUpdateMode) {
+                // UPDATE existing pending request
+                $sql = "UPDATE scholarship SET 
+                        Firstname = ?, Lastname = ?, Email = ?, ContactNo = ?, 
+                        Address = ?, Reason = ?, SchoolID = ?, BaranggayID = ?, 
+                        COR = ?, ParentsID = ?, BirthCertificate = ?
+                        WHERE ID = ? AND UserID = ? AND RequestStatus = 'Pending'";
                 
-                if ($stmt->execute()) {
-                    $success = true;
-                    $success_ref_id = $stmt->insert_id;
-                    $reason = "";
-                    $reason_type = "text";
+                $stmt = $conn->prepare($sql);
+                if ($stmt) {
+                    $stmt->bind_param(
+                        "ssssssssssssi",
+                        $firstname,
+                        $lastname,
+                        $email,
+                        $contact_no,
+                        $address,
+                        $reason,
+                        $file_paths['school_id'],
+                        $file_paths['barangay_id'],
+                        $file_paths['cor'],
+                        $file_paths['parents_id'],
+                        $file_paths['birth_certificate'],
+                        $updateRefNo,
+                        $_SESSION['user_id']
+                    );
+                    
+                    if ($stmt->execute()) {
+                        $success = true;
+                        $success_ref_id = $updateRefNo;
+                        $isUpdateSuccess = true; // Flag to show update success message
+                    } else {
+                        $errors[] = "Database error: " . $stmt->error;
+                    }
+                    $stmt->close();
                 } else {
-                    $errors[] = "Database error: " . $stmt->error;
+                    $errors[] = "Database error: " . $conn->error;
                 }
-                $stmt->close();
             } else {
-                $errors[] = "Database error: " . $conn->error;
+                // INSERT new request
+                $sql = "INSERT INTO scholarship 
+                        (UserID, Firstname, Lastname, Email, ContactNo, Address, Reason,
+                         SchoolID, BaranggayID, COR, ParentsID, BirthCertificate, 
+                         RequestStatus, DateApplied)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
+                
+                $stmt = $conn->prepare($sql);
+                if ($stmt) {
+                    $stmt->bind_param(
+                        "isssssssssss",
+                        $_SESSION['user_id'],
+                        $firstname,
+                        $lastname,
+                        $email,
+                        $contact_no,
+                        $address,
+                        $reason,
+                        $file_paths['school_id'],
+                        $file_paths['barangay_id'],
+                        $file_paths['cor'],
+                        $file_paths['parents_id'],
+                        $file_paths['birth_certificate']
+                    );
+                    
+                    if ($stmt->execute()) {
+                        $success = true;
+                        $success_ref_id = $stmt->insert_id;
+                        $reason = "";
+                        $reason_type = "text";
+                    } else {
+                        $errors[] = "Database error: " . $stmt->error;
+                    }
+                    $stmt->close();
+                } else {
+                    $errors[] = "Database error: " . $conn->error;
+                }
             }
             
             $conn->query("SET FOREIGN_KEY_CHECKS=1");
@@ -392,11 +515,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
     </div>
     
     <div class="container">
-        <h1>Scholarship Application Form</h1>
+        <h1><?php echo $isUpdateMode ? 'Update Scholarship Application' : 'Scholarship Application Form'; ?></h1>
         
-        <div class="user-info-note">
-            <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary.
-        </div>
+        <?php if ($isUpdateMode): ?>
+            <div class="user-info-note" style="background-color: #e6f7ff; border-left-color: #1890ff;">
+                <strong>Update Mode:</strong> You are updating your pending application (Reference: <?php echo htmlspecialchars($updateRefNo); ?>). Modify the information below and submit to update your application.
+            </div>
+        <?php else: ?>
+            <div class="user-info-note">
+                <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary.
+            </div>
+        <?php endif; ?>
         
         <?php if (!empty($errors)): ?>
             <div class="error">
@@ -472,43 +601,43 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             
             <div class="form-section">
                 <h2>Required Documents</h2>
-                <p>Please upload the following documents (Max file size: 5MB each):</p>
+                <p>Please upload the following documents (Max file size: 5MB each)<?php echo $isUpdateMode ? '. Leave empty to keep current documents.' : ''; ?>:</p>
                 
                 <div class="form-group">
-                    <label for="school_id">School ID <span class="required">*</span></label>
-                    <input type="file" id="school_id" name="school_id" class="file-input" required accept=".jpg,.jpeg,.png,.gif,.pdf">
-                    <div class="file-info">JPG, PNG, GIF, PDF</div>
+                    <label for="school_id">School ID <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
+                    <input type="file" id="school_id" name="school_id" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
+                    <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="barangay_id">Barangay ID <span class="required">*</span></label>
-                    <input type="file" id="barangay_id" name="barangay_id" class="file-input" required accept=".jpg,.jpeg,.png,.gif,.pdf">
-                    <div class="file-info">JPG, PNG, GIF, PDF</div>
+                    <label for="barangay_id">Barangay ID <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
+                    <input type="file" id="barangay_id" name="barangay_id" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
+                    <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="cor">Certificate of Registration <span class="required">*</span></label>
-                    <input type="file" id="cor" name="cor" class="file-input" required accept=".jpg,.jpeg,.png,.gif,.pdf">
-                    <div class="file-info">JPG, PNG, GIF, PDF</div>
+                    <label for="cor">Certificate of Registration <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
+                    <input type="file" id="cor" name="cor" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
+                    <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="parents_id">Parents ID <span class="required">*</span></label>
-                    <input type="file" id="parents_id" name="parents_id" class="file-input" required accept=".jpg,.jpeg,.png,.gif,.pdf">
-                    <div class="file-info">JPG, PNG, GIF, PDF</div>
+                    <label for="parents_id">Parents ID <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
+                    <input type="file" id="parents_id" name="parents_id" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
+                    <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="birth_certificate">Birth Certificate <span class="required">*</span></label>
-                    <input type="file" id="birth_certificate" name="birth_certificate" class="file-input" required accept=".jpg,.jpeg,.png,.gif,.pdf">
-                    <div class="file-info">JPG, PNG, GIF, PDF</div>
+                    <label for="birth_certificate">Birth Certificate <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
+                    <input type="file" id="birth_certificate" name="birth_certificate" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
+                    <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
             </div>
             
             <?php echo displayTermsAndConditions('scholarForm'); ?>
             
             <div class="form-group">
-                <button type="submit" class="btn" id="submitBtn">Submit Application</button>
+                <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Application' : 'Submit Application'; ?></button>
             </div>
         </form>
     </div>
@@ -605,6 +734,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
 
             <?php if ($success): ?>
                 document.getElementById('refId').textContent = '<?php echo $success_ref_id; ?>';
+                <?php if (isset($isUpdateSuccess) && $isUpdateSuccess): ?>
+                    document.querySelector('.success-message h3').textContent = 'Application Updated Successfully!';
+                    document.querySelector('.success-message p:nth-of-type(1)').textContent = 'Your scholarship application has been updated.';
+                <?php endif; ?>
                 successMessage.classList.add('show');
                 overlay.classList.add('show');
             <?php endif; ?>

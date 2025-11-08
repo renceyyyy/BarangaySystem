@@ -283,7 +283,7 @@ session_start();
       </button>
 
       <div class="login-link">
-        <p>Already have an account? <a href="login.php">Sign In</a></p>
+        <p>Already have an account? <a href="login.php">Log In</a></p>
       </div>
     </form>
   </div>

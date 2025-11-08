@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db_connection.php';
+require_once 'activity_logger.php';
 
 // Get database connection
 $conn = getDBConnection();
@@ -50,34 +51,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION['role'] = $user['Role'];
             $_SESSION['fullname'] = $user['FullName']; // full name from userloginfo
 
-
-
-            // Fetch user info to get full name // newly added 102825
-            // $userInfoSql = "SELECT Lastname, Firstname, Middlename FROM userloginfo WHERE UserID = ?";
-            // $userInfoStmt = $conn->prepare($userInfoSql);
-            // if ($userInfoStmt) {
-            //     $userInfoStmt->bind_param("i", $user['UserID']);
-            //     $userInfoStmt->execute();
-            //     $userInfoResult = $userInfoStmt->get_result();
-            //     if ($userInfoResult->num_rows === 1) {
-            //         $userInfo = $userInfoResult->fetch_assoc();
-            //         $fullname = trim($userInfo['Lastname']) . ', ' . trim($userInfo['Firstname']) . ' ' . trim($userInfo['Middlename']);//i-comment ito para magamit ung naka comment sa baba na para sa uncompleted names
-            //         $_SESSION['fullname'] = $fullname; //i-comment ito para magamit ung naka comment sa baba na para sa uncompleted names
-
-            //         // // Inside process_login.php after fetching userInfo
-            //         // if ($userInfo['Lastname'] !== 'uncompleted' && $userInfo['Firstname'] !== 'uncompleted') {
-            //         //     $fullname = trim($userInfo['Lastname']) . ', ' . trim($userInfo['Firstname']) . ' ' . trim($userInfo['Middlename']);
-            //         //     $_SESSION['fullname'] = $fullname;
-            //         // } else {
-            //         //     $_SESSION['fullname'] = $user['Username']; // Use username as fallback
-            //         // }
-            //     } else {
-            //         $_SESSION['fullname'] = 'Unknown Officer'; // Fallback
-            //     }
-            //     $userInfoStmt->close();
-            // } else {
-            //     $_SESSION['fullname'] = 'Unknown Officer'; // Fallback
-            // }
+            // Log login activity
+            logActivity(
+                ActivityLogger::LOGIN,
+                'User logged in successfully',
+                'Login',
+                null,
+                'success'
+            );
 
             // Insert TimeIn into audittrail
             $timeIn = date("Y-m-d H:i:s");

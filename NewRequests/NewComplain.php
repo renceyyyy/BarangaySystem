@@ -1,5 +1,6 @@
 <?php
 require_once '../Process/db_connection.php';
+require_once '../Process/activity_logger.php';
 require_once './Terms&Conditions/Terms&Conditons.php';
 session_start();
 $conn = getDBConnection();
@@ -130,6 +131,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             if ($stmt->execute()) {
                 $success = true;
                 $success_ref_no = $refno;
+                
+                // Log request creation activity
+                logRequestCreatedActivity($conn, $userId, 'Complaint', $refno);
                 
                 // Reset form but keep user data
                 $complain = '';

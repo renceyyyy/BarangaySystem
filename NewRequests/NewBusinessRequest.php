@@ -10,40 +10,109 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// NEW FEATURE: Check for existing pending request and handle update mode
+$user_id = $_SESSION['user_id'];
+$isUpdateMode = false;
+$updateRefNo = '';
+$pendingRequest = null;
+$errors = []; // Initialize errors array
+$isUpdateSuccess = false; // Track if update was successful
+
+// Check if this is update mode
+if (isset($_GET['update'])) {
+    $updateRefNo = trim($_GET['update']);
+    $isUpdateMode = true;
+    
+    // Fetch the pending request data
+    $check_sql = "SELECT * FROM businesstbl WHERE refno = ? AND UserId = ? AND RequestStatus = 'Pending' LIMIT 1";
+    $check_stmt = $conn->prepare($check_sql);
+    if ($check_stmt) {
+        $check_stmt->bind_param("si", $updateRefNo, $user_id);
+        $check_stmt->execute();
+        $result = $check_stmt->get_result();
+        if ($result->num_rows > 0) {
+            $pendingRequest = $result->fetch_assoc();
+        } else {
+            $_SESSION['error_message'] = "Invalid update request or request is no longer pending.";
+            header("Location: ../Pages/UserReports.php");
+            exit();
+        }
+        $check_stmt->close();
+    }
+}
+
 // Fetch user data from database
 $user_id = $_SESSION['user_id'];
 $user_data = [];
 
-$user_sql = "SELECT Firstname, Lastname, ContactNo, Address FROM userloginfo WHERE UserID = ?";
-$user_stmt = $conn->prepare($user_sql);
-if ($user_stmt) {
-    $user_stmt->bind_param("i", $user_id);
-    $user_stmt->execute();
-    $user_result = $user_stmt->get_result();
-    
-    if ($user_result->num_rows > 0) {
-        $user_data = $user_result->fetch_assoc();
+// If update mode, use pending request data
+if ($isUpdateMode && $pendingRequest) {
+    $ownerName = $pendingRequest['OwnerName'] ?? '';
+    $firstname = explode(' ', $ownerName)[0] ?? '';
+    $lastname = explode(' ', $ownerName, 2)[1] ?? '';
+    $contactNo = $pendingRequest['OwnerContact'] ?? '';
+    $address = $pendingRequest['BusinessLoc'] ?? '';
+    $businessName = $pendingRequest['BusinessName'] ?? '';
+    $purpose = $pendingRequest['Purpose'] ?? '';
+    $requestType = $pendingRequest['RequestType'] ?? '';
+    $closureDate = $pendingRequest['ClosureDate'] ?? '';
+} else {
+    // Fetch from user profile
+    $user_sql = "SELECT Firstname, Lastname, ContactNo, Address FROM userloginfo WHERE UserID = ?";
+    $user_stmt = $conn->prepare($user_sql);
+    if ($user_stmt) {
+        $user_stmt->bind_param("i", $user_id);
+        $user_stmt->execute();
+        $user_result = $user_stmt->get_result();
         
-        // Pre-populate form fields with user data
-        $firstname = $user_data['Firstname'] ?? '';
-        $lastname = $user_data['Lastname'] ?? '';
-        $contactNo = $user_data['ContactNo'] ?? '';
-        $address = $user_data['Address'] ?? '';
-        
-        // Check for default values and replace them with empty strings
-        if ($firstname === 'uncompleted') $firstname = '';
-        if ($lastname === 'uncompleted') $lastname = '';
-        if ($contactNo === '0') $contactNo = '';
-        if ($address === 'uncompleted') $address = '';
-        
-        // Combine first and last name for owner name
-        $ownerName = trim($firstname . ' ' . $lastname);
+        if ($user_result->num_rows > 0) {
+            $user_data = $user_result->fetch_assoc();
+            
+            $firstname = $user_data['Firstname'] ?? '';
+            $lastname = $user_data['Lastname'] ?? '';
+            $contactNo = $user_data['ContactNo'] ?? '';
+            $address = $user_data['Address'] ?? '';
+            
+            if ($firstname === 'uncompleted') $firstname = '';
+            if ($lastname === 'uncompleted') $lastname = '';
+            if ($contactNo === '0') $contactNo = '';
+            if ($address === 'uncompleted') $address = '';
+            
+            $ownerName = trim($firstname . ' ' . $lastname);
+        }
+        $user_stmt->close();
     }
-    $user_stmt->close();
+    // Initialize form variables for new request
+    $businessName = '';
+    $purpose = '';
+    $requestType = '';
+    $closureDate = '';
 }
 
 // Handle business request
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) {
+    $errors = [];
+    
+    // Get request type early for validation
+    $requestTypeToSubmit = trim($_POST["RequestType"] ?? '');
+    
+    // NEW FEATURE: Check for pending request of SPECIFIC request type before allowing submission
+    if (!$isUpdateMode && !empty($requestTypeToSubmit)) {
+        $pending_check = "SELECT refno FROM businesstbl WHERE UserId = ? AND RequestType = ? AND RequestStatus = 'Pending' LIMIT 1";
+        $pending_check_stmt = $conn->prepare($pending_check);
+        if ($pending_check_stmt) {
+            $pending_check_stmt->bind_param("is", $user_id, $requestTypeToSubmit);
+            $pending_check_stmt->execute();
+            $pending_check_result = $pending_check_stmt->get_result();
+            if ($pending_check_result->num_rows > 0) {
+                $pending_data = $pending_check_result->fetch_assoc();
+                $requestTypeLabel = ($requestTypeToSubmit === 'permit') ? 'Business Permit' : 'Business Closure';
+                $errors[] = "You have a pending " . $requestTypeLabel . " request (Ref: " . htmlspecialchars($pending_data['refno']) . "). Please wait for approval or update your existing request before submitting a new one for this request type.";
+            }
+            $pending_check_stmt->close();
+        }
+    }
+    
     // Validate terms and conditions agreement
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
@@ -52,10 +121,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
     // Enable detailed error reporting
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
-    
-    $errors = [];
-    $success = false;
-    $success_ref_no = '';
 
     try {
         // Generate reference number
@@ -97,9 +162,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
 
         // Validate file upload
         $proofContent = null;
-        if (empty($_FILES['businessProof']['tmp_name'])) {
-            $errors[] = "Proof document is required";
-        } else {
+        $hasNewFile = false;
+        
+        if (!empty($_FILES['businessProof']['tmp_name'])) {
+            $hasNewFile = true;
             $allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
             $maxSize = 2 * 1024 * 1024; // 2MB
             
@@ -119,6 +185,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
                     $errors[] = "Failed to read the uploaded file";
                 }
             }
+        } elseif (!$isUpdateMode) {
+            $errors[] = "Proof document is required";
         }
 
         // If no errors, process the request
@@ -130,69 +198,181 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
                 }
             }
 
-            // Prepare SQL query
-            if ($data['RequestType'] === 'permit') {
-                $sql = "INSERT INTO businesstbl (
-                    UserId, refno, BusinessName, BusinessLoc, OwnerName, Purpose, OwnerContact, RequestType, ProofPath
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                
-                $stmt = $conn->prepare($sql);
-                if (!$stmt) {
-                    throw new Exception("Prepare failed: " . $conn->error);
+            if ($isUpdateMode) {
+                // UPDATE existing pending request
+                if ($data['RequestType'] === 'permit') {
+                    if ($hasNewFile && $proofContent) {
+                        $sql = "UPDATE businesstbl SET 
+                            BusinessName = ?, BusinessLoc = ?, OwnerName = ?, Purpose = ?, 
+                            OwnerContact = ?, RequestType = ?, ProofPath = ?
+                            WHERE refno = ? AND UserId = ? AND RequestStatus = 'Pending'";
+                        
+                        $stmt = $conn->prepare($sql);
+                        if (!$stmt) {
+                            throw new Exception("Prepare failed: " . $conn->error);
+                        }
+                        
+                        $null = NULL;
+                        $stmt->bind_param("sssssssbsi", 
+                            $data['BusinessName'],
+                            $data['BusinessLoc'],
+                            $data['OwnerName'],
+                            $data['Purpose'],
+                            $data['OwnerContact'],
+                            $data['RequestType'],
+                            $null,
+                            $updateRefNo,
+                            $data['UserId']
+                        );
+                        $stmt->send_long_data(6, $proofContent);
+                    } else {
+                        $sql = "UPDATE businesstbl SET 
+                            BusinessName = ?, BusinessLoc = ?, OwnerName = ?, Purpose = ?, 
+                            OwnerContact = ?, RequestType = ?
+                            WHERE refno = ? AND UserId = ? AND RequestStatus = 'Pending'";
+                        
+                        $stmt = $conn->prepare($sql);
+                        if (!$stmt) {
+                            throw new Exception("Prepare failed: " . $conn->error);
+                        }
+                        
+                        $stmt->bind_param("sssssssi", 
+                            $data['BusinessName'],
+                            $data['BusinessLoc'],
+                            $data['OwnerName'],
+                            $data['Purpose'],
+                            $data['OwnerContact'],
+                            $data['RequestType'],
+                            $updateRefNo,
+                            $data['UserId']
+                        );
+                    }
+                } else {
+                    if ($hasNewFile && $proofContent) {
+                        $sql = "UPDATE businesstbl SET 
+                            BusinessName = ?, BusinessLoc = ?, OwnerName = ?, Purpose = ?, 
+                            ClosureDate = ?, OwnerContact = ?, RequestType = ?, ProofPath = ?
+                            WHERE refno = ? AND UserId = ? AND RequestStatus = 'Pending'";
+                        
+                        $stmt = $conn->prepare($sql);
+                        if (!$stmt) {
+                            throw new Exception("Prepare failed: " . $conn->error);
+                        }
+                        
+                        $null = NULL;
+                        $stmt->bind_param("ssssssssbsi", 
+                            $data['BusinessName'],
+                            $data['BusinessLoc'],
+                            $data['OwnerName'],
+                            $data['Purpose'],
+                            $data['ClosureDate'],
+                            $data['OwnerContact'],
+                            $data['RequestType'],
+                            $null,
+                            $updateRefNo,
+                            $data['UserId']
+                        );
+                        $stmt->send_long_data(7, $proofContent);
+                    } else {
+                        $sql = "UPDATE businesstbl SET 
+                            BusinessName = ?, BusinessLoc = ?, OwnerName = ?, Purpose = ?, 
+                            ClosureDate = ?, OwnerContact = ?, RequestType = ?
+                            WHERE refno = ? AND UserId = ? AND RequestStatus = 'Pending'";
+                        
+                        $stmt = $conn->prepare($sql);
+                        if (!$stmt) {
+                            throw new Exception("Prepare failed: " . $conn->error);
+                        }
+                        
+                        $stmt->bind_param("sssssssssi", 
+                            $data['BusinessName'],
+                            $data['BusinessLoc'],
+                            $data['OwnerName'],
+                            $data['Purpose'],
+                            $data['ClosureDate'],
+                            $data['OwnerContact'],
+                            $data['RequestType'],
+                            $updateRefNo,
+                            $data['UserId']
+                        );
+                    }
                 }
                 
-                $null = NULL;
-                $stmt->bind_param("isssssssb", 
-                    $data['UserId'],
-                    $refno,
-                    $data['BusinessName'],
-                    $data['BusinessLoc'],
-                    $data['OwnerName'],
-                    $data['Purpose'],
-                    $data['OwnerContact'],
-                    $data['RequestType'],
-                    $null
-                );
-                $stmt->send_long_data(8, $proofContent);
+                if ($stmt->execute()) {
+                    $success = true;
+                    $success_ref_no = $updateRefNo;
+                    $isUpdateSuccess = true; // Flag to show update success message
+                } else {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
+                $stmt->close();
             } else {
-                $sql = "INSERT INTO businesstbl (
-                    UserId, refno, BusinessName, BusinessLoc, OwnerName, Purpose, ClosureDate, OwnerContact, RequestType, ProofPath
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                // INSERT new request
+                $refno = date('Ymd') . rand(1000, 9999);
                 
-                $stmt = $conn->prepare($sql);
-                if (!$stmt) {
-                    throw new Exception("Prepare failed: " . $conn->error);
+                if ($data['RequestType'] === 'permit') {
+                    $sql = "INSERT INTO businesstbl (
+                        UserId, refno, BusinessName, BusinessLoc, OwnerName, Purpose, OwnerContact, RequestType, ProofPath
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) {
+                        throw new Exception("Prepare failed: " . $conn->error);
+                    }
+                    
+                    $null = NULL;
+                    $stmt->bind_param("isssssssb", 
+                        $data['UserId'],
+                        $refno,
+                        $data['BusinessName'],
+                        $data['BusinessLoc'],
+                        $data['OwnerName'],
+                        $data['Purpose'],
+                        $data['OwnerContact'],
+                        $data['RequestType'],
+                        $null
+                    );
+                    $stmt->send_long_data(8, $proofContent);
+                } else {
+                    $sql = "INSERT INTO businesstbl (
+                        UserId, refno, BusinessName, BusinessLoc, OwnerName, Purpose, ClosureDate, OwnerContact, RequestType, ProofPath
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) {
+                        throw new Exception("Prepare failed: " . $conn->error);
+                    }
+                    
+                    $null = NULL;
+                    $stmt->bind_param("issssssssb", 
+                        $data['UserId'],
+                        $refno,
+                        $data['BusinessName'],
+                        $data['BusinessLoc'],
+                        $data['OwnerName'],
+                        $data['Purpose'],
+                        $data['ClosureDate'],
+                        $data['OwnerContact'],
+                        $data['RequestType'],
+                        $null
+                    );
+                    $stmt->send_long_data(9, $proofContent);
                 }
-                
-                $null = NULL;
-                $stmt->bind_param("issssssssb", 
-                    $data['UserId'],
-                    $refno,
-                    $data['BusinessName'],
-                    $data['BusinessLoc'],
-                    $data['OwnerName'],
-                    $data['Purpose'],
-                    $data['ClosureDate'],
-                    $data['OwnerContact'],
-                    $data['RequestType'],
-                    $null
-                );
-                $stmt->send_long_data(9, $proofContent);
-            }
 
-            // Execute query
-            if ($stmt->execute()) {
-                $success = true;
-                $success_ref_no = $refno;
+                // Execute query
+                if ($stmt->execute()) {
+                    $success = true;
+                    $success_ref_no = $refno;
+                    
+                    // Reset form but keep user data
+                    $businessName = $businessLoc = $purpose = $closureDate = '';
+                    $requestType = 'permit';
+                } else {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
                 
-                // Reset form but keep user data
-                $businessName = $businessLoc = $purpose = $closureDate = '';
-                $requestType = 'permit';
-            } else {
-                throw new Exception("Execute failed: " . $stmt->error);
+                $stmt->close();
             }
-            
-            $stmt->close();
         }
         
     } catch (Exception $e) {
@@ -399,11 +579,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
     </div>
     
     <div class="container">
-        <h1>Business Permit / Closure Request</h1>
+        <h1><?php echo $isUpdateMode ? 'Update Business Request' : 'Business Permit / Closure Request'; ?></h1>
         
-        <div class="user-info-note">
-            <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary. payment for your request is due within 7 days.
-        </div>
+        <?php if ($isUpdateMode): ?>
+            <div class="user-info-note" style="background-color: #e6f7ff; border-left-color: #1890ff;">
+                <strong>Update Mode:</strong> You are updating your pending request (Reference: <?php echo htmlspecialchars($updateRefNo); ?>). Modify the information below and submit to update your request.
+            </div>
+        <?php else: ?>
+            <div class="user-info-note">
+                <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary. payment for your request is due within 7 days.
+            </div>
+        <?php endif; ?>
         
         <?php if (!empty($errors)): ?>
             <div class="error">
@@ -482,9 +668,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
                 <h2>Required Documents</h2>
                 
                 <div class="form-group">
-                    <label for="businessProof">Business Proof Document <span class="required">*</span></label>
-                    <input type="file" id="businessProof" name="businessProof" class="file-input" required accept=".jpg,.jpeg,.png,.pdf">
-                    <div class="file-info">Upload proof document (Business registration, license, etc.) - JPG, PNG, PDF (Max: 2MB)</div>
+                    <label for="businessProof">Business Proof Document <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
+                    <input type="file" id="businessProof" name="businessProof" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.pdf">
+                    <div class="file-info">
+                        <?php if ($isUpdateMode): ?>
+                            Upload new proof document (optional) - JPG, PNG, PDF (Max: 2MB). Leave empty to keep current document.
+                        <?php else: ?>
+                            Upload proof document (Business registration, license, etc.) - JPG, PNG, PDF (Max: 2MB)
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
             
@@ -492,7 +684,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
             <?php echo displayTermsAndConditions('businessForm'); ?>
             
             <div class="form-group">
-                <button type="submit" class="btn" id="submitBtn">Submit Request</button>
+                <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Request' : 'Submit Request'; ?></button>
             </div>
         </form>
     </div>
@@ -562,6 +754,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
             // Show success message if submission was successful
             <?php if (isset($success) && $success): ?>
                 document.getElementById('refNo').textContent = '<?php echo $success_ref_no; ?>';
+                <?php if (isset($isUpdateSuccess) && $isUpdateSuccess): ?>
+                    document.querySelector('.success-message h3').textContent = 'Request Updated Successfully!';
+                    document.querySelector('.success-message p:nth-of-type(1)').textContent = 'Your business request has been updated.';
+                <?php endif; ?>
                 successMessage.classList.add('show');
                 overlay.classList.add('show');
             <?php endif; ?>

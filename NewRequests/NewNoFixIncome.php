@@ -10,6 +10,35 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Check if we're in update mode
+$isUpdateMode = false;
+$updateRefNo = null;
+$pendingRequest = null;
+$isUpdateSuccess = false; // Track if update was successful
+
+if (isset($_GET['update'])) {
+    $updateRefNo = $_GET['update'];
+    $isUpdateMode = true;
+    
+    // Fetch pending request data
+    $pendingCheckSql = "SELECT * FROM unemploymenttbl WHERE refno = ? AND user_id = ? AND RequestStatus = 'Pending'";
+    $pendingStmt = $conn->prepare($pendingCheckSql);
+    if ($pendingStmt) {
+        $pendingStmt->bind_param("si", $updateRefNo, $_SESSION['user_id']);
+        $pendingStmt->execute();
+        $result = $pendingStmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $pendingRequest = $result->fetch_assoc();
+        } else {
+            // Invalid update request
+            header("Location: ../Pages/UserReports.php");
+            exit();
+        }
+        $pendingStmt->close();
+    }
+}
+
 // Fetch user data from database
 $user_id = $_SESSION['user_id'];
 $user_data = [];
@@ -24,32 +53,68 @@ if ($user_stmt) {
     if ($user_result->num_rows > 0) {
         $user_data = $user_result->fetch_assoc();
         
-        // Pre-populate form fields with user data
-        $firstname = $user_data['Firstname'] ?? '';
-        $lastname = $user_data['Lastname'] ?? '';
-        $age = $user_data['Age'] ?? '';
-        $address = $user_data['Address'] ?? '';
-        
-        // Check for default values and replace them with empty strings
-        if ($firstname === 'uncompleted') $firstname = '';
-        if ($lastname === 'uncompleted') $lastname = '';
-        if ($age === '0') $age = '';
-        if ($address === 'uncompleted') $address = '';
-        
-        // Combine first and last name for fullname
-        $fullname = trim($firstname . ' ' . $lastname);
+        // Use pending request data if in update mode, otherwise use profile data
+        if ($isUpdateMode && $pendingRequest) {
+            $fullname = $pendingRequest['fullname'] ?? '';
+            $age = $pendingRequest['age'] ?? '';
+            $address = $pendingRequest['address'] ?? '';
+            $certificateType = $pendingRequest['certificate_type'] ?? '';
+            $purpose = $pendingRequest['purpose'] ?? '';
+            $unemployedSince = $pendingRequest['unemployed_since'] ?? '';
+            $noFixedIncomeSince = $pendingRequest['no_fixed_income_since'] ?? '';
+        } else {
+            // Pre-populate form fields with user data
+            $firstname = $user_data['Firstname'] ?? '';
+            $lastname = $user_data['Lastname'] ?? '';
+            $age = $user_data['Age'] ?? '';
+            $address = $user_data['Address'] ?? '';
+            
+            // Check for default values and replace them with empty strings
+            if ($firstname === 'uncompleted') $firstname = '';
+            if ($lastname === 'uncompleted') $lastname = '';
+            if ($age === '0') $age = '';
+            if ($address === 'uncompleted') $address = '';
+            
+            // Combine first and last name for fullname
+            $fullname = trim($firstname . ' ' . $lastname);
+            $certificateType = '';
+            $purpose = '';
+            $unemployedSince = '';
+            $noFixedIncomeSince = '';
+        }
     }
     $user_stmt->close();
 }
 
 // Handle unemployment request
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"])) {
+    $errors = [];
+    
+    // Get certificate type early for pending check
+    $certificateType = trim($_POST["certificateType"] ?? '');
+    
+    // Check for existing pending request of SPECIFIC type (only for new submissions)
+    if (!$isUpdateMode && !empty($certificateType)) {
+        $pendingCheckSql = "SELECT refno FROM unemploymenttbl WHERE user_id = ? AND certificate_type = ? AND RequestStatus = 'Pending' LIMIT 1";
+        $pendingStmt = $conn->prepare($pendingCheckSql);
+        if ($pendingStmt) {
+            $pendingStmt->bind_param("is", $user_id, $certificateType);
+            $pendingStmt->execute();
+            $pendingResult = $pendingStmt->get_result();
+            
+            if ($pendingResult->num_rows > 0) {
+                $pendingData = $pendingResult->fetch_assoc();
+                $errors[] = "You have a pending " . htmlspecialchars($certificateType) . " Certificate request (Ref: " . htmlspecialchars($pendingData['refno']) . "). Please wait for approval or update your existing request before submitting a new one for this certificate type.";
+            }
+            $pendingStmt->close();
+        }
+    }
+    
     // Validate terms and conditions agreement
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
     }
     
-    $errors = [];
     $success = false;
     $success_ref_no = '';
 
@@ -79,77 +144,114 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
 
     // If no errors, process the request
     if (empty($errors)) {
-        // Generate reference number
-        $refno = date('Ymd') . rand(1000, 9999);
-
         try {
-            // Check if table exists, create if not
-            $table_check = $conn->query("SHOW TABLES LIKE 'unemploymenttbl'");
-            if ($table_check->num_rows == 0) {
-                $create_table = "CREATE TABLE unemploymenttbl (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    refno VARCHAR(50) NOT NULL,
-                    certificate_type ENUM('No Income','No Fixed Income') NOT NULL,
-                    fullname VARCHAR(100) NOT NULL,
-                    age INT(3) NOT NULL,
-                    address TEXT NOT NULL,
-                    unemployed_since DATE NULL,
-                    no_fixed_income_since DATE NULL,
-                    purpose TEXT NOT NULL,
-                    request_date DATETIME NOT NULL,
-                    RequestStatus ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
-                    user_id INT NULL,
-                    UNIQUE KEY (refno)
-                )";
-
-                if (!$conn->query($create_table)) {
-                    throw new Exception("Error creating table: " . $conn->error);
-                }
-            }
-
-            // Get user ID
-            $userId = $_SESSION['user_id'];
-
-            // Insert into database
-            $sql = "INSERT INTO unemploymenttbl (
-                refno, certificate_type, fullname, age, address, 
-                unemployed_since, no_fixed_income_since, purpose, 
-                request_date, user_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
-
-            $stmt = $conn->prepare($sql);
-
-            if ($stmt === false) {
-                throw new Exception("Prepare failed: " . $conn->error);
-            }
-
-            $stmt->bind_param(
-                "sssissssi",
-                $refno,
-                $certificateType,
-                $fullname,
-                $age,
-                $address,
-                $unemployedSince,
-                $noFixedIncomeSince,
-                $purpose,
-                $userId
-            );
-
-            if ($stmt->execute()) {
-                $success = true;
-                $success_ref_no = $refno;
+            if ($isUpdateMode) {
+                // UPDATE existing pending request
+                $sql = "UPDATE unemploymenttbl SET 
+                        certificate_type = ?, fullname = ?, age = ?, address = ?, 
+                        unemployed_since = ?, no_fixed_income_since = ?, purpose = ?
+                        WHERE refno = ? AND user_id = ? AND RequestStatus = 'Pending'";
                 
-                // Reset form but keep user data
-                $purpose = '';
-                $unemployedSince = '';
-                $noFixedIncomeSince = '';
-                $certificateType = '';
+                $stmt = $conn->prepare($sql);
+                if ($stmt === false) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+                
+                $stmt->bind_param(
+                    "ssisssssi",
+                    $certificateType,
+                    $fullname,
+                    $age,
+                    $address,
+                    $unemployedSince,
+                    $noFixedIncomeSince,
+                    $purpose,
+                    $updateRefNo,
+                    $userId
+                );
+                
+                if ($stmt->execute()) {
+                    $success = true;
+                    $success_ref_no = $updateRefNo;
+                    $isUpdateSuccess = true; // Flag to show update success message
+                } else {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
+                
+                $stmt->close();
             } else {
-                throw new Exception("Execute failed: " . $stmt->error);
-            }
+                // INSERT new request
+                // Generate reference number
+                $refno = date('Ymd') . rand(1000, 9999);
 
-            $stmt->close();
+                // Check if table exists, create if not
+                $table_check = $conn->query("SHOW TABLES LIKE 'unemploymenttbl'");
+                if ($table_check->num_rows == 0) {
+                    $create_table = "CREATE TABLE unemploymenttbl (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        refno VARCHAR(50) NOT NULL,
+                        certificate_type ENUM('No Income','No Fixed Income') NOT NULL,
+                        fullname VARCHAR(100) NOT NULL,
+                        age INT(3) NOT NULL,
+                        address TEXT NOT NULL,
+                        unemployed_since DATE NULL,
+                        no_fixed_income_since DATE NULL,
+                        purpose TEXT NOT NULL,
+                        request_date DATETIME NOT NULL,
+                        RequestStatus ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+                        user_id INT NULL,
+                        UNIQUE KEY (refno)
+                    )";
+
+                    if (!$conn->query($create_table)) {
+                        throw new Exception("Error creating table: " . $conn->error);
+                    }
+                }
+
+                // Get user ID
+                $userId = $_SESSION['user_id'];
+
+                // Insert into database
+                $sql = "INSERT INTO unemploymenttbl (
+                    refno, certificate_type, fullname, age, address, 
+                    unemployed_since, no_fixed_income_since, purpose, 
+                    request_date, user_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+
+                $stmt = $conn->prepare($sql);
+
+                if ($stmt === false) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+
+                $stmt->bind_param(
+                    "sssissssi",
+                    $refno,
+                    $certificateType,
+                    $fullname,
+                    $age,
+                    $address,
+                    $unemployedSince,
+                    $noFixedIncomeSince,
+                    $purpose,
+                    $userId
+                );
+
+                if ($stmt->execute()) {
+                    $success = true;
+                    $success_ref_no = $refno;
+                    
+                    // Reset form but keep user data
+                    $purpose = '';
+                    $unemployedSince = '';
+                    $noFixedIncomeSince = '';
+                    $certificateType = '';
+                } else {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
+
+                $stmt->close();
+            }
         } catch (Exception $e) {
             $errors[] = $e->getMessage();
         }
@@ -346,11 +448,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
     </div>
     
     <div class="container">
-        <h1>No Fixed Income Certificate Request</h1>
+        <h1><?php echo $isUpdateMode ? 'Update Certificate Request' : 'No Fixed Income Certificate Request'; ?></h1>
         
-        <div class="user-info-note">
-            <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary. payment for your request is due within 7 days.
-        </div>
+        <?php if ($isUpdateMode): ?>
+            <div class="user-info-note" style="background-color: #e6f7ff; border-left-color: #1890ff;">
+                <strong>Update Mode:</strong> You are updating your pending request (Reference: <?php echo htmlspecialchars($updateRefNo); ?>). Modify the information below and submit to update your request.
+            </div>
+        <?php else: ?>
+            <div class="user-info-note">
+                <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary. payment for your request is due within 7 days.
+            </div>
+        <?php endif; ?>
         
         <?php if (!empty($errors)): ?>
             <div class="error">
@@ -432,7 +540,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
             <?php echo displayTermsAndConditions('unemploymentForm'); ?>
             
             <div class="form-group">
-                <button type="submit" class="btn" id="submitBtn">Submit Request</button>
+                <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Request' : 'Submit Request'; ?></button>
             </div>
         </form>
     </div>
@@ -519,6 +627,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
             // Show success message if submission was successful
             <?php if (isset($success) && $success): ?>
                 document.getElementById('refNo').textContent = '<?php echo $success_ref_no; ?>';
+                <?php if (isset($isUpdateSuccess) && $isUpdateSuccess): ?>
+                    document.querySelector('.success-message h3').textContent = 'Request Updated Successfully!';
+                    document.querySelector('.success-message p:nth-of-type(1)').textContent = 'Your unemployment certificate request has been updated.';
+                <?php endif; ?>
                 successMessage.classList.add('show');
                 overlay.classList.add('show');
             <?php endif; ?>

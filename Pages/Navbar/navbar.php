@@ -55,6 +55,109 @@ if (isset($_SESSION['user_id'])) {
 
     $stmt->close();
     // Don't close the connection here as it might be needed elsewhere
+    
+    // REFRESH pending request types on each navbar load
+    // This ensures we always have current pending status
+    if (!isset($_SESSION['pending_by_type']) || !is_array($_SESSION['pending_by_type'])) {
+        $_SESSION['pending_by_type'] = [];
+    }
+    
+    // Re-check pending requests to ensure fresh data
+    $pendingTypes = [];
+    
+    // Document requests
+    $sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE UserId = ? AND RequestStatus = 'Pending'";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->fetch_assoc()['count'] > 0) {
+            $pendingTypes['document'] = true;
+        }
+        $stmt->close();
+    }
+
+    // Business requests
+    $sql = "SELECT COUNT(*) as count FROM businesstbl WHERE UserId = ? AND RequestStatus = 'Pending'";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->fetch_assoc()['count'] > 0) {
+            $pendingTypes['business'] = true;
+        }
+        $stmt->close();
+    }
+
+    // Scholarship
+    $sql = "SELECT COUNT(*) as count FROM scholarship WHERE UserID = ? AND RequestStatus = 'Pending'";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->fetch_assoc()['count'] > 0) {
+            $pendingTypes['scholarship'] = true;
+        }
+        $stmt->close();
+    }
+
+    // Unemployment
+    $sql = "SELECT COUNT(*) as count FROM unemploymenttbl WHERE user_id = ? AND RequestStatus = 'Pending'";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->fetch_assoc()['count'] > 0) {
+            $pendingTypes['unemployment'] = true;
+        }
+        $stmt->close();
+    }
+
+    // Guardianship
+    $sql = "SELECT COUNT(*) as count FROM guardianshiptbl WHERE user_id = ? AND RequestStatus = 'Pending'";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->fetch_assoc()['count'] > 0) {
+            $pendingTypes['guardianship'] = true;
+        }
+        $stmt->close();
+    }
+
+    // No Birth Certificate
+    $sql = "SELECT COUNT(*) as count FROM no_birthcert_tbl WHERE user_id = ? AND RequestStatus = 'Pending'";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->fetch_assoc()['count'] > 0) {
+            $pendingTypes['no_birth'] = true;
+        }
+        $stmt->close();
+    }
+
+    // Complaints
+    $sql = "SELECT COUNT(*) as count FROM complaintbl WHERE Userid = ? AND RequestStatus = 'Pending'";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->fetch_assoc()['count'] > 0) {
+            $pendingTypes['complaint'] = true;
+        }
+        $stmt->close();
+    }
+    
+    // Update session with latest pending types
+    $_SESSION['pending_by_type'] = $pendingTypes;
 }
 
 // Check for success messages
@@ -306,17 +409,6 @@ unset($_SESSION['verification_notification']);
             .menu-container .user-dropdown:not(.mobile-profile-section .user-dropdown) {
                 display: none;
             }
-
-            /* Verification notice style */
-            .verification-notice {
-                background-color: #ffcc00;
-                color: #333;
-                padding: 10px 15px;
-                text-align: center;
-                font-weight: 500;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                display: none !important;
-            }
         }
 
         /* Show mobile profile section only on mobile */
@@ -394,17 +486,42 @@ unset($_SESSION['verification_notification']);
 
         /* Verification notice style */
         .verification-notice {
-            background-color: #ffcc00;
+            background: linear-gradient(135deg, #ffcc00 0%, #ffd700 100%);
             color: #333;
-            padding: 10px 15px;
+            padding: 12px 20px;
             text-align: center;
             font-weight: 500;
-            display: none !important;
+            border-bottom: 2px solid #ff9800;
+            display: block !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .verification-notice i {
+            margin-right: 8px;
+            color: #ff6b6b;
+        }
+
+        .verification-notice a {
+            color: #333;
+            font-weight: bold;
+            text-decoration: underline;
+            transition: all 0.3s ease;
+        }
+
+        .verification-notice a:hover {
+            color: #ff6b6b;
+            text-decoration: underline;
         }
 
         @media screen and (max-width: 768px) {
             .verification-notice {
-                display: none !important;
+                display: block !important;
+                padding: 10px 15px;
+                font-size: 0.95rem;
+            }
+
+            .verification-notice i {
+                margin-right: 5px;
             }
         }
 
@@ -585,7 +702,8 @@ unset($_SESSION['verification_notification']);
     <!-- Verification Notice (shown only for unverified users) -->
     <?php if (isset($_SESSION['user_id']) && ($_SESSION['AccountStatus'] ?? 'unverified') === 'unverified'): ?>
         <div class="verification-notice">
-            <i class="fas fa-exclamation-circle"></i> Please wait for admin to verify your account to access services.
+            <i class="fas fa-exclamation-circle"></i> 
+            <span>Complete your <a href="profile.php" style="color: #333; font-weight: bold; text-decoration: underline;">Account Profile</a> for admin to verify your account and access services.</span>
         </div>
     <?php endif; ?>
 
@@ -636,14 +754,29 @@ unset($_SESSION['verification_notification']);
                 <div class="dropdown-content">
                     <?php if (isset($_SESSION['user_id'])): ?>
                         <?php if (($_SESSION['AccountStatus'] ?? 'unverified') === 'verified'): ?>
+                            <!-- Government Documents -->
                             <a href="../NewRequests/NewGovernmentDocs.php">Request Government Documents</a>
+
+                            <!-- Business Permit -->
                             <a href="../NewRequests/NewBusinessRequest.php">Request Business Permit / Closure</a>
+
+                            <!-- Complaint -->
                             <a href="../NewRequests/NewComplain.php">Complain</a>
+
+                            <!-- Scholarship -->
                             <a href="../NewRequests/NewScholar.php">Apply for Scholar</a>
+
+                            <!-- No Fix Income -->
                             <a href="../NewRequests/NewNoFixIncome.php">No fix income/No income</a>
+
+                            <!-- Guardianship -->
                             <a href="../NewRequests/NewGuardianshipForm.php">Guardianship</a>
+
+                            <!-- Cohabitation -->
                             <a href="../NewRequests/CohabilitationForm.php">Cohabitation</a>
-                           
+
+                            <!-- No Birth Certificate -->
+                            <a href="../NewRequests/NewNoBirthCertificate.php">No Birth Certificate</a>
                             
                         <?php else: ?>
                             <a href="#"
@@ -665,7 +798,7 @@ unset($_SESSION['verification_notification']);
                             <a href="#"
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Cohabitation</a>
                             <a href="#"
-                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;"></a>No
+                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">No
                                 Birth Certificate</a>
                         <?php endif; ?>
                     <?php else: ?>

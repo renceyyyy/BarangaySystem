@@ -10,6 +10,7 @@ $guardianshipSince = $soloParentSince = "";
 $errors = [];
 $success = false;
 $success_ref_no = "";
+$isUpdateSuccess = false; // Track if update was successful
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -17,15 +18,72 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Check if we're in update mode
+$isUpdateMode = false;
+$updateRefNo = null;
+$pendingRequest = null;
+
+if (isset($_GET['update'])) {
+    $updateRefNo = $_GET['update'];
+    $isUpdateMode = true;
+    
+    // Fetch pending request data
+    $pendingCheckSql = "SELECT * FROM guardianshiptbl WHERE refno = ? AND UserId = ? AND RequestStatus = 'Pending'";
+    $pendingStmt = $conn->prepare($pendingCheckSql);
+    if ($pendingStmt) {
+        $pendingStmt->bind_param("si", $updateRefNo, $_SESSION['user_id']);
+        $pendingStmt->execute();
+        $result = $pendingStmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $pendingRequest = $result->fetch_assoc();
+            // Pre-fill form with pending request data
+            $requestType = $pendingRequest['request_type'] ?? '';
+            $childName = $pendingRequest['child_name'] ?? '';
+            $childAge = $pendingRequest['child_age'] ?? '';
+            $childAddress = $pendingRequest['child_address'] ?? '';
+            $purpose = $pendingRequest['purpose'] ?? '';
+            $applicantName = $pendingRequest['applicant_name'] ?? '';
+            $applicantRelationship = $pendingRequest['applicant_relationship'] ?? '';
+            $guardianshipSince = $pendingRequest['guardianship_since'] ?? '';
+            $soloParentSince = $pendingRequest['solo_parent_since'] ?? '';
+        } else {
+            // Invalid update request
+            header("Location: ../Pages/UserReports.php");
+            exit();
+        }
+        $pendingStmt->close();
+    }
+}
+
 // Handle form submission
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"])) {
+    // Get request type early for pending check
+    $requestType = trim($_POST["requestType"] ?? '');
+    
+    // Check for existing pending request of SPECIFIC type (only for new submissions)
+    if (!$isUpdateMode && !empty($requestType)) {
+        $pendingCheckSql = "SELECT refno FROM guardianshiptbl WHERE UserId = ? AND request_type = ? AND RequestStatus = 'Pending' LIMIT 1";
+        $pendingStmt = $conn->prepare($pendingCheckSql);
+        if ($pendingStmt) {
+            $pendingStmt->bind_param("is", $_SESSION['user_id'], $requestType);
+            $pendingStmt->execute();
+            $pendingResult = $pendingStmt->get_result();
+            
+            if ($pendingResult->num_rows > 0) {
+                $pendingData = $pendingResult->fetch_assoc();
+                $errors[] = "You have a pending " . htmlspecialchars($requestType) . " request (Ref: " . htmlspecialchars($pendingData['refno']) . "). Please wait for approval or update your existing request before submitting a new one for this request type.";
+            }
+            $pendingStmt->close();
+        }
+    }
+    
     // Validate terms and conditions agreement
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
     }
     
     // Get form data
-    $requestType = trim($_POST["requestType"] ?? '');
     $childName = trim($_POST["childName"] ?? '');
     $childAge = trim($_POST["childAge"] ?? '');
     $childAddress = trim($_POST["childAddress"] ?? '');
@@ -87,79 +145,119 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
         // Convert empty date strings to NULL
         $guardianshipSince = (!empty($guardianshipSince)) ? $guardianshipSince : NULL;
         $soloParentSince = (!empty($soloParentSince)) ? $soloParentSince : NULL;
-        
-        // Generate reference number
-        $refno = date('Ymd') . rand(1000, 9999);
 
         try {
-            // Check if table exists, create if not
-            $table_check = $conn->query("SHOW TABLES LIKE 'guardianshiptbl'");
-            if ($table_check->num_rows == 0) {
-                $create_table = "CREATE TABLE guardianshiptbl (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    refno VARCHAR(50) NOT NULL,
-                    request_type ENUM('Guardianship','Solo Parent') NOT NULL,
-                    child_name VARCHAR(100) NOT NULL,
-                    child_age INT(3) NOT NULL,
-                    child_address TEXT NOT NULL,
-                    guardianship_since DATE NULL,
-                    solo_parent_since DATE NULL,
-                    purpose TEXT NOT NULL,
-                    applicant_name VARCHAR(100) NOT NULL,
-                    applicant_relationship VARCHAR(50) NOT NULL,
-                    request_date DATETIME NOT NULL,
-                    RequestStatus ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
-                    user_id INT NULL,
-                    UNIQUE KEY (refno)
-                )";
-
-                if (!$conn->query($create_table)) {
-                    throw new Exception("Error creating table: " . $conn->error);
-                }
-            }
-
             // Get user ID
             $userId = $_SESSION['user_id'];
-
-            // Insert into database
-            $sql = "INSERT INTO guardianshiptbl (
-                refno, request_type, child_name, child_age, child_address, 
-                guardianship_since, solo_parent_since, purpose,
-                applicant_name, applicant_relationship, request_date, user_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
-
-            $stmt = $conn->prepare($sql);
-
-            if ($stmt === false) {
-                throw new Exception("Prepare failed: " . $conn->error);
-            }
-
-            $stmt->bind_param(
-                "sssissssssi",
-                $refno,
-                $requestType,
-                $childName,
-                $childAge,
-                $childAddress,
-                $guardianshipSince,
-                $soloParentSince,
-                $purpose,
-                $applicantName,
-                $applicantRelationship,
-                $userId
-            );
-
-            if ($stmt->execute()) {
-                $success = true;
-                $success_ref_no = $refno;
-                // Reset form
-                $requestType = $childName = $childAge = $childAddress = $purpose = $applicantName = $applicantRelationship = "";
-                $guardianshipSince = $soloParentSince = "";
+            
+            if ($isUpdateMode) {
+                // UPDATE existing pending request
+                $sql = "UPDATE guardianshiptbl SET 
+                        request_type = ?, child_name = ?, child_age = ?, child_address = ?, 
+                        guardianship_since = ?, solo_parent_since = ?, purpose = ?,
+                        applicant_name = ?, applicant_relationship = ?
+                        WHERE refno = ? AND user_id = ? AND RequestStatus = 'Pending'";
+                
+                $stmt = $conn->prepare($sql);
+                if ($stmt === false) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+                
+                $stmt->bind_param(
+                    "ssissssssi",
+                    $requestType,
+                    $childName,
+                    $childAge,
+                    $childAddress,
+                    $guardianshipSince,
+                    $soloParentSince,
+                    $purpose,
+                    $applicantName,
+                    $applicantRelationship,
+                    $updateRefNo,
+                    $userId
+                );
+                
+                if ($stmt->execute()) {
+                    $success = true;
+                    $success_ref_no = $updateRefNo;
+                    $isUpdateSuccess = true; // Flag to show update success message
+                } else {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
+                
+                $stmt->close();
             } else {
-                throw new Exception("Execute failed: " . $stmt->error);
-            }
+                // INSERT new request
+                // Generate reference number
+                $refno = date('Ymd') . rand(1000, 9999);
 
-            $stmt->close();
+                // Check if table exists, create if not
+                $table_check = $conn->query("SHOW TABLES LIKE 'guardianshiptbl'");
+                if ($table_check->num_rows == 0) {
+                    $create_table = "CREATE TABLE guardianshiptbl (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        refno VARCHAR(50) NOT NULL,
+                        request_type ENUM('Guardianship','Solo Parent') NOT NULL,
+                        child_name VARCHAR(100) NOT NULL,
+                        child_age INT(3) NOT NULL,
+                        child_address TEXT NOT NULL,
+                        guardianship_since DATE NULL,
+                        solo_parent_since DATE NULL,
+                        purpose TEXT NOT NULL,
+                        applicant_name VARCHAR(100) NOT NULL,
+                        applicant_relationship VARCHAR(50) NOT NULL,
+                        request_date DATETIME NOT NULL,
+                        RequestStatus ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+                        user_id INT NULL,
+                        UNIQUE KEY (refno)
+                    )";
+
+                    if (!$conn->query($create_table)) {
+                        throw new Exception("Error creating table: " . $conn->error);
+                    }
+                }
+
+                // Insert into database
+                $sql = "INSERT INTO guardianshiptbl (
+                    refno, request_type, child_name, child_age, child_address, 
+                    guardianship_since, solo_parent_since, purpose,
+                    applicant_name, applicant_relationship, request_date, user_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+
+                $stmt = $conn->prepare($sql);
+
+                if ($stmt === false) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+
+                $stmt->bind_param(
+                    "sssissssssi",
+                    $refno,
+                    $requestType,
+                    $childName,
+                    $childAge,
+                    $childAddress,
+                    $guardianshipSince,
+                    $soloParentSince,
+                    $purpose,
+                    $applicantName,
+                    $applicantRelationship,
+                    $userId
+                );
+
+                if ($stmt->execute()) {
+                    $success = true;
+                    $success_ref_no = $refno;
+                    // Reset form
+                    $requestType = $childName = $childAge = $childAddress = $purpose = $applicantName = $applicantRelationship = "";
+                    $guardianshipSince = $soloParentSince = "";
+                } else {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
+
+                $stmt->close();
+            }
         } catch (Exception $e) {
             $errors[] = $e->getMessage();
         }
@@ -365,7 +463,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
     </div>
     
     <div class="container">
-        <h1>Guardianship / Solo Parent Application</h1>
+        <h1><?php echo $isUpdateMode ? 'Update Guardianship Application' : 'Guardianship / Solo Parent Application'; ?></h1>
+        
+        <?php if ($isUpdateMode): ?>
+            <div class="user-info-note" style="background-color: #e6f7ff; border-left-color: #1890ff; padding: 10px 15px; margin-bottom: 20px; border-radius: 4px;">
+                <strong>Update Mode:</strong> You are updating your pending request (Reference: <?php echo htmlspecialchars($updateRefNo); ?>). Modify the information below and submit to update your request.
+            </div>
+        <?php endif; ?>
         
         <?php if (!empty($errors)): ?>
             <div class="error">
@@ -458,7 +562,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
             <?php echo displayTermsAndConditions('guardianshipForm'); ?>
             
             <div class="form-group" style="text-align: center; margin-top: 30px;">
-                <button type="submit" class="btn" id="submitBtn">Submit Application</button>
+                <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Application' : 'Submit Application'; ?></button>
             </div>
         </form>
     </div>
@@ -557,6 +661,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
 
             // Show success message if submission was successful
             <?php if ($success): ?>
+                <?php if (isset($isUpdateSuccess) && $isUpdateSuccess): ?>
+                    document.querySelector('.success-message h3').textContent = 'Request Updated Successfully!';
+                    document.querySelector('.success-message p:nth-of-type(1)').textContent = 'Your guardianship request has been updated.';
+                <?php endif; ?>
                 successMessage.classList.add('show');
                 overlay.classList.add('show');
             <?php endif; ?>

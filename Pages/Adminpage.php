@@ -1780,18 +1780,26 @@ function alertNotPaid() {
   }
 
   .inventory-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
+    display: flex;
+  flex-wrap: wrap;
+  gap: .9rem;
+  justify-content: flex-start;
   }
 
   .inventory-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-    transition: all 0.3s ease;
-    border-left: 4px solid;
-    overflow: hidden;
+     display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex: 0 0 372px;
+  padding: 1rem;
+  /* NEW look */
+  background-color: #d9f2dc;       /* light green fill */
+  border: 2px solid #2d7a3e;       /* darker green border line */
+  border-radius: 6px;
+  color: #2d7a3e;                  /* dark green text */
+  box-shadow: none;                /* remove heavy shadow for clean look */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .inventory-card:hover {
@@ -1808,23 +1816,23 @@ function alertNotPaid() {
     justify-content: space-between;
     align-items: center;
     padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: #d9f2dc;
     border-bottom: 1px solid #e2e8f0;
   }
 
   .item-name {
     font-size: 1.125rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #2d7a3e;
     margin: 0;
   }
 
   .availability-badge {
-    background: #1e293b;
-    color: white;
+    background: #d9f2dc;
+    color: #2d7a3e;
     padding: 0.375rem 0.875rem;
     border-radius: 20px;
-    font-size: 0.875rem;
+    font-size: 1.125rem;
     font-weight: 600;
   }
 
@@ -1847,7 +1855,7 @@ function alertNotPaid() {
   .stat-label {
     display: block;
     font-size: 0.75rem;
-    color: #64748b;
+    color: #2d7a3e;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.375rem;
@@ -1858,7 +1866,7 @@ function alertNotPaid() {
     display: block;
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1e293b;
+    color: #2d7a3e;
   }
 
   .progress-bar {

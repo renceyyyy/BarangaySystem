@@ -1,6 +1,16 @@
-<?php include 'dashboard.php';
+<?php
+session_start(); // ✅ Always first — before any HTML or includes
 
+// Security check — only finance users allowed
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'finance') {
+    header("Location: ../Login/login.php");
+    exit();
+}
 
+// Debug logs — helps you confirm session data
+error_log("FinancePage.php — Username: " . ($_SESSION['username'] ?? 'NOT SET'));
+error_log("FinancePage.php — Fullname: " . ($_SESSION['fullname'] ?? 'NOT SET'));
+error_log("FinancePage.php — Role: " . ($_SESSION['role'] ?? 'NOT SET'));
 ?>
 
 <!DOCTYPE html>
@@ -20,6 +30,7 @@
 </head>
 
 <body>
+  <?php include 'dashboard.php'; ?>
   <div class="container-fluid">
     <div class="row">
       <!-- Sidebar -->
@@ -502,79 +513,17 @@
                  ORDER BY date DESC";
             $pendingResult = $connection->query($pendingSql);
 
-            $approvedSql = "SELECT CollectionID, name, type, refno, date, amount 
+           $approvedSql = "SELECT CollectionID, name, type, refno, date, amount, PaymentReceivedBy
                   FROM tblpayment 
                   WHERE RequestStatus = 'Paid' $searchQuery
                   ORDER BY date DESC";
-            $approvedResult = $connection->query($approvedSql);
+$approvedResult = $connection->query($approvedSql);
+
             ?>
 
             <!-- Side by Side Layout -->
              <div class="collection-layout">
-    <!-- Pending -->
-    <div class="collection-column">
-      <h4>⏳ Pending Payment</h4>
-      <div class="scrollable-table-container">
-        <table class="styled-table">
-          <thead>
-            <tr>
-              <th>NAME</th>
-              <th>TYPE</th>
-              <th>REFERENCE</th>
-              <th>DATE</th>
-              <th>AMOUNT</th>
-              <th>ACTION</th>
-            </tr>
-          </thead>
-         <tbody>
-  <?php
-  if ($pendingResult && $pendingResult->num_rows > 0) {
-    while ($row = $pendingResult->fetch_assoc()) {
-      // Check if the pending payment is more than 7 days old
-      $paymentDate = new DateTime($row["date"]);
-      $currentDate = new DateTime();
-      $interval = $paymentDate->diff($currentDate)->days;
-
-      // Disable Approve/Decline if older than 7 days
-      $isExpired = $interval > 7;
-
-      echo "<tr>
-              <td>" . strtoupper($row["name"]) . "</td>
-              <td>" . strtoupper($row["type"]) . "</td>
-              <td>{$row["refno"]}</td>
-              <td>{$row["date"]}</td>
-              <td>" . number_format($row["amount"], 2) . "</td>
-              <td>";
-
-      if ($isExpired) {
-        // Show disabled text if pending payment is older than a week
-        echo "<span style='color:gray; font-style:italic; font-size:13px;'>Disabled (Over 7 days)</span>";
-      } else {
-        // Show active action buttons
-        echo "
-          <a href='approvecollection.php?id={$row["CollectionID"]}&type=collection'
-             class='action-btn-2 approve'
-             onclick=\"return confirm('Approve this collection?');\">
-             <i class='fas fa-check'></i>
-          </a>
-          <a href='declinecollection.php?id={$row["CollectionID"]}&type=collection'
-             class='action-btn-2 decline'
-             onclick=\"return confirm('Decline this collection?');\">
-             <i class='fas fa-xmark'></i>
-          </a>";
-      }
-
-      echo "</td></tr>";
-    }
-  } else {
-    echo "<tr><td colspan='6'>No pending requests found.</td></tr>";
-  }
-  ?>
-</tbody>
-
-        </table>
-      </div>
-    </div>
+   
 
     <!-- Approved -->
     <div class="collection-column">
@@ -582,33 +531,38 @@
       <div class="scrollable-table-container">
         <table class="styled-table" id="approvedTable">
           <thead>
-            <tr>
-              <th>ID</th>
-              <th>NAME</th>
-              <th>TYPE</th>
-              <th>REFERENCE</th>
-              <th>DATE</th>
-              <th>AMOUNT</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php
-            if ($approvedResult && $approvedResult->num_rows > 0) {
-              while ($row = $approvedResult->fetch_assoc()) {
-                echo "<tr>
-                        <td>{$row["CollectionID"]}</td>
-                        <td>" . strtoupper($row["name"]) . "</td>
-                        <td>" . strtoupper($row["type"]) . "</td>
-                        <td>{$row["refno"]}</td>
-                        <td>{$row["date"]}</td>
-                        <td>" . number_format($row["amount"], 2) . "</td>
-                      </tr>";
-              }
-            } else {
-              echo "<tr><td colspan='6'>No approved requests found.</td></tr>";
-            }
-            ?>
-          </tbody>
+  <tr>
+    <th>ID</th>
+    <th>NAME</th>
+    <th>TYPE</th>
+    <th>REFERENCE</th>
+    <th>DATE</th>
+     <th>PAYMENT RECEIVED BY</th> <!-- ✅ New column -->
+    <th>AMOUNT</th>
+ 
+  </tr>
+</thead>
+<tbody>
+  <?php
+  if ($approvedResult && $approvedResult->num_rows > 0) {
+    while ($row = $approvedResult->fetch_assoc()) {
+      echo "<tr>
+              <td>{$row["CollectionID"]}</td>
+              <td>" . strtoupper($row["name"]) . "</td>
+              <td>" . strtoupper($row["type"]) . "</td>
+              <td>{$row["refno"]}</td>
+              <td>{$row["date"]}</td>
+              <td>" . htmlspecialchars($row["PaymentReceivedBy"]) . "</td>
+              <td>" . number_format($row["amount"], 2) . "</td>
+             
+            </tr>";
+    }
+  } else {
+    echo "<tr><td colspan='7'>No approved requests found.</td></tr>";
+  }
+  ?>
+</tbody>
+
         </table>
       </div>
     </div>

@@ -1,5 +1,8 @@
 <?php
+session_start();
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    // Basic sanitization
     $refno    = trim($_POST['refno'] ?? '');
     $name     = trim($_POST['name'] ?? '');
     $docutype = trim($_POST['docutype'] ?? '');
@@ -7,7 +10,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $amount   = floatval($_POST['amount'] ?? 0);
     $DateRequested = date('Y-m-d H:i:s');
 
-    if (!$refno || !$name || !$docutype || !$amount) {
+    // ✅ Finance user's full name from session
+    $paymentReceivedBy = $_SESSION['fullname'] ?? 'Unknown User';
+
+    // Validate required fields
+    if (!$refno || !$name || !$docutype) {
         http_response_code(400);
         echo "Missing required fields.";
         exit;
@@ -22,19 +29,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 
-    // ✅ 1. Insert the payment record
+    // ✅ Insert with PaymentReceivedBy
     $stmt = $connection->prepare("
-        INSERT INTO tblpayment (refno, name, type, address, date, amount, RequestStatus)
-        VALUES (?, ?, ?, ?, ?, ?, 'Pending')
+        INSERT INTO tblpayment 
+            (refno, name, type, address, date, amount, RequestStatus, PaymentReceivedBy)
+        VALUES (?, ?, ?, ?, ?, ?, 'Paid', ?)
     ");
-    $stmt->bind_param("sssssd", $refno, $name, $docutype, $address, $DateRequested, $amount);
+
+    if (!$stmt) {
+        http_response_code(500);
+        echo "Failed to prepare statement.";
+        $connection->close();
+        exit;
+    }
+
+    $stmt->bind_param("sssssds", $refno, $name, $docutype, $address, $DateRequested, $amount, $paymentReceivedBy);
+
 
     if ($stmt->execute()) {
-        // ✅ 2. Update the related document request as 'Paid'
-        $update = $connection->prepare("UPDATE docsreqtbl SET PaymentStatus = 'Paid' WHERE refno = ?");
-        $update->bind_param("s", $refno);
-        $update->execute();
-
         echo "success";
     } else {
         http_response_code(500);

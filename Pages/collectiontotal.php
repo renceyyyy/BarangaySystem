@@ -10,7 +10,7 @@ if ($connection->connect_error) {
     die("Connection failed: " . $connection->connect_error);
 }
 
-$sql = "SELECT SUM(amount) AS totalApproved FROM tblpayment WHERE RequestStatus = 'Approved'";
+$sql = "SELECT SUM(amount) AS totalApproved FROM tblpayment WHERE RequestStatus = 'Paid'";
 $result = $connection->query($sql);
 
 $totalApproved = 0;

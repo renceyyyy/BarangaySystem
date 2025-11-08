@@ -1,6 +1,16 @@
 <?php
-include 'dashboard.php';
-require_once '../Process/db_connection.php';
+session_start(); // ✅ Always first — before any HTML or includes
+
+// Security check — only finance users allowed
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: ../Login/login.php");
+    exit();
+}
+
+// Debug logs — helps you confirm session data
+error_log("AdminPage.php — Username: " . ($_SESSION['username'] ?? 'NOT SET'));
+error_log("AdminPage.php — Fullname: " . ($_SESSION['fullname'] ?? 'NOT SET'));
+error_log("AdminPage.php — Role: " . ($_SESSION['role'] ?? 'NOT SET'));
 ?>
 
 <!DOCTYPE html>
@@ -20,6 +30,10 @@ require_once '../Process/db_connection.php';
 </head>
 
 <body>
+  <?php
+include 'dashboard.php';
+require_once '../Process/db_connection.php';
+?>
   <div class="container-fluid">
     <div class="row">
       <!-- Sidebar -->
@@ -152,14 +166,11 @@ require_once '../Process/db_connection.php';
                 <h4>Business Permit Requests</h4>
                 <canvas id="businessChart"></canvas>
               </div>
-              <div class="chart-box">
-                <h4>Civil Status Distribution</h4>
-                <canvas id="civilChart"></canvas>
-              </div>
-              <div class="document-box">
+               <div class="document-box">
                 <h4>Government Document Requests</h4>
                 <canvas id="documentChart"></canvas>
               </div>
+              
               <div class="unemployment-box">
                 <h4>Unemployment Certificate Requests</h4>
                 <canvas id="unemploymentChart"></canvas>
@@ -483,12 +494,11 @@ function switchTab(event, tabName) {
                     <th>ID</th>
                     <th>FIRSTNAME</th>
                     <th>LASTNAME</th>
-                   
-                    <th>ADDRESS</th>
                     <th>REFERENCE</th>
                     <th>TYPE</th>
-                    <th>DATE</th>
+                    <th>DATE</th></th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -530,7 +540,7 @@ function switchTab(event, tabName) {
 
 
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
-                 $sql = "SELECT ReqId, Firstname, Lastname, Gender, ReqPurpose, ContactNo, Address, refno, Docutype, DateRequested, RequestStatus, PaymentStatus, CertificateImage 
+                 $sql = "SELECT ReqId, Firstname, Lastname, Gender, ReqPurpose, ContactNo, Address, refno, Docutype, DateRequested, RequestStatus,ReleasedBy, CertificateImage 
 FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
 
                   
@@ -574,68 +584,86 @@ FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
             <td>" . htmlspecialchars($row["ReqId"]) . "</td>
             <td>" . strtoupper(htmlspecialchars($row["Firstname"])) . "</td>
             <td>" . strtoupper(htmlspecialchars($row["Lastname"])) . "</td>
-            
-            <td>" . strtoupper(htmlspecialchars($row["Address"])) . "</td>
             <td>" . htmlspecialchars($row["refno"]) . "</td>
             <td>" . strtoupper(htmlspecialchars($row["Docutype"])) . "</td>
             <td>" . date("Y-m-d", strtotime($row["DateRequested"])) . "</td>
             <td>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</td> <!-- Status Column -->
+            <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
             <td>";
 
                     $docData = json_encode([
-                      "refno" => $row['refno'],
-                      "Firstname" => $row['Firstname'],
-                      "Lastname" => $row['Lastname'],
-                      "Docutype" => $row['Docutype'],
-                      "Address" => $row['Address'],
-                      "DateRequested" => $row['DateRequested'],
-                    ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-
-                    // Show PRINT button only if already approved
-                  if ($row["RequestStatus"] === "Approved" && $row["PaymentStatus"] === "Paid") {
-    echo "<button type='button' class='action-btn-2 print' onclick='openPrintModal(JSON.parse(`$docData`))'>
-            <i class='fas fa-print'></i>
-          </button>";
-} elseif ($row["RequestStatus"] === "Approved" && $row["PaymentStatus"] === "Unpaid") {
-    echo "<button type='button' class='action-btn-2 print' onclick='alert(`Payment required before printing.`)'>
-            <i class='fas fa-lock'></i>
-          </button>";
-} elseif ($row["RequestStatus"] === "Pending") {
-    echo "<a href='approve.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
-            class='action-btn-2 approve'
-            onclick='showCustomConfirm(event, this.href);'>
-            <i class='fas fa-check'></i>
-          </a>";
+  "ReqId" => $row['ReqId'],
+  "refno" => $row['refno'],
+  "Firstname" => $row['Firstname'],
+  "Lastname" => $row['Lastname'],
+  "Docutype" => $row['Docutype'],
+  "Address" => $row['Address'],
+  "DateRequested" => $row['DateRequested'],
+], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
 
 
-                    } else {
-                      // Show APPROVE button if not yet approved/declined (Declined rows won't reach here)
-                      if ($row["RequestStatus"] !== "Declined") {
-                        echo "<a href='approve.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
-                class='action-btn-2 approve' 
-                onclick=\"showCustomConfirm(event, this.href);\">
-                <i class='fas fa-check'></i>
-              </a>";
-                      }
-                    }
+// ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewdocument.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
 
-                    echo "<a href='viewdocument.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
-            class='action-btn-2 view'> 
-    
-        <i class='fas fa-eye'></i>
-      </button>";
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseDocument(" . htmlspecialchars($row["ReqId"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
 
+  echo "<a href='viewdocument.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
-                      echo "<a href='decline.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
-              class='action-btn-2 decline' 
-              onclick=\"showCustomDeclineConfirm(event, this.href);\">
-              <i class='fas fa-xmark'></i>
-            </a>";
-                    }
-                  
+// ✅ If Approved — show Print + View
+elseif ($row["RequestStatus"] === "Approved") {
+  echo "<button type='button' class='action-btn-2 print' 
+          onclick='openPrintModal(JSON.parse(`$docData`), " . htmlspecialchars($row["ReqId"]) . ")'>
+          <i class='fas fa-print'></i>
+        </button>";
+
+  echo "<a href='viewdocument.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Pending — show Approve + View + Decline
+elseif ($row["RequestStatus"] === "Pending") {
+  echo "<a href='approve.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+          class='action-btn-2 approve' 
+          onclick=\"showCustomConfirm(event, this.href);\">
+          <i class='fas fa-check'></i>
+        </a>";
+
+  echo "<a href='viewdocument.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+
+  echo "<a href='decline.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+          class='action-btn-2 decline' 
+          onclick=\"showCustomDeclineConfirm(event, this.href);\">
+          <i class='fas fa-xmark'></i>
+        </a>";
+}
+
+// ✅ If Declined or unknown — show View only
+else {
+  echo "<a href='viewdocument.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
 
                     echo "</td></tr>";
                   }
@@ -4364,7 +4392,7 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     // Full details table
-                    $stmt = $connection->prepare("SELECT id, name, item, quantity, event_datetime, date, RequestStatus
+                    $stmt = $connection->prepare("SELECT id, name, item, quantity, event_datetime, date, RequestStatus, damage_status
                                       FROM tblitemrequest 
                                       WHERE date BETWEEN ? AND ? 
                                       ORDER BY id ");
@@ -4383,7 +4411,9 @@ function reloadItemRequestsPanel(message) {
                             <th>Quantity</th>
                             <th>Event Date/Time</th>
                             <th>Date Requested</th>
+                            <th>Condition</th>
                             <th>Status</th>
+                            
                  
                         </tr>
                     </thead>
@@ -4397,6 +4427,7 @@ function reloadItemRequestsPanel(message) {
                     <td>' . htmlspecialchars($r['event_datetime']) . '</td>
                     <td>' . htmlspecialchars($r['date']) . '</td>
                     <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                    <td>' . htmlspecialchars($r['damage_status']) . '</td>
                
                   </tr>';
                     }
@@ -4405,6 +4436,78 @@ function reloadItemRequestsPanel(message) {
                     echo '<div class="alert alert-warning">No item requests found for this date range.</div>';
                   }
                   break;
+
+                   case 'blotters':
+                  echo '<h3>Blotter/Complaints Report</h3>';
+
+                  // Summary cards: count per status
+                  $stmt = $connection->prepare("SELECT status, COUNT(*) as count 
+                                  FROM blottertbl 
+                                  WHERE created_at BETWEEN ? AND ? 
+                                  GROUP BY status");
+                  $stmt->bind_param("ss", $startDate, $endDate);
+                  $stmt->execute();
+                  $result = $stmt->get_result();
+
+                  if ($result->num_rows > 0) {
+                    echo '<div class="stat-card-container mb-3">';
+                    while ($row = $result->fetch_assoc()) {
+                      $status = $row['status'] ?: 'Pending';
+                      echo '<div class="stat-card">
+                    <div class="stat-left"><i class="fas fa-exclamation-triangle"></i><p>' . htmlspecialchars($status) . '</p></div>
+                    <h4>' . $row['count'] . '</h4>
+                  </div>';
+                    }
+                    echo '</div>';
+
+                    // Full details table
+                    $stmt = $connection->prepare("SELECT blotter_id, reported_by, datetime_of_incident, 
+                                           location_of_incident, incident_type, created_at, 
+                                           closed_at, status
+                                      FROM blottertbl 
+                                      WHERE created_at BETWEEN ? AND ? 
+                                      ORDER BY created_at DESC");
+                    $stmt->bind_param("ss", $startDate, $endDate);
+                    $stmt->execute();
+                    $details = $stmt->get_result();
+
+                    echo '<div class="scrollable-table-container">
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Blotter ID</th>
+                            <th>Reported By</th>
+                            <th>Incident Date/Time</th>
+                            <th>Location</th>
+                            <th>Incident Type</th>
+                            <th>Date Filed</th>
+                            <th>Date Closed</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>';
+                    while ($r = $details->fetch_assoc()) {
+                      $status = $r['status'] ?: 'Pending';
+                      $closedDate = $r['closed_at'] ?: 'N/A';
+                      echo '<tr>
+                    <td>' . htmlspecialchars($r['blotter_id']) . '</td>
+                    <td>' . htmlspecialchars($r['reported_by']) . '</td>
+                    <td>' . htmlspecialchars($r['datetime_of_incident']) . '</td>
+                    <td>' . htmlspecialchars($r['location_of_incident']) . '</td>
+                    <td>' . htmlspecialchars($r['incident_type']) . '</td>
+                    <td>' . htmlspecialchars($r['created_at']) . '</td>
+                    <td>' . htmlspecialchars($closedDate) . '</td>
+                    <td>' . htmlspecialchars($status) . '</td>
+                  </tr>';
+                    }
+                    echo '</tbody></table></div>';
+                  } else {
+                    echo '<div class="alert alert-warning">No blotter/complaint records found for this date range.</div>';
+                  }
+                  break;
+
+
+
                 // --------------------------------------
 // COLLECTIONS / PAYMENTS REPORT
 // --------------------------------------
@@ -4627,7 +4730,7 @@ function reloadItemRequestsPanel(message) {
 
 
           <div id="auditTrailPanel" class="panel-content">
-            <h3>Audit Trail Logs</h3>
+            <h3>Activity Logs</h3>
             <div class="scrollable-table-container">
               <table class="styled-table">
                 <thead>
@@ -5992,7 +6095,7 @@ function reloadItemRequestsPanel(message) {
       </div>
 
       <div style="text-align:center; font-size:22px; margin:30px 0 20px;">
-        CERTIFICATE OF FIRST TIME JOB SEEKERS
+        CERTIFICATE OF FIRST TIME JOB SEEKER
       </div>
 
       <div style="font-size:18px; text-align:justify; line-height:1.8;">
@@ -6044,11 +6147,11 @@ function reloadItemRequestsPanel(message) {
             </script>
 
          <script>
-let selectedDocData = null; // Global variable to store selected document data
+let selectedDocData = null; // Store selected document data globally
 
-// Function to open the modal and save the selected document's data
+// 🧩 Open Print Modal
 function openPrintModal(data) {
-  selectedDocData = data; // Store the selected document for later printing
+  selectedDocData = data; // Save for later use (for printing + status update)
 
   document.getElementById("modal_refno").value = data.refno;
   document.getElementById("modal_name").value = data.Firstname + ' ' + data.Lastname;
@@ -6077,13 +6180,14 @@ function openPrintModal(data) {
     amountField.readOnly = false;
   }
 
+  // Show the modal
   const modal = new bootstrap.Modal(document.getElementById('printFormModal'));
   modal.show();
 }
 
-// Handle form submission
+// 🧩 Handle Payment Form Submission + Printing
 document.getElementById("printForm").addEventListener("submit", function (event) {
-  event.preventDefault(); // Prevent default form submission
+  event.preventDefault(); // Prevent normal form submit
 
   const formData = new FormData(this);
 
@@ -6091,28 +6195,76 @@ document.getElementById("printForm").addEventListener("submit", function (event)
     method: "POST",
     body: formData,
   })
-    .then((response) => response.text())
-    .then((response) => {
-     if (response.trim() === "success") {
-  alert("Payment recorded successfully. You can now print the document.");
-  bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
-  window.location.reload(); // Refresh page to show Print button
+  .then((response) => response.text())
+  .then((response) => {
+    if (response.trim() === "success") {
+      alert("Payment recorded. Now printing...");
+      bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
 
-        if (selectedDocData) {
-          generateCertificate(selectedDocData); // This handles different Docutype values
-        } else {
-          alert("No document selected for printing.");
-        }
+      if (selectedDocData) {
+        // Generate the printed certificate
+        generateCertificate(selectedDocData);
+
+        // ✅ After printing, update the RequestStatus to "Printed"
+        fetch("update_status.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `id=${encodeURIComponent(selectedDocData.ReqId)}&status=Printed`,
+        })
+        .then(res => res.text())
+        .then(res => {
+          if (res.trim() === "success") {
+            alert("Document marked as Printed. You can now release it.");
+            location.reload(); // Refresh the table to show the new Release button
+          } else {
+            console.error("Failed to update status:", res);
+            alert("Failed to mark as Printed. Please refresh and try again.");
+          }
+        })
+        .catch(err => {
+          console.error("Status update error:", err);
+          alert("Error updating document status.");
+        });
+
       } else {
-        alert("Error: " + response);
+        alert("No document selected for printing.");
       }
-    })
-    .catch((error) => {
-      console.error("Error submitting payment:", error);
-      alert("Something went wrong. Please try again.");
-    });
+
+    } else {
+      alert("Error: " + response);
+    }
+  })
+  .catch((error) => {
+    console.error("Error submitting payment:", error);
+    alert("Something went wrong. Please try again.");
+  });
 });
+
+// 🧩 Handle Release Button Action
+function releaseDocument(reqId) {
+  if (!confirm("Are you sure you want to release this document?")) return;
+
+  fetch("update_status.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(reqId)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
+
 
  <script>
 let selectedDocData = null; // Global variable to store selected document data
@@ -8242,7 +8394,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                 });
               })();
             </script>
-        <script>
+       <script>
 (function () {
   function escapeHtml(s) {
     if (s === null || s === undefined) return '';
@@ -8366,6 +8518,26 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
       setTimeout(() => { alert.style.display = 'none'; }, 5000);
     }
 
+    function updateEditButtonState() {
+      const editBtn = document.getElementById('vu_edit_btn');
+      const accountStatus = (userData.AccountStatus || '').toLowerCase();
+      
+      // Only allow editing for 'pending' or 'verified' status
+      const canEdit = accountStatus === 'pending' || accountStatus === 'verified';
+      
+      if (canEdit) {
+        editBtn.disabled = false;
+        editBtn.style.opacity = '1';
+        editBtn.style.cursor = 'pointer';
+        editBtn.title = '';
+      } else {
+        editBtn.disabled = true;
+        editBtn.style.opacity = '0.5';
+        editBtn.style.cursor = 'not-allowed';
+        editBtn.title = 'Edit is not available for unverified accounts';
+      }
+    }
+
     function renderFields(editMode) {
       const content = document.getElementById('vu_content');
       
@@ -8430,6 +8602,11 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
     modal.querySelector('#vu_close2').addEventListener('click', closeModal);
     
     modal.querySelector('#vu_edit_btn').addEventListener('click', () => {
+      const accountStatus = (userData.AccountStatus || '').toLowerCase();
+      if (accountStatus !== 'pending' && accountStatus !== 'verified') {
+        showAlert('Edit is not available for unverified accounts', 'error');
+        return;
+      }
       toggleEditMode(true);
     });
 
@@ -8529,6 +8706,9 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
         // Render user info in view mode
         renderFields(false);
+        
+        // Update edit button state based on account status
+        updateEditButtonState();
       })
       .catch(err => {
         console.error(err);

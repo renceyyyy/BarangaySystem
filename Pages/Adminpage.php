@@ -885,6 +885,7 @@ function alertNotPaid() {
                     <th>REFERENCE</th>
                     <th>DATE</th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -939,7 +940,7 @@ function alertNotPaid() {
                   }
 
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
-                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus 
+                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus, ReleasedBy 
                 FROM businesstbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -985,42 +986,77 @@ function alertNotPaid() {
             <td>" . htmlspecialchars($row["refno"]) . "</td>  <!-- Added htmlspecialchars -->
             <td>" . date("Y-m-d", strtotime($row["RequestedDate"])) . "</td>
             <td><span class='status-badge status-" . strtolower(htmlspecialchars($row['RequestStatus'])) . "'>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</span></td> <!-- Fixed: Removed invalid 'string:' syntax; Added badge styling -->
+             <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td> 
 
             <td>";
 
-                    // Data for print modal (escaped properly)
+                    // Data for print modal (escaped properly) - include BsnssID so client can reference the record
                     $printData = json_encode([
+                      "BsnssID" => $row['BsnssID'],
                       "refno" => $row['refno'],
                       "OwnerName" => $row['OwnerName'],
                       "RequestType" => $row['RequestType'],
                       "RequestedDate" => $row['RequestedDate'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                    if ($row["RequestStatus"] === "Approved") {
-                      echo "<button type='button' class='action-btn-2 print' onclick='openBusinessPrintModal(" . $printData . ")'>  <!-- Fixed: Removed extra ) -->
+                    if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseBusinessDocument(" . htmlspecialchars($row["BsnssID"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openBusinessPrintModal(" . $printData . ")'>  
               <i class='fas fa-print'></i>
             </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved (Declined rows won't reach here due to query)
+                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+
+      
+}
+
+
+// ✅ If Pending — show Approve + View + Decline
+elseif ($row["RequestStatus"] === "Pending") {
                       echo "<a href='approvebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
               class='action-btn-2 approve' 
               onclick=\"showCustomConfirm(event, this.href);\">
               <i class='fas fa-check'></i>
             </a>";
-                    }
 
-                    // Business-specific VIEW button (simplified; adjust data attributes to match business schema if needed)
-                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' class='action-btn-2 view'>  <!-- Fixed: Use business-specific view link and fields -->
+                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+                    class='action-btn-2 view'>  
             <i class='fas fa-eye'></i>
           </a>";
 
-                    // Show DECLINE button only if Pending (not Approved or Declined)
-                    if ($row["RequestStatus"] === "Pending") {  // Simplified logic since Declined is excluded
                       echo "<a href='declinebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
                class='action-btn-2 decline' 
                onclick=\"showCustomDeclineConfirm(event, this.href);\">
               <i class='fas fa-xmark'></i>
-            </a>";  // Fixed: Removed invalid semicolon after </a>
+            </a>"; 
+
+                    }
+                    else {
+                      echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
                     }
 
                     echo "</td></tr>";
@@ -1163,6 +1199,7 @@ function alertNotPaid() {
                     <th>REFERENCE</th>
                     <th>DATE</th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -1202,7 +1239,7 @@ function alertNotPaid() {
                     $insertStmt->close();
                   }
 
-                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus 
+                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus, ReleasedBy 
                         FROM unemploymenttbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -1241,42 +1278,76 @@ function alertNotPaid() {
                         <td>" . htmlspecialchars($row["refno"]) . "</td>
                         <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
                         <td>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</td> <!-- Status Column -->
-
+                        <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
                         <td>";
 
                     $docData = json_encode([
+                      "id" => $row['id'], // Add ID for status update
                       "refno" => $row['refno'],
                       "fullname" => $row['fullname'],
                       "certificate_type" => $row['certificate_type'],
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                    if ($row["RequestStatus"] === "Approved") {
-                      echo "<button type='button' class='action-btn-2 print' onclick='openUnemploymentPrintModal(JSON.parse(`$docData`))'>    
+                    // ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release'
+          onclick='releaseUnemploymentDocument(" . htmlspecialchars($row["id"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
+}
+
+                      // ✅ If Approved — show Print + View
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openUnemploymentPrintModal(JSON.parse(`$docData`))'>    
                             <i class='fas fa-print'></i>
                         </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved
-                      if ($row["RequestStatus"] !== "Declined") {
-                        echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
-                                class='action-btn-2 approve'
-                                onclick=\"showCustomConfirm(event, this.href);\">
-                                <i class='fas fa-check'></i>
-                            </a> ";
-                      }
-                    }
-                    echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
-                        <i class='fas fa-eye'></i></a>";
+                          echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
+                    } 
+
+                    // ✅ If Pending — show Approve + View + Decline
+                    elseif ($row["RequestStatus"] === "Pending") {
+                      echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
+                              class='action-btn-2 approve'
+                              onclick=\"showCustomConfirm(event, this.href);\">
+                              <i class='fas fa-check'></i>
+                          </a> ";
+
+                      echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+                          class='action-btn-2 view'>  
+                  <i class='fas fa-eye'></i>
+                </a>";
                       echo "<a href='decline.php?id=" . htmlspecialchars($row["id"]) . "' 
                             class='action-btn-2 decline' 
                             onclick=\"showCustomDeclineConfirm(event, this.href);\">
                             <i class='fas fa-xmark'></i>
                         </a>";
                     }
-
+                    // ✅ If Declined or unknown — show View only
+                    else {
+                      echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
+                    }
                     echo "</td></tr>";
                   }
                   if (!$hasRows) {
@@ -1422,6 +1493,7 @@ function alertNotPaid() {
                   <th>REFERENCE</th>
                   <th>DATE</th>
                   <th>STATUS</th> <!-- Added STATUS column -->
+                  <th>RELEASED BY</th>
                   <th>ACTION</th>
                 </tr>
                 </thead>
@@ -1475,7 +1547,7 @@ function alertNotPaid() {
                     $
                       $insertstmt->close();
                   }
-                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus 
+                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus, ReleasedBy 
                           FROM guardianshiptbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   $params = [];
                   $types = "";
@@ -1508,51 +1580,81 @@ function alertNotPaid() {
                     echo "<tr>
             <td>" . $row["id"] . "</td>
             <td>" . strtoupper($row["applicant_name"]) . "</td>
-            <td>" . strtoupper($row["request_type"]) . "</td>
-            
+            <td>" . strtoupper($row["request_type"]) . "</td>      
             <td>" . $row["refno"] . "</td>
             <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
             <td>" . strtoupper($row['RequestStatus']) . "</td> <!-- Status Column -->
+            <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
              <td>";
+
                     $docData = json_encode([
+                      "id" => $row['id'], // Add ID for status update
                       "refno" => $row['refno'],
                       "applicant_name" => $row['applicant_name'],
                       "request_type" => $row['request_type'],
-                     
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-                    if ($row["RequestStatus"] === "Approved") {
 
-                      echo "<button type='button' class='action-btn-2 print' onclick='openGuardianshipPrintModal(" . htmlspecialchars(json_encode([
-                        "refno" => $row['refno'],
-                        "applicant_name" => $row['applicant_name'],
-                        "request_type" => $row['request_type'],
-                        
-                        "request_date" => $row['request_date'],
-                      ]), ENT_QUOTES, 'UTF-8') . ")'>
+                    // ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseGuardianshipDocument(" . htmlspecialchars($row["id"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Approved — show Print + View
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      // Use the pre-built $docData (includes id) so the client has the record id for status update
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openGuardianshipPrintModal(" . $docData . ")'>
     <i class='fas fa-print'></i>
   </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved
+
+    echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+                    }
+// ✅ If Pending — show Approve + View + Decline
+        elseif ($row["RequestStatus"] === "Pending") {
+                      // Show APPROVE button
                       echo "<a href='approveguardianship.php?id=" . $row["id"] . "'
     class='action-btn-2 approve'
     onclick=\"showCustomConfirm(event, this.href);\">
     <i class='fas fa-check'></i></a>
   ";
-                    }
-
-
-
                     echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
                     <i class='fas fa-eye'></i></a>";
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
+
                       echo "<a href='declineguardianship.php?id=" . htmlspecialchars($row["id"]) . "'
     class='action-btn-2 decline'
     onclick=\"showCustomDeclineConfirm(event, this.href);\">
     <i class='fas fa-xmark'></i>
   </a>";
+        
+        }               
+
+
+else {
+                    echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
+                    <i class='fas fa-eye'></i></a>";
+
+                  
                     }
 
                     echo "</td></tr>";
@@ -6836,6 +6938,26 @@ document.getElementById("businessPrintForm").addEventListener("submit", function
 
         if (selectedBusinessDocData) {
           generateCertificate(selectedBusinessDocData);
+          fetch("updatestatus_business.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedBusinessDocData.BsnssID)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Business permit marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating business permit status.");
+          });
+
         } else {
           alert("No business permit selected for printing.");
         }
@@ -6848,6 +6970,29 @@ document.getElementById("businessPrintForm").addEventListener("submit", function
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseBusinessDocument(BsnssID) {
+  if (!confirm("Are you sure you want to release this business document?")) return;
+
+  fetch("updatestatus_business.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(BsnssID)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Business document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -6901,6 +7046,27 @@ document.getElementById("unemploymentPrintForm").addEventListener("submit", func
 
         if (selectedUnemploymentDocData) {
           generateCertificate(selectedUnemploymentDocData);
+
+          // ✅ After printing, update the RequestStatus to "Printed"
+          fetch("updatestatus_unemployment.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedUnemploymentDocData.id)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Unemployment certificate marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating unemployment certificate status.");
+          });
         } else {
           alert("No unemployment certificate selected for printing.");
         }
@@ -6913,6 +7079,29 @@ document.getElementById("unemploymentPrintForm").addEventListener("submit", func
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseUnemploymentDocument(id) {
+  if (!confirm("Are you sure you want to release this unemployment document?")) return;
+
+  fetch("updatestatus_unemployment.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Unemployment document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -6967,6 +7156,27 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
         if (selectedGuardianShipDocData) {
           generateCertificate(selectedGuardianShipDocData);
+
+          // ✅ After printing, update the RequestStatus to "Printed"
+          fetch("updatestatus_guardianship.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedGuardianShipDocData.id)}&status=Printed`,
+          })
+          .then((res) => res.text())
+          .then((res) => {
+            if (res.trim() === "success") {
+              alert("Guardianship document marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch((err) => {
+            console.error("Status update error:", err);
+            alert("Error updating guardianship document status.");
+          });
         } else {
           alert("No guardianship document selected for printing.");
         }
@@ -6979,6 +7189,29 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseGuardianshipDocument(id) {
+  if (!confirm("Are you sure you want to release this guardianship document?")) return;
+
+  fetch("updatestatus_guardianship.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then((res) => res.text())
+  .then((res) => {
+    if (res.trim() === "success") {
+      alert("Guardianship document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch((err) => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 

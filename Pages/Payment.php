@@ -10,8 +10,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $amount   = floatval($_POST['amount'] ?? 0);
     $DateRequested = date('Y-m-d H:i:s');
 
-    // ✅ Finance user's full name from session
-    $paymentReceivedBy = $_SESSION['fullname'] ?? 'Unknown User';
+    // ✅ Get finance user's name if logged in
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'finance') {
+        $paymentReceivedBy = $_SESSION['fullname'] ?? 'Finance User';
+    } else {
+        // fallback if not finance
+        $paymentReceivedBy = $_SESSION['fullname'] ?? 'Unknown User';
+    }
 
     // Validate required fields
     if (!$refno || !$name || !$docutype) {
@@ -29,7 +34,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 
-    // ✅ Insert with PaymentReceivedBy
+    // ✅ Insert payment record
     $stmt = $connection->prepare("
         INSERT INTO tblpayment 
             (refno, name, type, address, date, amount, RequestStatus, PaymentReceivedBy)
@@ -44,7 +49,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     $stmt->bind_param("sssssds", $refno, $name, $docutype, $address, $DateRequested, $amount, $paymentReceivedBy);
-
 
     if ($stmt->execute()) {
         echo "success";

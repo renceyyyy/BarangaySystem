@@ -1,7 +1,8 @@
 <?php
-require_once '../Process/db_connection.php';
-require_once './Terms&Conditions/Terms&Conditons.php';
 session_start();
+require_once '../Process/db_connection.php';
+require_once '../Process/user_activity_logger.php';
+require_once './Terms&Conditions/Terms&Conditons.php';
 $conn = getDBConnection();
 
 // Check if user is logged in
@@ -319,6 +320,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                     $success = true;
                     $success_ref_no = $updateRefNo;
                     $isUpdateSuccess = true; // Flag to show update success message
+                    
+                    // Log user activity for update
+                    logUserActivity(
+                        'Government document request updated',
+                        'government_document_update',
+                        [
+                            'document_type' => implode(',', $doctypes),
+                            'reference_no' => $updateRefNo,
+                            'action' => 'update'
+                        ]
+                    );
                 }
             } else {
                 // INSERT new request
@@ -326,6 +338,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                 
                 foreach ($doctypes as $doctype) {
                     $doctype = trim($doctype);
+
+                    // Check if this is "First Time Job Seeker" and user already has one
+                    if ($doctype === "First Time Job Seeker") {
+                        $check_dup_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = ?";
+                        $check_dup_stmt = $conn->prepare($check_dup_sql);
+                        if ($check_dup_stmt) {
+                            $check_dup_stmt->bind_param("is", $userId, $doctype);
+                            $check_dup_stmt->execute();
+                            $check_dup_result = $check_dup_stmt->get_result();
+                            $check_dup_row = $check_dup_result->fetch_assoc();
+                            
+                            if ($check_dup_row['count'] > 0) {
+                                // User already has a First Time Job Seeker request
+                                throw new Exception("You've already requested a First Time Job Seeker certificate. This is a one-time request only. For further information, please visit the barangay or contact us at Telephone: 86380301.");
+                            }
+                            $check_dup_stmt->close();
+                        }
+                    }
 
                     $sql = "INSERT INTO docsreqtbl (
                         Userid, DocuType, Firstname, Lastname,
@@ -362,6 +392,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                         throw new Exception("Execute failed: " . $stmt->error);
                     }
 
+                    // Log user activity
+                    logUserActivity(
+                        'Government document requested',
+                        'document_request',
+                        [
+                            'document_type' => $doctype,
+                            'reference_no' => $refno
+                        ]
+                    );
+
                     $successCount++;
                     $stmt->close();
                 }
@@ -380,7 +420,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             }
         } catch (Exception $e) {
             $conn->rollback();
-            $errors[] = "Failed to process request: " . $e->getMessage();
+            $errors[] = $e->getMessage();
         }
     }
 }
@@ -634,7 +674,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
         <?php if (!empty($errors)): ?>
             <div class="error">
-                <strong><?php echo (count($errors) == 1 && strpos($errors[0], 'pending') !== false) ? 'Notice:' : 'Please fix the following errors:'; ?></strong>
+                <strong>Notice:</strong>
                 <ul>
                     <?php foreach ($errors as $error): ?>
                         <li><?php echo htmlspecialchars($error); ?></li>
@@ -729,13 +769,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                         </div>
                         <div class="checkbox-item">
                             <input type="checkbox" id="first_time_job_seeker" name="doctype[]" value="First Time Job Seeker" 
-                                <?php echo (isset($doctypes) && in_array('First Time Job Seeker', $doctypes)) ? 'checked' : ''; ?>>
-                            <label for="first_time_job_seeker">First Time Job Seeker</label>
-                        </div>
-                        <div class="checkbox-item">
-                            <input type="checkbox" id="indigency_form" name="doctype[]" value="Indigency Form" 
-                                <?php echo (isset($doctypes) && in_array('Indigency Form', $doctypes)) ? 'checked' : ''; ?>>
-                            <label for="indigency_form">Indigency Form</label>
+                                <?php 
+                                    $checked = (isset($doctypes) && in_array('First Time Job Seeker', $doctypes)) ? 'checked' : '';
+                                    $disabled = (!$isUpdateMode && in_array('First Time Job Seeker', $pending_doc_types)) ? 'disabled' : '';
+                                    echo $checked . ' ' . $disabled;
+                                ?>>
+                            <label for="first_time_job_seeker">
+                                First Time Job Seeker
+                                <?php if (!$isUpdateMode && in_array('First Time Job Seeker', $pending_doc_types)): ?>
+                                    <span style="color: #d9534f; font-size: 0.9em;"> (Already requested - can only request once)</span>
+                                <?php endif; ?>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -768,7 +812,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             <!-- Terms and Conditions Section -->
             <?php echo displayTermsAndConditions('governmentDocsForm'); ?>
 
-            <div class="form-group">
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
+                <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
                 <button type="submit" class="btn" id="submitBtn">
                     <?php echo $isUpdateMode ? 'Update Request' : 'Submit Request'; ?>
                 </button>
@@ -841,3 +888,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 </body>
 
 </html>
+

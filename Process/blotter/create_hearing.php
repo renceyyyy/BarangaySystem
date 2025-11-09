@@ -44,5 +44,5 @@ if ($stmt->execute()) {
     echo json_encode(['success' => false, 'error' => 'Failed to save hearing']);
 }
 $stmt->close();
-$conn->close();
+// Singleton connection closed by PHP
 ?>

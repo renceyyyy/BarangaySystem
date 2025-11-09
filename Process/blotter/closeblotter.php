@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "Update failed";
     }
     $stmt->close();
-    $conn->close();
+    // Singleton connection closed by PHP
 } else {
     echo "Invalid request";
 }

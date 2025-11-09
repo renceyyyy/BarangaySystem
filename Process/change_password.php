@@ -72,7 +72,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $updateStmt->close();
     $stmt->close();
-    $conn->close();
 } else {
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);
 }

@@ -21,5 +21,5 @@ if (isset($_GET['id'])) {
 } else {
   echo json_encode(['error' => 'Invalid request']);
 }
-$conn->close();
+// Singleton connection closed by PHP
 ?>

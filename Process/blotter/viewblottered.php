@@ -30,7 +30,7 @@ $res = $stmt->get_result();
 while ($row = $res->fetch_assoc()) $files[] = $row;
 $stmt->close();
 
-$conn->close();
+// Singleton connection closed by PHP
 
 echo json_encode([
     'participant' => $participant,

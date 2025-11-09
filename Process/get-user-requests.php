@@ -152,8 +152,5 @@ try {
    ]);
 }
 
-// Close database connection
-if ($conn) {
-   $conn->close();
-}
+// Don't close the singleton connection
 ?>

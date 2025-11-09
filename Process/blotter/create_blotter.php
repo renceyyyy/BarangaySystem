@@ -317,7 +317,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $stmt->close();
     // $stmt_part->close();
-    $conn->close();
+    // Singleton connection closed by PHP
 
     echo "<script>alert('Blotter report created successfully.'); window.location.href = '../../Pages/Adminpage.php?panel=blotterComplaintPanel';</script>";
     exit;

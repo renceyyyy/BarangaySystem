@@ -2785,7 +2785,7 @@ else {
         } else {
           echo "<tr><td colspan='7'>No item requests found.</td></tr>";
         }
-        $conn->close();
+        // Singleton connection closed by PHP
 
         function actionBtn($id, $action, $label) {
           $icons = [
@@ -3209,7 +3209,7 @@ function reloadItemRequestsPanel(message) {
                   } else {
                     echo "<tr><td colspan='9'>No blotter records found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
 
 
@@ -3965,7 +3965,7 @@ function reloadItemRequestsPanel(message) {
                   } else {
                     echo "<tr><td colspan='11'>No blottered individuals found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
                 </tbody>
               </table>
@@ -4157,7 +4157,7 @@ function reloadItemRequestsPanel(message) {
                       }
                     }
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                 }
               }
 
@@ -4175,7 +4175,7 @@ function reloadItemRequestsPanel(message) {
                     $editData = ['id' => $editId, 'NewsInfo' => $editNewsInfo, 'NewsImage' => $editNewsImage];
                   }
                   $stmt->close();
-                  $conn->close();
+                  // Singleton connection closed by PHP
                 }
               }
               ?>
@@ -4238,7 +4238,7 @@ function reloadItemRequestsPanel(message) {
                 } else {
                   echo "<div class='alert alert-info mt-3'>No announcements yet.</div>";
                 }
-                $conn->close();
+                // Singleton connection closed by PHP
               }
               ?>
             </div>

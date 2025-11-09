@@ -885,6 +885,7 @@ function alertNotPaid() {
                     <th>REFERENCE</th>
                     <th>DATE</th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -939,7 +940,7 @@ function alertNotPaid() {
                   }
 
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
-                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus 
+                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus, ReleasedBy 
                 FROM businesstbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -985,42 +986,77 @@ function alertNotPaid() {
             <td>" . htmlspecialchars($row["refno"]) . "</td>  <!-- Added htmlspecialchars -->
             <td>" . date("Y-m-d", strtotime($row["RequestedDate"])) . "</td>
             <td><span class='status-badge status-" . strtolower(htmlspecialchars($row['RequestStatus'])) . "'>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</span></td> <!-- Fixed: Removed invalid 'string:' syntax; Added badge styling -->
+             <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td> 
 
             <td>";
 
-                    // Data for print modal (escaped properly)
+                    // Data for print modal (escaped properly) - include BsnssID so client can reference the record
                     $printData = json_encode([
+                      "BsnssID" => $row['BsnssID'],
                       "refno" => $row['refno'],
                       "OwnerName" => $row['OwnerName'],
                       "RequestType" => $row['RequestType'],
                       "RequestedDate" => $row['RequestedDate'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                    if ($row["RequestStatus"] === "Approved") {
-                      echo "<button type='button' class='action-btn-2 print' onclick='openBusinessPrintModal(" . $printData . ")'>  <!-- Fixed: Removed extra ) -->
+                    if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseBusinessDocument(" . htmlspecialchars($row["BsnssID"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openBusinessPrintModal(" . $printData . ")'>  
               <i class='fas fa-print'></i>
             </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved (Declined rows won't reach here due to query)
+                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+
+      
+}
+
+
+// ✅ If Pending — show Approve + View + Decline
+elseif ($row["RequestStatus"] === "Pending") {
                       echo "<a href='approvebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
               class='action-btn-2 approve' 
               onclick=\"showCustomConfirm(event, this.href);\">
               <i class='fas fa-check'></i>
             </a>";
-                    }
 
-                    // Business-specific VIEW button (simplified; adjust data attributes to match business schema if needed)
-                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' class='action-btn-2 view'>  <!-- Fixed: Use business-specific view link and fields -->
+                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+                    class='action-btn-2 view'>  
             <i class='fas fa-eye'></i>
           </a>";
 
-                    // Show DECLINE button only if Pending (not Approved or Declined)
-                    if ($row["RequestStatus"] === "Pending") {  // Simplified logic since Declined is excluded
                       echo "<a href='declinebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
                class='action-btn-2 decline' 
                onclick=\"showCustomDeclineConfirm(event, this.href);\">
               <i class='fas fa-xmark'></i>
-            </a>";  // Fixed: Removed invalid semicolon after </a>
+            </a>"; 
+
+                    }
+                    else {
+                      echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
                     }
 
                     echo "</td></tr>";
@@ -1163,6 +1199,7 @@ function alertNotPaid() {
                     <th>REFERENCE</th>
                     <th>DATE</th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -1202,7 +1239,7 @@ function alertNotPaid() {
                     $insertStmt->close();
                   }
 
-                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus 
+                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus, ReleasedBy 
                         FROM unemploymenttbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -1241,42 +1278,76 @@ function alertNotPaid() {
                         <td>" . htmlspecialchars($row["refno"]) . "</td>
                         <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
                         <td>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</td> <!-- Status Column -->
-
+                        <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
                         <td>";
 
                     $docData = json_encode([
+                      "id" => $row['id'], // Add ID for status update
                       "refno" => $row['refno'],
                       "fullname" => $row['fullname'],
                       "certificate_type" => $row['certificate_type'],
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                    if ($row["RequestStatus"] === "Approved") {
-                      echo "<button type='button' class='action-btn-2 print' onclick='openUnemploymentPrintModal(JSON.parse(`$docData`))'>    
+                    // ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release'
+          onclick='releaseUnemploymentDocument(" . htmlspecialchars($row["id"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
+}
+
+                      // ✅ If Approved — show Print + View
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openUnemploymentPrintModal(JSON.parse(`$docData`))'>    
                             <i class='fas fa-print'></i>
                         </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved
-                      if ($row["RequestStatus"] !== "Declined") {
-                        echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
-                                class='action-btn-2 approve'
-                                onclick=\"showCustomConfirm(event, this.href);\">
-                                <i class='fas fa-check'></i>
-                            </a> ";
-                      }
-                    }
-                    echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
-                        <i class='fas fa-eye'></i></a>";
+                          echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
+                    } 
+
+                    // ✅ If Pending — show Approve + View + Decline
+                    elseif ($row["RequestStatus"] === "Pending") {
+                      echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
+                              class='action-btn-2 approve'
+                              onclick=\"showCustomConfirm(event, this.href);\">
+                              <i class='fas fa-check'></i>
+                          </a> ";
+
+                      echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+                          class='action-btn-2 view'>  
+                  <i class='fas fa-eye'></i>
+                </a>";
                       echo "<a href='decline.php?id=" . htmlspecialchars($row["id"]) . "' 
                             class='action-btn-2 decline' 
                             onclick=\"showCustomDeclineConfirm(event, this.href);\">
                             <i class='fas fa-xmark'></i>
                         </a>";
                     }
-
+                    // ✅ If Declined or unknown — show View only
+                    else {
+                      echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
+                    }
                     echo "</td></tr>";
                   }
                   if (!$hasRows) {
@@ -1422,6 +1493,7 @@ function alertNotPaid() {
                   <th>REFERENCE</th>
                   <th>DATE</th>
                   <th>STATUS</th> <!-- Added STATUS column -->
+                  <th>RELEASED BY</th>
                   <th>ACTION</th>
                 </tr>
                 </thead>
@@ -1475,7 +1547,7 @@ function alertNotPaid() {
                     $
                       $insertstmt->close();
                   }
-                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus 
+                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus, ReleasedBy 
                           FROM guardianshiptbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   $params = [];
                   $types = "";
@@ -1508,51 +1580,81 @@ function alertNotPaid() {
                     echo "<tr>
             <td>" . $row["id"] . "</td>
             <td>" . strtoupper($row["applicant_name"]) . "</td>
-            <td>" . strtoupper($row["request_type"]) . "</td>
-            
+            <td>" . strtoupper($row["request_type"]) . "</td>      
             <td>" . $row["refno"] . "</td>
             <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
             <td>" . strtoupper($row['RequestStatus']) . "</td> <!-- Status Column -->
+            <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
              <td>";
+
                     $docData = json_encode([
+                      "id" => $row['id'], // Add ID for status update
                       "refno" => $row['refno'],
                       "applicant_name" => $row['applicant_name'],
                       "request_type" => $row['request_type'],
-                     
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-                    if ($row["RequestStatus"] === "Approved") {
 
-                      echo "<button type='button' class='action-btn-2 print' onclick='openGuardianshipPrintModal(" . htmlspecialchars(json_encode([
-                        "refno" => $row['refno'],
-                        "applicant_name" => $row['applicant_name'],
-                        "request_type" => $row['request_type'],
-                        
-                        "request_date" => $row['request_date'],
-                      ]), ENT_QUOTES, 'UTF-8') . ")'>
+                    // ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseGuardianshipDocument(" . htmlspecialchars($row["id"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Approved — show Print + View
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      // Use the pre-built $docData (includes id) so the client has the record id for status update
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openGuardianshipPrintModal(" . $docData . ")'>
     <i class='fas fa-print'></i>
   </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved
+
+    echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+                    }
+// ✅ If Pending — show Approve + View + Decline
+        elseif ($row["RequestStatus"] === "Pending") {
+                      // Show APPROVE button
                       echo "<a href='approveguardianship.php?id=" . $row["id"] . "'
     class='action-btn-2 approve'
     onclick=\"showCustomConfirm(event, this.href);\">
     <i class='fas fa-check'></i></a>
   ";
-                    }
-
-
-
                     echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
                     <i class='fas fa-eye'></i></a>";
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
+
                       echo "<a href='declineguardianship.php?id=" . htmlspecialchars($row["id"]) . "'
     class='action-btn-2 decline'
     onclick=\"showCustomDeclineConfirm(event, this.href);\">
     <i class='fas fa-xmark'></i>
   </a>";
+        
+        }               
+
+
+else {
+                    echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
+                    <i class='fas fa-eye'></i></a>";
+
+                  
                     }
 
                     echo "</td></tr>";
@@ -3093,15 +3195,16 @@ function reloadItemRequestsPanel(message) {
             <td>" . htmlspecialchars($row['status']) . "</td>
             <td>" . htmlspecialchars($row['created_at']) . "</td>
             <td>" . htmlspecialchars($row['closed_at']) . "</td>
-            <td>
-                <button class='action-btn-2 view-blotter' data-id='" . $row['blotter_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
+            <td>";
+                      echo "<button class='action-btn-2 view-blotter' data-id='" . htmlspecialchars($row['blotter_id']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                     <i class='fas fa-eye'></i>
-                </button>
-                <button class='action-btn-2 update-blotter' data-id='" . $row['blotter_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
+                </button> ";
+                      if (!in_array($row['status'], ['closed', 'closed_resolved', 'closed_unresolved'], true)) {
+                        echo "<button class='action-btn-2 update-blotter' data-id='" . htmlspecialchars($row['blotter_id']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                     <i class='fas fa-edit'></i>
-                </button>
-            </td>
-        </tr>";
+                </button>";
+                      }
+                      echo "</td></tr>";
                     }
                   } else {
                     echo "<tr><td colspan='9'>No blotter records found.</td></tr>";
@@ -3145,49 +3248,53 @@ function reloadItemRequestsPanel(message) {
               <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
                 <span class="close-btn" onclick="closeBlotterModal()">&times;</span>
                 <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                    style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                  <img src="/BarangaySystem/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                    style="width: 70%; max-width: 120px; border-radius: 50%;" />
                 </div>
                 <h1 style="text-align:center;">Create Blotter Report</h1>
                 <form id="blotterForm" method="POST" action="../Process/blotter/create_blotter.php" class="modal-form" enctype="multipart/form-data">
-                  <label style="font-weight:bold;">Full Name of Complainant</label>
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-
-                    <div class="form-group">
-                      <label for="complainant_lastname">Lastname</label>
-                      <input type="text" name="complainant_lastname" placeholder="Lastname" required>
+                  <!-- Complainant Details -->
+                  <h3>Complainant Details</h3>
+                  <div id="complainantContainer">
+                    <div class="complainant-fields">
+                      <h6>Full name of the Complainant</h6>
+                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                        <div class="form-group">
+                          <label>Lastname</label>
+                          <input type="text" name="complainant_lastname[]" placeholder="Lastname" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Firstname</label>
+                          <input type="text" name="complainant_firstname[]" placeholder="Firstname" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Middlename</label>
+                          <input type="text" name="complainant_middlename[]" placeholder="Middlename">
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" name="complainant_address[]" required>
+                      </div>
+                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                        <div class="form-group">
+                          <label>Age</label>
+                          <input type="number" name="complainant_age[]" maxlength="3" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Contact No</label>
+                          <input type="number" min="0" name="complainant_contact_no[]" maxlength="11" required>
+                        </div>
+                        <div class="form-group">
+                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
+                          <input type="email" name="complainant_email[]">
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
+                      <hr>
                     </div>
-
-                    <div class="form-group">
-                      <label for="complainant_firstname">Firstname</label>
-                      <input type="text" name="complainant_firstname" placeholder="Firstname" required>
-                    </div>
-
-
-                    <div class="form-group">
-                      <label for="complainant_middlename">Middlename</label>
-                      <input type="text" name="complainant_middlename" placeholder="Middlename">
-                    </div>
-
-
                   </div>
-                  <div class="form-group">
-                    <label>Address</label>
-                    <input type="text" name="complainant_address" required>
-                  </div>
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label>Age</label>
-                      <input type="number" name="complainant_age" maxlength="3" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Contact No</label>
-                      <input type="number" min="0" name="complainant_contact_no" maxlength="11" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Email</label>
-                      <input type="email" name="complainant_email">
-                    </div>
-                  </div>
+                  <button type="button" class="btn btn-success btn-sm" id="addComplainantBtn">+ Add Complainant</button>
                   <br>
                   <hr>
 
@@ -3204,7 +3311,7 @@ function reloadItemRequestsPanel(message) {
                     </div>
                     <div class="form-group">
                       <label>Type of Incident</label>
-                      <select name="incident_type" id="incident_type">
+                      <select name="incident_type" id="incident_type" required>
                         <option value="" disabled selected>Select Incident Type</option>
                         <option value="Theft">Theft</option>
                         <option value="Assault">Assault</option>
@@ -3239,7 +3346,7 @@ function reloadItemRequestsPanel(message) {
                   <div id="accusedContainer">
                     <div class="accused-fields">
                       <h6>Full name of the Respondent</h6>
-                      <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+                      <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
 
 
                         <div class="form-group">
@@ -3260,7 +3367,7 @@ function reloadItemRequestsPanel(message) {
 
 
                         <div class="form-group">
-                          <label>Alias</label>
+                          <label>Alias <span style="color: #888; font-style: italic;">(optional)</span></label>
                           <input type="text" name="accused_alias[]" placeholder="Alias/Nickname">
                         </div>
 
@@ -3279,7 +3386,7 @@ function reloadItemRequestsPanel(message) {
                           <input type="number" min="0" maxlength="11" name="accused_contact_no[]">
                         </div>
                         <div class="form-group">
-                          <label>Email</label>
+                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
                           <input type="email" name="accused_email[]">
                         </div>
                       </div>
@@ -3328,7 +3435,7 @@ function reloadItemRequestsPanel(message) {
                           <input type="number" min="0" maxlength="11" name="witness_contact_no[]">
                         </div>
                         <div class="form-group">
-                          <label>Email</label>
+                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
                           <input type="email" name="witness_email[]">
                         </div>
                       </div>
@@ -3341,7 +3448,7 @@ function reloadItemRequestsPanel(message) {
                   <!-- Image Upload -->
                   <hr>
                   <div class="form-group">
-                    <label>Upload Image(s) (jpg, jpeg, png, gif only) (Optional)</label>
+                    <label>Upload Image(s) (.jpg, .jpeg, .png, .pdf, .doc, .docx) (Optional)</label>
                     <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
 
                     <input type="file" name="blotter_files[]" id="blotter_files" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
@@ -3359,55 +3466,32 @@ function reloadItemRequestsPanel(message) {
           </div> <!--- end of modal -->
 
 
+
+
           <!-- View Blotter Modal -->
           <div id="viewBlotterModal" class="popup" style="display:none;">
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
               <span class="close-btn" onclick="closeViewBlotterModal()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                <img src="/BarangaySystem/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
               <h1 style="text-align:center;">Blotter Report Details</h1>
               <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
                 Blotter ID: <span id="view_blotter_id"></span>
               </div>
+              <!-- <div style="font-size:15px; margin-bottom:15px;">
+                Officer on Duty: <span id="view_officer_on_duty"></span>
+              </div> -->
+
 
               <form class="modal-form">
                 <!-- Complainant -->
-                <label style="font-weight:bold;">Full Name of Complainant</label>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Last Name</label>
-                    <input type="text" id="view_complainant_lastname" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>First Name</label>
-                    <input type="text" id="view_complainant_firstname" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Middle Name</label>
-                    <input type="text" id="view_complainant_middlename" readonly>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Address</label>
-                  <input type="text" id="view_complainant_address" readonly>
-                </div>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Age</label>
-                    <input type="number" id="view_complainant_age" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Contact No</label>
-                    <input type="text" id="view_complainant_contact_no" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="view_complainant_email" readonly>
-                  </div>
-                </div>
+                <h3>Complainant Details</h3>
+                <div id="view_complainantContainer"></div>
+
                 <br>
-                <hr>
+
                 <!-- Blotter Details -->
                 <h3>Blotter Details</h3>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
@@ -3430,7 +3514,7 @@ function reloadItemRequestsPanel(message) {
                 </div>
 
                 <hr>
-                <!-- Accused Details -->
+                <!-- Respondent Details -->
                 <h3>Respondent Details</h3>
                 <div id="view_accusedContainer"></div>
 
@@ -3449,6 +3533,7 @@ function reloadItemRequestsPanel(message) {
 
 
                 <!-- Hearing Details Section -->
+
                 <h3 id="hearingDetailsHeader" style="display:none;">Hearing Details</h3>
                 <div id="hearingDetailsSection" style="display:none;">
                   <label id="hearingNoLabel"></label>
@@ -3556,6 +3641,21 @@ function reloadItemRequestsPanel(message) {
               </div>
             </div>
 
+            <!-- Post-Hearing Outcome Modal -->
+            <div id="postHearingModal" class="custom-confirm-overlay" style="display:none;">
+              <div class="custom-confirm-box">
+                <p>The hearing outcome is 'No Agreement'. What would you like to do?</p>
+                <div class="custom-confirm-actions">
+                  <button id="postHearingCloseBlotter" class="custom-confirm-btn yes">Close Blotter</button>
+                  <button id="postHearingScheduleHearing" class="custom-confirm-btn no">Schedule Hearing</button>
+                </div>
+              </div>
+            </div>
+
+
+
+
+
 
 
 
@@ -3624,6 +3724,31 @@ function reloadItemRequestsPanel(message) {
                 btn.style.display = 'none';
               });
 
+              // NEW: Add event listener for adding complainants
+              document.getElementById('addComplainantBtn').addEventListener('click', function() {
+                const container = document.getElementById('complainantContainer');
+                const complainantFields = container.querySelector('.complainant-fields');
+                const newFields = complainantFields.cloneNode(true);
+
+                // Clear input values
+                newFields.querySelectorAll('input').forEach(input => input.value = '');
+
+                // Show remove button
+                newFields.querySelector('.remove-complainant-btn').style.display = 'inline-block';
+
+                // Add event to remove button
+                newFields.querySelector('.remove-complainant-btn').onclick = function() {
+                  newFields.remove();
+                };
+
+                container.appendChild(newFields);
+              });
+
+              // Hide remove button for the first complainant
+              document.querySelectorAll('.remove-complainant-btn').forEach(btn => {
+                btn.style.display = 'none';
+              });
+
 
               // Show/hide "Please specify" field based on incident type selection
               document.getElementById('incident_type').addEventListener('change', function() {
@@ -3636,11 +3761,44 @@ function reloadItemRequestsPanel(message) {
                   document.getElementById('incident_type_other').required = false;
                 }
               });
+
+
+              // NEW: Add form submission validation
+              document.getElementById('blotterForm').addEventListener('submit', function(e) {
+                const incidentType = document.getElementById('incident_type').value;
+
+                // Check if incident_type is selected
+                if (!incidentType) {
+                  alert('Please select a type of incident.');
+                  e.preventDefault(); // Prevent form submission
+                  return;
+                }
+
+                // If "Other" is selected, ensure incident_type_other is filled
+                if (incidentType === 'Other') {
+                  const otherValue = document.getElementById('incident_type_other').value.trim();
+                  if (!otherValue) {
+                    alert('Please specify the incident type.');
+                    e.preventDefault(); // Prevent form submission
+                    return;
+                  }
+                }
+              });
             </script>
 
 
 
           </div> <!-- end of blotter complaint panel-->
+
+          <!-- Image Viewer Modal -->
+          <div id="imageViewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
+            <img id="viewerImg" style="max-width:90%; max-height:90%;" />
+            <span onclick="closeImageViewer()" style="position:absolute; top:10px; right:10px; color:white; font-size:30px; cursor:pointer;">&times;</span>
+          </div>
+
+
+
+
 
 
           <!-- Update Blotter Modal -->
@@ -3648,7 +3806,8 @@ function reloadItemRequestsPanel(message) {
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
               <span class="close-btn" onclick="closeUpdateBlotterModal()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4">              </div>
+                <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4">
+              </div>
               <h1 style="text-align:center;">Update Blotter Report</h1>
               <form id="updateBlotterForm" method="POST" action="../Process/blotter/update_blotter.php" class="modal-form" enctype="multipart/form-data">
                 <!-- Fields will be filled by JS -->
@@ -3677,26 +3836,32 @@ function reloadItemRequestsPanel(message) {
             </div>
           </div>
 
+
+
+
+
+
           <!-- blottered individuals panel -->
           <div id="blotteredIndividualsPanel" class="panel-content">
             <h1>Blottered Individuals</h1>
 
             <form method="GET" action="" class="govdoc-search-form" style="display:flex;gap:10px;align-items:center;">
               <div class="govdoc-search-group">
-                <input type="text" name="search_blottered" class="govdoc-search-input" placeholder="Search by Name"
+                <input type="text" name="search_blottered" class="govdoc-search-input"
+                  placeholder="Search by Name"
                   value="<?php echo isset($_GET['search_blottered']) ? htmlspecialchars($_GET['search_blottered']) : ''; ?>" />
                 <button type="submit" class="govdoc-search-button">
                   <i class="fas fa-search"></i> Search
                 </button>
               </div>
               <label for="blotter_status" style="margin-left:10px;">Case Status:</label>
-              <select name="blotter_status" id="blotter_status" onchange="this.form.submit()">
-                <option value="both" <?php if (!isset($_GET['blotter_status']) || $_GET['blotter_status'] == 'both')
-                  echo 'selected'; ?>>Both</option>
-                <option value="active" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'active')
-                  echo 'selected'; ?>>Active</option>
-                <option value="closed" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed')
-                  echo 'selected'; ?>>Closed</option>
+              <select name="blotter_status" class="govdoc-status-filter" id="blotter_status" onchange="this.form.submit()">
+                <option value="active" <?php if (!isset($_GET['blotter_status']) || $_GET['blotter_status'] == 'active') echo 'selected'; ?>>Active</option>
+                <option value="hearing_scheduled" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'hearing_scheduled') echo 'selected'; ?>>Hearing Scheduled</option>
+                <option value="closed" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed') echo 'selected'; ?>>Closed</option>
+                <option value="closed_resolved" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed_resolved') echo 'selected'; ?>>Closed Resolved</option>
+                <option value="closed_unresolved" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed_unresolved') echo 'selected'; ?>>Closed Unresolved</option>
+                <option value="all" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'all') echo 'selected'; ?>>All</option>
               </select>
             </form>
             <div class="scrollable-table-container">
@@ -3704,6 +3869,7 @@ function reloadItemRequestsPanel(message) {
                 <thead>
                   <tr>
                     <th>ID</th>
+                    <th>BLOTTER ID</th>
                     <th>LAST NAME</th>
                     <th>FIRST NAME</th>
                     <th>MIDDLE NAME</th>
@@ -3711,7 +3877,7 @@ function reloadItemRequestsPanel(message) {
                     <th>ADDRESS</th>
                     <th>CONTACT NO</th>
                     <th>EMAIL</th>
-                    <th>BLOTTER ID</th>
+                    <th>STATUS</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -3720,8 +3886,7 @@ function reloadItemRequestsPanel(message) {
 
 
                   $conn = new mysqli($servername, $username, $password, $database);
-                  if ($conn->connect_error)
-                    die("Connection failed: " . $conn->connect_error);
+                  if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
                   // Search by name
                   $search_sql = "";
@@ -3732,52 +3897,73 @@ function reloadItemRequestsPanel(message) {
 
                   // Filter by status
                   $status_filter = "";
-                  if (isset($_GET['blotter_status']) && $_GET['blotter_status'] !== 'both') {
-                    $status = $_GET['blotter_status'] === 'closed' ? 'closed' : 'active';
-                    $status_filter = "AND b.status = '$status'";
+                  $selected_status = isset($_GET['blotter_status']) ? $_GET['blotter_status'] : 'active';
+                  switch ($selected_status) {
+                    case 'all':
+                      // No filter
+                      break;
+                    case 'active':
+                      $status_filter = "AND (b.status = 'active' OR b.status = 'hearing_scheduled')";
+                      break;
+                    case 'hearing_scheduled':
+                      $status_filter = "AND b.status = 'hearing_scheduled'";
+                      break;
+                    case 'closed':
+                      $status_filter = "AND (b.status = 'closed' OR b.status = 'closed_resolved' OR b.status = 'closed_unresolved')";
+                      break;
+                    case 'closed_resolved':
+                      $status_filter = "AND b.status = 'closed_resolved'";
+                      break;
+                    case 'closed_unresolved':
+                      $status_filter = "AND b.status = 'closed_unresolved'";
+                      break;
+                    default:
+                      $status_filter = "AND (b.status = 'active' OR b.status = 'hearing_scheduled')";
                   }
 
                   $sql = "
-          SELECT 
-            bp.blotter_participant_id,
-            bp.lastname,
-            bp.firstname,
-            bp.middlename,
-            bp.age,
-            bp.address,
-            bp.contact_no,
-            bp.email,
-            bp.blotter_id
-          FROM blotter_participantstbl bp
-          JOIN blottertbl b ON bp.blotter_id = b.blotter_id
-          WHERE bp.participant_type = 'accused'
-            $status_filter
-            $search_sql
-          ORDER BY bp.blotter_participant_id DESC
-        ";
+                    SELECT 
+                      bp.blotter_participant_id,
+                      bp.lastname,
+                      bp.firstname,
+                      bp.middlename,
+                      bp.age,
+                      bp.address,
+                      bp.contact_no,
+                      bp.email,
+                      bp.blotter_id,
+                      b.status
+                    FROM blotter_participantstbl bp
+                    JOIN blottertbl b ON bp.blotter_id = b.blotter_id
+                    WHERE bp.participant_type = 'accused'
+                      $status_filter
+                      $search_sql
+                    ORDER BY bp.blotter_participant_id DESC
+                    ";
 
                   $result = $conn->query($sql);
                   if ($result && $result->num_rows > 0) {
                     while ($row = $result->fetch_assoc()) {
                       echo "<tr>
-              <td>" . htmlspecialchars($row['blotter_participant_id']) . "</td>
-              <td>" . htmlspecialchars($row['lastname']) . "</td>
-              <td>" . htmlspecialchars($row['firstname']) . "</td>
-              <td>" . htmlspecialchars($row['middlename']) . "</td>
-              <td>" . htmlspecialchars($row['age']) . "</td>
-              <td>" . htmlspecialchars($row['address']) . "</td>
-              <td>" . htmlspecialchars($row['contact_no']) . "</td>
-              <td>" . htmlspecialchars($row['email']) . "</td>
-              <td>" . htmlspecialchars($row['blotter_id']) . "</td>
-              <td>
-                <button class='action-btn-2 view' data-id='" . $row['blotter_participant_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
-                  <i class='fas fa-eye'></i>
-                </button>
-              </td>
-            </tr>";
+                      <td>" . htmlspecialchars($row['blotter_participant_id']) . "</td>
+                      <td>" . htmlspecialchars($row['blotter_id']) . "</td>
+                      <td>" . htmlspecialchars($row['lastname']) . "</td>
+                      <td>" . htmlspecialchars($row['firstname']) . "</td>
+                      <td>" . htmlspecialchars($row['middlename']) . "</td>
+                      <td>" . htmlspecialchars($row['age']) . "</td>
+                      <td>" . htmlspecialchars($row['address']) . "</td>
+                      <td>" . htmlspecialchars($row['contact_no']) . "</td>
+                      <td>" . htmlspecialchars($row['email']) . "</td>
+                      <td>" . htmlspecialchars($row['status']) . "</td>
+                      <td>
+                        <button class='action-btn-2 view-blottered-info' data-id='" . $row['blotter_participant_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
+                          <i class='fas fa-eye'></i>
+                        </button>
+                      </td>
+                      </tr>";
                     }
                   } else {
-                    echo "<tr><td colspan='10'>No blottered individuals found.</td></tr>";
+                    echo "<tr><td colspan='11'>No blottered individuals found.</td></tr>";
                   }
                   // Singleton connection closed by PHP
                   ?>
@@ -3785,6 +3971,77 @@ function reloadItemRequestsPanel(message) {
               </table>
             </div>
           </div> <!-- end of blottered individuals panel-->
+
+          <!-- Blottered Individual Modal -->
+          <div id="viewBlotteredModal" class="popup" style="display:none;">
+            <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
+              <span class="close-btn" onclick="closeViewBlotteredModal()">&times;</span>
+              <div style="text-align: center;">
+                <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+              </div>
+              <h1 style="text-align:center;">Blottered Individual Details</h1>
+              <br>
+              <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
+                Blotter ID: <span id="blottered_blotter_id"></span>
+                <br>
+                ID: <span id="blottered_participant_id"></span>
+              </div>
+              <form class="modal-form">
+                <h3>Respondent Details</h3>
+                <label style="font-weight:bold;">Full Name of Respondent</label>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="blottered_lastname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="blottered_firstname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" id="blottered_middlename" readonly>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" id="blottered_address" readonly>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" id="blottered_age" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" id="blottered_contact_no" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="blottered_email" readonly>
+                  </div>
+                </div>
+                <hr>
+                <!-- Uploaded Files Section -->
+                <h3>Uploaded Files</h3>
+                <div class="scrollable-table-container">
+                  <table class="styled-table" id="blottered_files_table">
+                    <thead>
+                      <tr>
+                        <th>Thumbnail</th>
+                        <th>File Name</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="blottered_filesContainer">
+                      <!-- Files will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </form>
+            </div>
+          </div>
 
 
 
@@ -6275,7 +6532,7 @@ function releaseDocument(reqId) {
 
 
  <script>
-let selectedDocData = null; // Global variable to store selected document data
+// let selectedDocData = null; // Global variable to store selected document data
 
 // Function to open the modal and save the selected document's data
 function openNoBirthCertificatePrintModal(data) {
@@ -6681,6 +6938,26 @@ document.getElementById("businessPrintForm").addEventListener("submit", function
 
         if (selectedBusinessDocData) {
           generateCertificate(selectedBusinessDocData);
+          fetch("updatestatus_business.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedBusinessDocData.BsnssID)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Business permit marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating business permit status.");
+          });
+
         } else {
           alert("No business permit selected for printing.");
         }
@@ -6693,6 +6970,29 @@ document.getElementById("businessPrintForm").addEventListener("submit", function
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseBusinessDocument(BsnssID) {
+  if (!confirm("Are you sure you want to release this business document?")) return;
+
+  fetch("updatestatus_business.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(BsnssID)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Business document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -6746,6 +7046,27 @@ document.getElementById("unemploymentPrintForm").addEventListener("submit", func
 
         if (selectedUnemploymentDocData) {
           generateCertificate(selectedUnemploymentDocData);
+
+          // ✅ After printing, update the RequestStatus to "Printed"
+          fetch("updatestatus_unemployment.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedUnemploymentDocData.id)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Unemployment certificate marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating unemployment certificate status.");
+          });
         } else {
           alert("No unemployment certificate selected for printing.");
         }
@@ -6758,6 +7079,29 @@ document.getElementById("unemploymentPrintForm").addEventListener("submit", func
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseUnemploymentDocument(id) {
+  if (!confirm("Are you sure you want to release this unemployment document?")) return;
+
+  fetch("updatestatus_unemployment.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Unemployment document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -6812,6 +7156,27 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
         if (selectedGuardianShipDocData) {
           generateCertificate(selectedGuardianShipDocData);
+
+          // ✅ After printing, update the RequestStatus to "Printed"
+          fetch("updatestatus_guardianship.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedGuardianShipDocData.id)}&status=Printed`,
+          })
+          .then((res) => res.text())
+          .then((res) => {
+            if (res.trim() === "success") {
+              alert("Guardianship document marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch((err) => {
+            console.error("Status update error:", err);
+            alert("Error updating guardianship document status.");
+          });
         } else {
           alert("No guardianship document selected for printing.");
         }
@@ -6824,6 +7189,29 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseGuardianshipDocument(id) {
+  if (!confirm("Are you sure you want to release this guardianship document?")) return;
+
+  fetch("updatestatus_guardianship.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then((res) => res.text())
+  .then((res) => {
+    if (res.trim() === "success") {
+      alert("Guardianship document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch((err) => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -6864,18 +7252,53 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       }
 
                       document.getElementById('view_blotter_id').textContent = data.blotter.blotter_id;
+                      //document.getElementById('view_officer_on_duty').textContent = data.blotter.officer_on_duty;
+
 
                       // Fill complainant fields
-                      const complainant = data.participants.find(p => p.participant_type === 'complainant');
-                      if (complainant) {
-                        document.getElementById('view_complainant_lastname').value = complainant.lastname;
-                        document.getElementById('view_complainant_firstname').value = complainant.firstname;
-                        document.getElementById('view_complainant_middlename').value = complainant.middlename;
-                        document.getElementById('view_complainant_address').value = complainant.address;
-                        document.getElementById('view_complainant_age').value = complainant.age;
-                        document.getElementById('view_complainant_contact_no').value = complainant.contact_no;
-                        document.getElementById('view_complainant_email').value = complainant.email;
-                      }
+                      // Fill ALL complainants (instead of just one)
+                      const complainantsContainer = document.getElementById('view_complainantContainer');
+                      complainantsContainer.innerHTML = '';
+                      data.participants.filter(p => p.participant_type === 'complainant').forEach(complainant => {
+                        complainantsContainer.innerHTML += `
+                          <div class="complainant-fields">
+                            <h6>Full name of the Complainant</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" value="${complainant.lastname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" value="${complainant.firstname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" value="${complainant.middlename}" readonly>
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" value="${complainant.address}" readonly>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" value="${complainant.age === null ? '' : complainant.age}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" value="${complainant.contact_no === null ? '' : complainant.contact_no}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" value="${complainant.email}" readonly>
+                              </div>
+                            </div>
+                            <hr>
+                          </div>
+                        `;
+                      });
                       // Fill blotter details
                       document.getElementById('view_incident_datetime').value = data.blotter.datetime_of_incident;
                       document.getElementById('view_incident_location').value = data.blotter.location_of_incident;
@@ -6887,48 +7310,48 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       accusedContainer.innerHTML = '';
                       data.participants.filter(p => p.participant_type === 'accused').forEach(accused => {
                         accusedContainer.innerHTML += `
-            <div class="accused-fields">
-              <h6>Full name of the Respondent</h6>
-              <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
-                <div class="form-group">
-                  <label>Last Name</label>
-                <input type="text" value="${accused.lastname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>First Name</label>
-                  <input type="text" value="${accused.firstname}" readonly style="grid-column: span 2;">
-                </div>
-                <div class="form-group">
-                  <label>Middle Name</label>
-                  <input type="text" value="${accused.middlename}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Alias</label>
-                  <input type="text" value="${accused.alias}" size="3" readonly>
-                </div>
+                          <div class="accused-fields">
+                            <h6>Full name of the Respondent</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                              <input type="text" value="${accused.lastname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" value="${accused.firstname}" readonly style="grid-column: span 2;">
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" value="${accused.middlename}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Alias</label>
+                                <input type="text" value="${accused.alias}" size="3" readonly>
+                              </div>
 
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <input type="text" value="${accused.address}" readonly>
-              </div>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Age</label>
-                  <input type="number" value="${accused.age === null ? '' : accused.age}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Contact No</label>
-                  <input type="text" value="${accused.contact_no === null ? '' : accused.contact_no}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" value="${accused.email}" readonly>
-                </div>
-              </div>
-              <hr>
-            </div>
-          `;
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" value="${accused.address}" readonly>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" value="${accused.age === null ? '' : accused.age}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" value="${accused.contact_no === null ? '' : accused.contact_no}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" value="${accused.email}" readonly>
+                              </div>
+                            </div>
+                            <hr>
+                          </div>
+                        `;
                       });
 
                       // Fill witnesses
@@ -6944,43 +7367,43 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       }
                       data.participants.filter(p => p.participant_type === 'witness').forEach(witness => {
                         witnessesContainer.innerHTML += `
-            <div class="witness-fields">
-              <h6>Full name of the Witness</h6>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Last Name</label>
-                  <input type="text" value="${witness.lastname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>First Name</label>
-                  <input type="text" value="${witness.firstname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Middle Name</label>
-                  <input type="text" value="${witness.middlename}" readonly>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <input type="text" value="${witness.address}" readonly>
-              </div>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Age</label>
-                  <input type="number" value="${witness.age === null ? '' : witness.age}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Contact No</label>
-                  <input type="text" value="${witness.contact_no === null ? '' : witness.contact_no}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" value="${witness.email}" readonly>
-                </div>
-              </div>
-              <hr>
-            </div>
-          `;
+                            <div class="witness-fields">
+                              <h6>Full name of the Witness</h6>
+                              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                  <label>Last Name</label>
+                                  <input type="text" value="${witness.lastname}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>First Name</label>
+                                  <input type="text" value="${witness.firstname}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Middle Name</label>
+                                  <input type="text" value="${witness.middlename}" readonly>
+                                </div>
+                              </div>
+                              <div class="form-group">
+                                <label>Address</label>
+                                <input type="text" value="${witness.address}" readonly>
+                              </div>
+                              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                  <label>Age</label>
+                                  <input type="number" value="${witness.age === null ? '' : witness.age}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Contact No</label>
+                                  <input type="text" value="${witness.contact_no === null ? '' : witness.contact_no}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Email</label>
+                                  <input type="email" value="${witness.email}" readonly>
+                                </div>
+                              </div>
+                              <hr>
+                            </div>
+                          `;
                       });
 
                       // Fetch hearing details (latest for editing, all for history)
@@ -7096,6 +7519,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
 
 
+
                       // FILL UPLOADED Files
                       const filesContainer = document.getElementById('view_filesContainer');
                       filesContainer.innerHTML = '';
@@ -7106,32 +7530,64 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
                           // Show image preview if it's an image
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/Capston/Capstones/Capstones/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                           } else {
                             // Default file icon if not image
                             thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
                           }
 
-                          filesContainer.innerHTML += `
-      <tr>
-        <td style="text-align:center;">${thumbHTML}</td>
-        <td>${file.file_name}</td>
-        <td>
-          <a href="/Capston/Capstones/Capstones/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
-            <i class="fas fa-download"></i> Download
-          </a>
-          
-        </td>
-      </tr>
-    `;
+                          if (file.file_type.startsWith('image/')) {
+                            filesContainer.innerHTML += `
+                                  <tr>
+                                    <td style="text-align:center;">${thumbHTML}</td>
+                                    <td>${file.file_name}</td>
+                                    <td>
+                                    <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                                    <i class="fas fa-download"></i> Download
+                                    </a>
+                                    <button onclick="viewImage('/BarangaySystem/BarangaySystem/${file.file_path}')" class="btn btn-primary" style="padding:5px 10px;">
+                                      <i class="fas fa-eye"></i> View
+                                    </button>
+                                      
+                                    </td>
+                                  </tr>
+                                `;
+                          } else {
+                            filesContainer.innerHTML += `
+                                <tr>
+                                  <td style="text-align:center;">${thumbHTML}</td>
+                                  <td>${file.file_name}</td>
+                                  <td>
+                                    <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                                      <i class="fas fa-download"></i> Download
+                                    </a>
+                                    
+                                  </td>
+                                </tr>
+                              `;
+                          }
                         });
                       } else {
                         filesContainer.innerHTML = `
-    <tr>
-      <td colspan="3" style="text-align:center;">No uploaded files found.</td>
-    </tr>
-  `;
+                            <tr>
+                              <td colspan="3" style="text-align:center;">No uploaded files found.</td>
+                            </tr>
+                          `;
                       }
+
+
+                      if (data.blotter && (data.blotter.status === 'closed_resolved' || data.blotter.status === 'closed_unresolved' || data.blotter.status === 'closed')) {
+                        const actionBtn = document.getElementById('actionDropdownBtn');
+                        if (actionBtn) {
+                          actionBtn.style.display = 'none';
+                        }
+                      } else {
+                        const actionBtn = document.getElementById('actionDropdownBtn');
+                        if (actionBtn) {
+                          actionBtn.style.display = 'inline-block';
+                        }
+                      }
+
 
 
 
@@ -7188,6 +7644,17 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   );
                 }
               });
+
+
+              // Add these functions at the end of the script or in a suitable place
+              function viewImage(src) {
+                document.getElementById('viewerImg').src = src;
+                document.getElementById('imageViewer').style.display = 'flex';
+              }
+
+              function closeImageViewer() {
+                document.getElementById('imageViewer').style.display = 'none';
+              }
 
 
 
@@ -7291,7 +7758,13 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       // Disable the save button as well to prevent further saves
                       saveHearingBtn.disabled = true;
                       saveHearingBtn.textContent = 'Saved';
-                      // Section remains visible; it will hide on page reload when fully recorded
+
+                      // NEW: Check outcome and show modal if 'no_agreement', else reload
+                      if (outcome === 'no_agreement') {
+                        document.getElementById('postHearingModal').style.display = 'flex';
+                      } else {
+                        location.reload();
+                      }
                     } else {
                       alert((res && res.message) ? res.message : 'Failed to save hearing');
                     }
@@ -7303,8 +7776,36 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   });
                 });
               }
-            </script>
 
+              // NEW: Event listeners for post-hearing modal buttons
+              document.getElementById('postHearingCloseBlotter').addEventListener('click', function() {
+                if (!currentBlotterId) return alert('Unable to determine blotter ID.');
+                fetch('../Process/blotter/closeblotter.php', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'id=' + encodeURIComponent(currentBlotterId) + '&status=closed_unresolved'
+                  })
+                  .then(response => response.text())
+                  .then(result => {
+                    if (result.trim() === 'success') {
+                      alert('Blotter closed as unresolved.');
+                      document.getElementById('postHearingModal').style.display = 'none';
+                      document.getElementById('viewBlotterModal').style.display = 'none';
+                      location.reload();
+                    } else {
+                      alert('Failed to close blotter: ' + result);
+                    }
+                  })
+                  .catch(() => alert('Error closing blotter.'));
+              });
+
+              document.getElementById('postHearingScheduleHearing').addEventListener('click', function() {
+                document.getElementById('postHearingModal').style.display = 'none';
+                document.getElementById('scheduleHearingModal').style.display = 'flex';
+              });
+            </script>
 
 
 
@@ -7330,43 +7831,55 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       html += `
                     <div style="font-size:16px; font-weight:bold; margin-bottom:10px; margin-top:30px;">
                       Blotter ID: ${data.blotter.blotter_id}
-                    </div>
-                    
-                    
-                    <label style="font-weight:bold;">Full Name of Complainant</label>
-        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Last Name</label>
-            <input type="text" name="complainant_lastname" value="${data.participants.find(p=>p.participant_type==='complainant').lastname}" required>
-          </div>
-          <div class="form-group">
-            <label>First Name</label>
-            <input type="text" name="complainant_firstname" value="${data.participants.find(p=>p.participant_type==='complainant').firstname}" required>
-          </div>
-          <div class="form-group">
-            <label>Middle Name</label>
-            <input type="text" name="complainant_middlename" value="${data.participants.find(p=>p.participant_type==='complainant').middlename}">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Address</label>
-          <input type="text" name="complainant_address" value="${data.participants.find(p=>p.participant_type==='complainant').address}" required>
-        </div>
-        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Age</label>
-            <input type="number" name="complainant_age" value="${data.participants.find(p=>p.participant_type==='complainant').age}">
-          </div>
-          <div class="form-group">
-            <label>Contact No</label>
-            <input type="text" name="complainant_contact_no" value="${data.participants.find(p=>p.participant_type==='complainant').contact_no}">
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" name="complainant_email" value="${data.participants.find(p=>p.participant_type==='complainant').email}">
-          </div>
-        </div>
-        <br><hr>`;
+                    </div>`;
+                      html += `<h3>Complainant Details</h3>
+                      <div id="update_complainantContainer">`;
+
+                      data.participants.filter(p => p.participant_type === 'complainant').forEach((complainant, i) => {
+                        html += `
+                        <div class="complainant-fields">
+                          <input type="hidden" name="complainant_id[]" value="${complainant.blotter_participant_id}">
+                          <h6>Full name of the Complainant</h6>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Last Name</label>
+                              <input type="text" name="complainant_lastname[]" value="${complainant.lastname}" required>
+                            </div>
+                            <div class="form-group">
+                              <label>First Name</label>
+                              <input type="text" name="complainant_firstname[]" value="${complainant.firstname}" required>
+                            </div>
+                            <div class="form-group">
+                              <label>Middle Name</label>
+                              <input type="text" name="complainant_middlename[]" value="${complainant.middlename}">
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" name="complainant_address[]" value="${complainant.address}" required>
+                          </div>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Age</label>
+                              <input type="number" name="complainant_age[]" value="${complainant.age === null ? '' : complainant.age}">
+                            </div>
+                            <div class="form-group">
+                              <label>Contact No</label>
+                              <input type="text" name="complainant_contact_no[]" value="${complainant.contact_no === null ? '' : complainant.contact_no}">
+                            </div>
+                            <div class="form-group">
+                              <label>Email</label>
+                              <input type="email" name="complainant_email[]" value="${complainant.email}">
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" onclick="removeComplainantRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                          <hr>
+                        </div>
+                      `;
+                      });
+                      html += `</div>
+                      <button type="button" class="btn btn-success btn-sm" id="updateAddComplainantBtn">+ Add Complainant</button>
+                      <br><hr>`;
 
                       // Blotter Details
                       html += `<h3>Blotter Details</h3>
@@ -7398,7 +7911,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
           <div class="accused-fields">
             <input type="hidden" name="accused_id[]" value="${accused.blotter_participant_id}">
             <h6>Full name of the Respondent</h6>
-            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+            <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
               <div class="form-group">
                 <label>Last Name</label>
                 <input type="text" name="accused_lastname[]" value="${accused.lastname}" required>
@@ -7440,7 +7953,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
           `;
                       });
                       html += `</div>
-        <button type="button" class="btn btn-success btn-sm" id="updateAddAccusedBtn">+ Add Accused</button>
+        <button type="button" class="btn btn-success btn-sm" id="updateAddAccusedBtn">+ Add Respondent</button>
         <br><hr>`;
 
                       // Witnesses
@@ -7510,7 +8023,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                         data.files.forEach(file => {
                           let thumbHTML = '';
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/Capston/Capstones/Capstones/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                           } else {
                             thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
                           }
@@ -7538,7 +8051,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       <hr>
                       <h3>Upload Files</h3>
                         <div class="form-group">
-                          <label>Upload Image(s) (jpg, jpeg, png, gif only) (Optional)</label>
+                          <label>Upload Image(s) (jpg, jpeg, png, pdf, docx only) (Optional)</label>
                           <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
                           <input type="file" name="blotter_files[]" multiple accept="image/*,application/pdf,.doc,.docx">
                         </div> 
@@ -7550,9 +8063,134 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       document.getElementById('updateBlotterFields').innerHTML = html;
                       document.getElementById('updateBlotterModal').style.display = 'flex';
 
+
+
+                      // Add function to manage complainant remove buttons
+                      function updateComplainantRemoveButtons() {
+                        const complainantContainer = document.getElementById('update_complainantContainer');
+                        if (!complainantContainer) return;
+
+                        const complainantRows = complainantContainer.querySelectorAll('.complainant-fields');
+                        const removeButtons = complainantContainer.querySelectorAll('.remove-complainant-btn');
+
+                        if (complainantRows.length === 1) {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                          });
+                        } else {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            btn.style.cursor = 'pointer';
+                          });
+                        }
+                      }
+                      updateComplainantRemoveButtons(); // Initial call
+
+                      // Remove complainant row
+                      window.removeComplainantRow = function(btn) {
+                        const container = document.getElementById('update_complainantContainer');
+                        const complainantRows = container.querySelectorAll('.complainant-fields');
+
+                        if (complainantRows.length <= 1) {
+                          alert('At least one complainant must remain.');
+                          return;
+                        }
+
+                        btn.closest('.complainant-fields').remove();
+                        updateComplainantRemoveButtons();
+                      };
+
+                      // Add complainant button
+                      document.getElementById('updateAddComplainantBtn').onclick = function() {
+                        const container = document.getElementById('update_complainantContainer');
+                        const div = document.createElement('div');
+                        div.className = 'complainant-fields';
+                        div.innerHTML = `
+                            <h6>Full name of the Complainant</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" name="complainant_lastname[]" required>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" name="complainant_firstname[]" required>
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" name="complainant_middlename[]">
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" name="complainant_address[]" required>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" name="complainant_age[]">
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" name="complainant_contact_no[]">
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="complainant_email[]">
+                              </div>
+                            </div>
+                            <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" onclick="removeComplainantRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                            <hr>
+                          `;
+                        container.appendChild(div);
+                        updateComplainantRemoveButtons();
+                      };
+
+
+                      // Add this function to check and update remove button states for accused
+                      function updateAccusedRemoveButtons() {
+                        const accusedContainer = document.getElementById('update_accusedContainer');
+                        if (!accusedContainer) return;
+
+                        const accusedRows = accusedContainer.querySelectorAll('.accused-fields');
+                        const removeButtons = accusedContainer.querySelectorAll('.remove-accused-btn');
+
+                        // Disable all remove buttons if there's only one accused
+                        if (accusedRows.length === 1) {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                          });
+                        } else {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            btn.style.cursor = 'pointer';
+                          });
+                        }
+                      }
+                      // Initial call to set button states
+                      updateAccusedRemoveButtons();
+
+
+
                       // Remove accused row (removes hidden input so it will be deleted in DB)
                       window.removeAccusedRow = function(btn) {
+                        const container = document.getElementById('update_accusedContainer');
+                        const accusedRows = container.querySelectorAll('.accused-fields');
+
+                        // Prevent removal if only one accused remains
+                        if (accusedRows.length <= 1) {
+                          alert('At least one accused must remain.');
+                          return;
+                        }
+
                         btn.closest('.accused-fields').remove();
+                        updateAccusedRemoveButtons(); // Update button states after removal
                       };
 
                       // Remove witness row (removes hidden input so it will be deleted in DB)
@@ -7561,52 +8199,54 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       };
 
                       // Add accused/witness dynamic add
+                      // Modify the updateAddAccusedBtn.onclick function
                       document.getElementById('updateAddAccusedBtn').onclick = function() {
                         const container = document.getElementById('update_accusedContainer');
                         const div = document.createElement('div');
                         div.className = 'accused-fields';
                         div.innerHTML = `
-            <h6>Full name of the Accused</h6>
-            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
-              <div class="form-group" >
-                <label>Last Name</label>
-                <input type="text" name="accused_lastname[]" required>
-              </div>
-              <div class="form-group">
-                <label>First Name</label>
-                <input type="text" name="accused_firstname[]" required>
-              </div>
-              <div class="form-group">
-                <label>Middle Name</label>
-                <input type="text" name="accused_middlename[]">
-              </div>
-              <div class="form-group">
-                <label>Alias</label>
-                <input type="text" name="accused_alias[]">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Address</label>
-              <input type="text" name="accused_address[]">
-            </div>
-            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-              <div class="form-group">
-                <label>Age</label>
-                <input type="number" name="accused_age[]">
-              </div>
-              <div class="form-group">
-                <label>Contact No</label>
-                <input type="number" name="accused_contact_no[]">
-              </div>
-              <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="accused_email[]">
-              </div>
-            </div>
-            <button type="button" class="btn btn-danger btn-sm remove-accused-btn" onclick="removeAccusedRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
-            <hr>
-          `;
+                          <h6>Full name of the Respondent</h6>
+                          <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Last Name</label>
+                              <input type="text" name="accused_lastname[]" required>
+                            </div>
+                            <div class="form-group">
+                              <label>First Name</label>
+                              <input type="text" name="accused_firstname[]" required>
+                            </div>
+                            <div class="form-group">
+                              <label>Middle Name</label>
+                              <input type="text" name="accused_middlename[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Alias</label>
+                              <input type="text" name="accused_alias[]">
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" name="accused_address[]">
+                          </div>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Age</label>
+                              <input type="number" name="accused_age[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Contact No</label>
+                              <input type="number" name="accused_contact_no[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Email</label>
+                              <input type="email" name="accused_email[]">
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-danger btn-sm remove-accused-btn" onclick="removeAccusedRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                          <hr>
+                        `;
                         container.appendChild(div);
+                        updateAccusedRemoveButtons(); // Update button states after adding
                       };
 
                       document.getElementById('updateAddWitnessBtn').onclick = function() {
@@ -7693,6 +8333,83 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                     pad(now.getMinutes());
                   hearingInput.min = minVal;
                 }
+              });
+            </script>
+
+            <!-- View Blottered Individual Script -->
+            <script>
+              function closeViewBlotteredModal() {
+                document.getElementById('viewBlotteredModal').style.display = 'none';
+              }
+
+              document.querySelectorAll('.view-blottered-info').forEach(btn => {
+                btn.addEventListener('click', function() {
+                  const participantId = this.getAttribute('data-id');
+                  // Fetch participant and files info
+                  fetch('../Process/blotter/viewblottered.php?id=' + encodeURIComponent(participantId))
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data.error) {
+                        alert(data.error);
+                        return;
+                      }
+                      // Fill respondent fields
+                      document.getElementById('blottered_blotter_id').textContent = data.participant.blotter_id;
+                      document.getElementById('blottered_participant_id').textContent = data.participant.blotter_participant_id;
+                      document.getElementById('blottered_lastname').value = data.participant.lastname;
+                      document.getElementById('blottered_firstname').value = data.participant.firstname;
+                      document.getElementById('blottered_middlename').value = data.participant.middlename;
+                      document.getElementById('blottered_address').value = data.participant.address;
+                      document.getElementById('blottered_age').value = data.participant.age;
+                      document.getElementById('blottered_contact_no').value = data.participant.contact_no;
+                      document.getElementById('blottered_email').value = data.participant.email;
+
+                      // Fill files table
+                      const filesContainer = document.getElementById('blottered_filesContainer');
+                      filesContainer.innerHTML = '';
+                      if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                          let thumbHTML = '';
+                          if (file.file_type.startsWith('image/')) {
+                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            filesContainer.innerHTML += `
+                            <tr>
+                              <td style="text-align:center;">${thumbHTML}</td>
+                              <td>${file.file_name}</td>
+                              <td>
+                                <button onclick="viewImage('/BarangaySystem/BarangaySystem/${file.file_path}')" class="btn btn-primary" style="padding:5px 10px;">
+                                  <i class="fas fa-eye"></i> View
+                                </button>
+                              </td>
+                            </tr>
+                          `;
+                          } else {
+                            thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
+                            filesContainer.innerHTML += `
+                        <tr>
+                          <td style="text-align:center;">${thumbHTML}</td>
+                          <td>${file.file_name}</td>
+                          <td>
+                            <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                              <i class="fas fa-download"></i> Download
+                            </a>
+                          </td>
+                        </tr>
+                      `;
+                          }
+                        });
+                      } else {
+                        filesContainer.innerHTML = `
+                      <tr>
+                        <td colspan="3" style="text-align:center;">No uploaded files found.</td>
+                      </tr>
+                    `;
+                      }
+
+                      document.getElementById('viewBlotteredModal').style.display = 'flex';
+                    })
+                    .catch(() => alert('Failed to fetch blottered individual details.'));
+                });
               });
             </script>
 

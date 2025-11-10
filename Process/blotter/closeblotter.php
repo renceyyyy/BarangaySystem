@@ -1,5 +1,8 @@
 <?php
 session_start();
+// Set timezone to Philippine Time
+// date_default_timezone_set('Asia/Manila');
+
 require_once '../db_connection.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

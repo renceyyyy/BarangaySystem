@@ -1,5 +1,7 @@
 <?php
 session_start();
+
+date_default_timezone_set('Asia/Manila');
 // Endpoint: Process/blotter/record_hearing.php
 // Accepts multipart form data with: blotter_id, schedule_start (optional), mediator_name, hearing_notes, outcome, hearing_id (optional), hearing_files[] (optional files)
 header('Content-Type: application/json');
@@ -179,13 +181,12 @@ if (!$hearing_id) {
 
 // NEW: Update blotter status if outcome is 'agreement'
 if ($outcome === 'agreement') {
-    $update_status = $conn->prepare("UPDATE blottertbl SET status = 'closed_resolved', closed_at = ? WHERE blotter_id = ?");
+    $update_status = $conn->prepare("UPDATE blottertbl SET status = 'closed_resolved', closed_at = NOW() WHERE blotter_id = ?");
     if (!$update_status) {
         echo json_encode(['success' => false, 'message' => 'DB prepare failed (status update): ' . $conn->error]);
         exit;
     }
-    $now = date('Y-m-d H:i:s');
-    $update_status->bind_param('ss', $now, $blotter_id);
+    $update_status->bind_param('s', $blotter_id);
     if (!$update_status->execute()) {
         echo json_encode(['success' => false, 'message' => 'Status update failed: ' . $update_status->error]);
         $update_status->close();

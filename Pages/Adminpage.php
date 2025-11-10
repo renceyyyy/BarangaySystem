@@ -3033,6 +3033,126 @@ function reloadItemRequestsPanel(message) {
           <div id="blotterComplaintPanel" class="panel-content">
             <h1>Blotter/Complaint</h1>
 
+            <?php
+            // Calculate statistics before displaying the form
+            $stats_conn = new mysqli($servername, $username, $password, $database);
+            if ($stats_conn->connect_error) {
+              die("Connection failed: " . $stats_conn->connect_error);
+            }
+
+            // Build WHERE clause for stats (same as main query)
+            $stats_where_clauses = [];
+            if (isset($_GET['search_complainant']) && !empty(trim($_GET['search_complainant']))) {
+              $stats_search = $stats_conn->real_escape_string($_GET['search_complainant']);
+              $stats_where_clauses[] = "reported_by LIKE '%$stats_search%'";
+            } else {
+              $stats_date_filter = isset($_GET['date_filter']) ? $_GET['date_filter'] : 'today';
+              switch ($stats_date_filter) {
+                case 'today':
+                  $stats_where_clauses[] = "DATE(created_at) = CURDATE()";
+                  break;
+                case 'this_week':
+                  $stats_where_clauses[] = "YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)";
+                  break;
+                case 'this_month':
+                  $stats_where_clauses[] = "YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())";
+                  break;
+                case 'this_year':
+                  $stats_where_clauses[] = "YEAR(created_at) = YEAR(CURDATE())";
+                  break;
+                case 'all_time':
+                default:
+                  break;
+              }
+            }
+
+            // Build stats SQL query
+            $stats_sql = "SELECT 
+                COUNT(*) as total_records,
+                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+                SUM(CASE WHEN status = 'hearing_scheduled' THEN 1 ELSE 0 END) as hearing_scheduled_count,
+                SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count,
+                SUM(CASE WHEN status = 'closed_resolved' THEN 1 ELSE 0 END) as closed_resolved_count,
+                SUM(CASE WHEN status = 'closed_unresolved' THEN 1 ELSE 0 END) as closed_unresolved_count
+              FROM blottertbl";
+            
+            if (!empty($stats_where_clauses)) {
+              $stats_sql .= " WHERE " . implode(" AND ", $stats_where_clauses);
+            }
+
+            $stats_result = $stats_conn->query($stats_sql);
+            $stats = $stats_result->fetch_assoc();
+            
+            $total_records = $stats['total_records'] ?? 0;
+            $active_count = $stats['active_count'] ?? 0;
+            $hearing_scheduled_count = $stats['hearing_scheduled_count'] ?? 0;
+            $open_total = $active_count + $hearing_scheduled_count;
+            $closed_count = $stats['closed_count'] ?? 0;
+            $closed_resolved_count = $stats['closed_resolved_count'] ?? 0;
+            $closed_unresolved_count = $stats['closed_unresolved_count'] ?? 0;
+            $closed_total = $closed_count + $closed_resolved_count + $closed_unresolved_count;
+            
+            $stats_conn->close();
+            ?>
+
+            <!-- Statistics Cards -->
+            <div class="stat-card-container mb-3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px;">
+              <!-- Card 1: Total Records -->
+              <div class="stat-card scholarship-card" >
+                <div class="stat-left">
+                  <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
+                  <p>Total Records Displayed</p>
+                </div>
+                <h4><?php echo $total_records; ?></h4>
+              </div>
+
+              <!-- Card 2: Open Cases -->
+              <div class="stat-card scholarship-card">
+                <div class="stat-left">
+                  <div class="stat-icon"><i class="fa-solid fa-folder-open"></i></div>
+                  <p>Open Cases</p>
+                </div>
+                <h4><?php echo $open_total; ?></h4>
+                <div style="font-size: 18px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 5px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Active:</span>
+                    <span style="font-weight: 600;"><?php echo $active_count; ?></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>Hearing Scheduled: </span>
+                    <span style="font-weight: 600;"><?php echo $hearing_scheduled_count; ?></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 3: Closed Cases -->
+              <div class="stat-card scholarship-card">
+                <div class="stat-left">
+                  <div class="stat-icon"><i class="fa-solid fa-folder-closed"></i></div>
+                  <p>Closed Cases</p>
+                </div>
+
+                <!-- tight spacing: zero bottom margin on h4 so breakdown moves up -->
+                <h4 style="margin: 0 0 1px 0;"><?php echo $closed_total; ?></h4>
+
+                <!-- much closer: remove extra top padding, keep a thin divider -->
+                <div style="font-size:18px; border-top:1px solid rgba(255,255,255,0.18); padding-top:4px; margin-top:0;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>Closed:</span>
+                    <span style="font-weight:600;"><?php echo $closed_count; ?></span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>Closed Unresolved:</span>
+                    <span style="font-weight:600;"><?php echo $closed_unresolved_count; ?></span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between;">
+                    <span>Closed Resolved:</span>
+                    <span style="font-weight:600;"><?php echo $closed_resolved_count; ?></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
 
             <form method="GET" action="" class="govdoc-search-form">
               <div class="govdoc-search-group">
@@ -3042,6 +3162,16 @@ function reloadItemRequestsPanel(message) {
                 <button type="submit" class="govdoc-search-button">
                   <i class="fas fa-search"></i> Search
                 </button>
+
+                <!-- NEW: Date Filter Dropdown -->
+                <select name="date_filter" class="govdoc-status-filter" onchange="this.form.submit();">
+                  <option value="today" <?php echo (!isset($_GET['date_filter']) || $_GET['date_filter'] === 'today') ? 'selected' : ''; ?>>Today</option>
+                  <option value="this_week" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_week') ? 'selected' : ''; ?>>This Week</option>
+                  <option value="this_month" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_month') ? 'selected' : ''; ?>>This Month</option>
+                  <option value="this_year" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_year') ? 'selected' : ''; ?>>This Year</option>
+                  <option value="all_time" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'all_time') ? 'selected' : ''; ?>>All Time</option>
+                </select>
+
 
                 <button class="add-user" type="button" onclick="openBlotterModal()">
                   <i class="fa-regular fa-user"></i> Add Blotter
@@ -3053,6 +3183,7 @@ function reloadItemRequestsPanel(message) {
               <table class="styled-table">
                 <thead>
                   <tr>
+                    <th>NO</th>
                     <th>ID</th>
                     <th>REPORTED BY</th>
                     <th>DATE TIME</th>
@@ -3073,26 +3204,55 @@ function reloadItemRequestsPanel(message) {
                     die("Connection failed: " . $conn->connect_error);
                   }
 
-                  $search = "";
+                 // Build WHERE clause
+                  $where_clauses = [];
+                  // Search by complainant
                   if (isset($_GET['search_complainant']) && !empty(trim($_GET['search_complainant']))) {
                     $search = $conn->real_escape_string($_GET['search_complainant']);
-                    $sql = "SELECT * FROM blottertbl WHERE reported_by LIKE '%$search%' ORDER BY created_at DESC";
+                    $where_clauses[] = "reported_by LIKE '%$search%'";
                   } else {
-                    $sql = "SELECT * FROM blottertbl ORDER BY created_at DESC";
+                    // Only apply date filter if no search is performed
+                    $date_filter = isset($_GET['date_filter']) ? $_GET['date_filter'] : 'today';
+                    switch ($date_filter) {
+                      case 'today':
+                        $where_clauses[] = "DATE(created_at) = CURDATE()";
+                        break;
+                      case 'this_week':
+                        $where_clauses[] = "YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)";
+                        break;
+                      case 'this_month':
+                        $where_clauses[] = "YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())";
+                        break;
+                      case 'this_year':
+                        $where_clauses[] = "YEAR(created_at) = YEAR(CURDATE())";
+                        break;
+                      case 'all_time':
+                      default:
+                        // No date filter
+                        break;
+                    }
                   }
+                  // Build final SQL query
+                  $sql = "SELECT * FROM blottertbl";
+                  if (!empty($where_clauses)) {
+                    $sql .= " WHERE " . implode(" AND ", $where_clauses);
+                  }
+                  $sql .= " ORDER BY created_at DESC";
 
                   $result = $conn->query($sql);
                   if ($result && $result->num_rows > 0) {
+                    $counter = 1;
                     while ($row = $result->fetch_assoc()) {
                       echo "<tr>
+            <td>" . $counter . "</td>
             <td>" . htmlspecialchars($row['blotter_id']) . "</td>
             <td>" . htmlspecialchars($row['reported_by']) . "</td>
             <td>" . htmlspecialchars($row['datetime_of_incident']) . "</td>
             <td>" . htmlspecialchars($row['location_of_incident']) . "</td>
             <td>" . htmlspecialchars($row['incident_type']) . "</td>
             <td>" . htmlspecialchars($row['status']) . "</td>
-            <td>" . htmlspecialchars($row['created_at']) . "</td>
-            <td>" . htmlspecialchars($row['closed_at']) . "</td>
+            <td>" . htmlspecialchars(date('F d, Y h:i A', strtotime($row['created_at']))) . "</td>
+            <td>" . ($row['closed_at'] ? htmlspecialchars(date('F d, Y h:i A', strtotime($row['closed_at']))) : 'N/A') . "</td>
             <td>";
                       echo "<button class='action-btn-2 view-blotter' data-id='" . htmlspecialchars($row['blotter_id']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                     <i class='fas fa-eye'></i>
@@ -3103,9 +3263,10 @@ function reloadItemRequestsPanel(message) {
                 </button>";
                       }
                       echo "</td></tr>";
+                      $counter++;
                     }
                   } else {
-                    echo "<tr><td colspan='9'>No blotter records found.</td></tr>";
+                    echo "<tr><td colspan='10'>No blotter records found.</td></tr>";
                   }
                   $conn->close();
                   ?>
@@ -3272,12 +3433,12 @@ function reloadItemRequestsPanel(message) {
                       </div>
                       <div class="form-group">
                         <label>Address</label>
-                        <input type="text" name="accused_address[]">
+                        <input type="text" name="accused_address[]" required>
                       </div>
                       <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
                         <div class="form-group">
                           <label>Age</label>
-                          <input type="number" name="accused_age[]">
+                          <input type="number" name="accused_age[]" maxlength="3" required>
                         </div>
                         <div class="form-group">
                           <label>Contact No</label>
@@ -3292,7 +3453,7 @@ function reloadItemRequestsPanel(message) {
                       <hr>
                     </div>
                   </div>
-                  <button type="button" class="btn btn-success btn-sm" id="addAccusedBtn">+ Add Accused</button>
+                  <button type="button" class="btn btn-success btn-sm" id="addAccusedBtn">+ Add Respondent</button>
 
 
                   <br>
@@ -3378,9 +3539,9 @@ function reloadItemRequestsPanel(message) {
               <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
                 Blotter ID: <span id="view_blotter_id"></span>
               </div>
-              <!-- <div style="font-size:15px; margin-bottom:15px;">
+              <div style="font-size:16px; font-weight:bold; margin-bottom:15px;">
                 Officer on Duty: <span id="view_officer_on_duty"></span>
-              </div> -->
+              </div>
 
 
               <form class="modal-form">
@@ -3752,6 +3913,14 @@ function reloadItemRequestsPanel(message) {
                   <i class="fas fa-search"></i> Search
                 </button>
               </div>
+              <!-- NEW: Date Filter Dropdown -->
+              <select name="date_filter" class="govdoc-status-filter" onchange="this.form.submit();">
+                <option value="today" <?php echo (!isset($_GET['date_filter']) || $_GET['date_filter'] === 'today') ? 'selected' : ''; ?>>Today</option>
+                <option value="this_week" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_week') ? 'selected' : ''; ?>>This Week</option>
+                <option value="this_month" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_month') ? 'selected' : ''; ?>>This Month</option>
+                <option value="this_year" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_year') ? 'selected' : ''; ?>>This Year</option>
+                <option value="all_time" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'all_time') ? 'selected' : ''; ?>>All Time</option>
+              </select>
               <label for="blotter_status" style="margin-left:10px;">Case Status:</label>
               <select name="blotter_status" class="govdoc-status-filter" id="blotter_status" onchange="this.form.submit()">
                 <option value="active" <?php if (!isset($_GET['blotter_status']) || $_GET['blotter_status'] == 'active') echo 'selected'; ?>>Active</option>
@@ -3766,6 +3935,7 @@ function reloadItemRequestsPanel(message) {
               <table class="styled-table">
                 <thead>
                   <tr>
+                    <th>NO</th>
                     <th>ID</th>
                     <th>BLOTTER ID</th>
                     <th>LAST NAME</th>
@@ -3775,6 +3945,7 @@ function reloadItemRequestsPanel(message) {
                     <th>ADDRESS</th>
                     <th>CONTACT NO</th>
                     <th>EMAIL</th>
+                    <th>DATE CREATED</th>
                     <th>STATUS</th>
                     <th>ACTION</th>
                   </tr>
@@ -3786,38 +3957,63 @@ function reloadItemRequestsPanel(message) {
                   $conn = new mysqli($servername, $username, $password, $database);
                   if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
+                  // Build WHERE clauses
+                  $where_clauses = ["bp.participant_type = 'accused'"];
+
                   // Search by name
-                  $search_sql = "";
                   if (isset($_GET['search_blottered']) && !empty(trim($_GET['search_blottered']))) {
                     $search = $conn->real_escape_string($_GET['search_blottered']);
-                    $search_sql = "AND (bp.lastname LIKE '%$search%' OR bp.firstname LIKE '%$search%')";
+                    $where_clauses[] = "(bp.lastname LIKE '%$search%' OR bp.firstname LIKE '%$search%')";
+                  } else {
+                    // Only apply date filter if no search is performed
+                    $date_filter = isset($_GET['date_filter']) ? $_GET['date_filter'] : 'today';
+                    switch ($date_filter) {
+                      case 'today':
+                        $where_clauses[] = "DATE(b.created_at) = CURDATE()";
+                        break;
+                      case 'this_week':
+                        $where_clauses[] = "YEARWEEK(b.created_at, 1) = YEARWEEK(CURDATE(), 1)";
+                        break;
+                      case 'this_month':
+                        $where_clauses[] = "YEAR(b.created_at) = YEAR(CURDATE()) AND MONTH(b.created_at) = MONTH(CURDATE())";
+                        break;
+                      case 'this_year':
+                        $where_clauses[] = "YEAR(b.created_at) = YEAR(CURDATE())";
+                        break;
+                      case 'all_time':
+                      default:
+                        // No date filter
+                        break;
+                    }
+
+                    // Filter by status
+                    $selected_status = isset($_GET['blotter_status']) ? $_GET['blotter_status'] : 'active';
+                    switch ($selected_status) {
+                      case 'all':
+                        // No filter
+                        break;
+                      case 'active':
+                        $where_clauses[] = "(b.status = 'active' OR b.status = 'hearing_scheduled')";
+                        break;
+                      case 'hearing_scheduled':
+                        $where_clauses[] = "b.status = 'hearing_scheduled'";
+                        break;
+                      case 'closed':
+                        $where_clauses[] = "(b.status = 'closed' OR b.status = 'closed_resolved' OR b.status = 'closed_unresolved')";
+                        break;
+                      case 'closed_resolved':
+                        $where_clauses[] = "b.status = 'closed_resolved'";
+                        break;
+                      case 'closed_unresolved':
+                        $where_clauses[] = "b.status = 'closed_unresolved'";
+                        break;
+                      default:
+                        $where_clauses[] = "(b.status = 'active' OR b.status = 'hearing_scheduled')";
+                    }
+
                   }
 
-                  // Filter by status
-                  $status_filter = "";
-                  $selected_status = isset($_GET['blotter_status']) ? $_GET['blotter_status'] : 'active';
-                  switch ($selected_status) {
-                    case 'all':
-                      // No filter
-                      break;
-                    case 'active':
-                      $status_filter = "AND (b.status = 'active' OR b.status = 'hearing_scheduled')";
-                      break;
-                    case 'hearing_scheduled':
-                      $status_filter = "AND b.status = 'hearing_scheduled'";
-                      break;
-                    case 'closed':
-                      $status_filter = "AND (b.status = 'closed' OR b.status = 'closed_resolved' OR b.status = 'closed_unresolved')";
-                      break;
-                    case 'closed_resolved':
-                      $status_filter = "AND b.status = 'closed_resolved'";
-                      break;
-                    case 'closed_unresolved':
-                      $status_filter = "AND b.status = 'closed_unresolved'";
-                      break;
-                    default:
-                      $status_filter = "AND (b.status = 'active' OR b.status = 'hearing_scheduled')";
-                  }
+                  
 
                   $sql = "
                     SELECT 
@@ -3830,19 +4026,20 @@ function reloadItemRequestsPanel(message) {
                       bp.contact_no,
                       bp.email,
                       bp.blotter_id,
+                      b.created_at,
                       b.status
                     FROM blotter_participantstbl bp
                     JOIN blottertbl b ON bp.blotter_id = b.blotter_id
-                    WHERE bp.participant_type = 'accused'
-                      $status_filter
-                      $search_sql
+                    WHERE " . implode(" AND ", $where_clauses) . "
                     ORDER BY bp.blotter_participant_id DESC
                     ";
 
                   $result = $conn->query($sql);
                   if ($result && $result->num_rows > 0) {
+                    $counter = 1;
                     while ($row = $result->fetch_assoc()) {
                       echo "<tr>
+                      <td>" . $counter . "</td>
                       <td>" . htmlspecialchars($row['blotter_participant_id']) . "</td>
                       <td>" . htmlspecialchars($row['blotter_id']) . "</td>
                       <td>" . htmlspecialchars($row['lastname']) . "</td>
@@ -3852,6 +4049,7 @@ function reloadItemRequestsPanel(message) {
                       <td>" . htmlspecialchars($row['address']) . "</td>
                       <td>" . htmlspecialchars($row['contact_no']) . "</td>
                       <td>" . htmlspecialchars($row['email']) . "</td>
+                      <td>" . htmlspecialchars(date('F d, Y h:i A', strtotime($row['created_at']))) . "</td>
                       <td>" . htmlspecialchars($row['status']) . "</td>
                       <td>
                         <button class='action-btn-2 view-blottered-info' data-id='" . $row['blotter_participant_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
@@ -3859,9 +4057,10 @@ function reloadItemRequestsPanel(message) {
                         </button>
                       </td>
                       </tr>";
+                      $counter++;
                     }
                   } else {
-                    echo "<tr><td colspan='11'>No blottered individuals found.</td></tr>";
+                    echo "<tr><td colspan='13'>No blottered individuals found.</td></tr>";
                   }
                   $conn->close();
                   ?>
@@ -7019,7 +7218,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       }
 
                       document.getElementById('view_blotter_id').textContent = data.blotter.blotter_id;
-                      //document.getElementById('view_officer_on_duty').textContent = data.blotter.officer_on_duty;
+                      document.getElementById('view_officer_on_duty').textContent = data.blotter.officer_on_duty;
 
 
                       // Fill complainant fields

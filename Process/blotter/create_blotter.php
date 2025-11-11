@@ -4,7 +4,6 @@ require_once '../db_connection.php'; // Update this path to your DB connection f
 
 $conn = getDBConnection();
 
-
 function generateParticipantId($conn, $blotter_id)
 {
     $prefix = "PTCP-$blotter_id-";
@@ -26,7 +25,6 @@ function generateParticipantId($conn, $blotter_id)
     }
     return $prefix . str_pad($next_seq, 3, '0', STR_PAD_LEFT);
 }
-
 
 function generateBlotterId($conn)
 {
@@ -76,16 +74,26 @@ function generateFileId($conn)
     return $prefix . str_pad($next_seq, 3, '0', STR_PAD_LEFT);
 }
 
-
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    // Check total file size limit (5MB)
+    $maxTotalSize = 5 * 1024 * 1024; // 5MB in bytes
+    $totalSize = 0;
+    if (isset($_FILES['blotter_files']) && count($_FILES['blotter_files']['name']) > 0) {
+        foreach ($_FILES['blotter_files']['size'] as $size) {
+            $totalSize += $size;
+        }
+        if ($totalSize > $maxTotalSize) {
+            echo "<script>alert('Total file size exceeds 5MB. Please select smaller files and try again.'); window.history.back();</script>";
+            exit;
+        }
+    }
+
     // Get officer on duty from session (adjust key as needed)
     $officer_on_duty = $_SESSION['fullname'] ?? 'Unknown Officer';
 
     $sql_part = "INSERT INTO blotter_participantstbl (
     blotter_participant_id, blotter_id, participant_type, lastname, firstname, middlename, alias, address, age, contact_no, email
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
 
     // Build reported_by string from all complainants
     $reported_by_arr = [];
@@ -98,10 +106,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
     $reported_by = implode(', and ', $reported_by_arr);
-
-
-
-    
 
     // Incident details
     $datetime_of_incident = $_POST['incident_datetime'] ?? date('Y-m-d H:i:s');
@@ -178,7 +182,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $w_contact_no = ($_POST['witness_contact_no'][$i] === '' || !isset($_POST['witness_contact_no'][$i])) ? null : $_POST['witness_contact_no'][$i];
             $w_email = $_POST['witness_email'][$i] ?? '';
 
-
             // Skip if all fields are blank
             if (
                 trim($w_lastname) === '' &&
@@ -191,9 +194,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             ) {
                 continue;
             }
-
-
-
 
             $w_alias = Null;
             $w_participant_type = 'witness';
@@ -218,7 +218,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $stmt_part->close();
         }
     }
-
 
     // Insert accused
     if (!empty($_POST['accused_lastname'])) {
@@ -253,8 +252,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 
-
-
     // ====================================
     // FILE UPLOAD SECTION
     // ====================================
@@ -288,7 +285,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $allowedMime = [
                 'image/jpeg',
                 'image/png',
-
                 'application/pdf',
                 'application/msword',
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -312,11 +308,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 
-
-
-
     $stmt->close();
-    // $stmt_part->close();
     $conn->close();
 
     echo "<script>alert('Blotter report created successfully.'); window.location.href = '../../Pages/Adminpage.php?panel=blotterComplaintPanel';</script>";

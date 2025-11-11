@@ -51,6 +51,24 @@ if (!$conn) {
     exit;
 }
 
+// === Server-side total upload size check ===
+$MAX_TOTAL_BYTES = 5 * 1024 * 1024; // 5MB
+$totalSizeBytes = 0;
+if (isset($_FILES['hearing_files'])) {
+    $fileSizes = $_FILES['hearing_files']['size'];
+    if (is_array($fileSizes)) {
+        foreach ($fileSizes as $sz) {
+            $totalSizeBytes += intval($sz);
+        }
+    } else {
+        $totalSizeBytes = intval($fileSizes);
+    }
+}
+if ($totalSizeBytes > $MAX_TOTAL_BYTES) {
+    echo json_encode(['success' => false, 'message' => 'Total uploaded files exceed 5MB. Please choose smaller files or fewer files.']);
+    exit;
+}
+
 // Check if blotter exists
 $check = $conn->prepare("SELECT blotter_id FROM blottertbl WHERE blotter_id = ? LIMIT 1");
 $check->bind_param('s', $blotter_id);

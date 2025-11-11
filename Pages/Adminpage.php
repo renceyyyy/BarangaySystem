@@ -3507,7 +3507,7 @@ function reloadItemRequestsPanel(message) {
                   <!-- Image Upload -->
                   <hr>
                   <div class="form-group">
-                    <label>Upload Image(s) (.jpg, .jpeg, .png, .pdf, .doc, .docx) (Optional)</label>
+                    <label>Upload Image(s) (.jpg, .jpeg, .png, .pdf, .doc, .docx - MAX 5MB) (Optional)</label>
                     <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
 
                     <input type="file" name="blotter_files[]" id="blotter_files" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
@@ -3621,7 +3621,8 @@ function reloadItemRequestsPanel(message) {
                     <div class="form-group" style="margin-top:8px;">
                       <label for="hearing_files" style="font-weight:600;">Upload Files (Optional)</label>
                       <input type="file" id="hearing_files" class="form-control" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" />
-                      <small style="color: #666;">Allowed: .jpg, .jpeg, .png, .pdf, .doc, .docx (multiple files supported)</small>
+                      <small style="color: #666;">Allowed: .jpg, .jpeg, .png, .pdf, .doc, .docx - MAX 5MB (multiple files supported)</small>
+                      <div id="hearingFilesError" style="color:#b00020; display:none; margin-top:6px; font-size:13px;"></div>
                     </div>
                     <div style="text-align:right; margin-top:10px;">
                       <button id="saveHearingBtn" type="button" class="btn btn-success">Save Hearing</button>
@@ -7662,6 +7663,33 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
               // Save Hearing (mediator, notes, outcome)
               const saveHearingBtn = document.getElementById('saveHearingBtn');
+              const hearingFilesInput = document.getElementById('hearing_files');
+              const hearingFilesErrorEl = document.getElementById('hearingFilesError');
+              const MAX_HEARING_TOTAL_BYTES = 5 * 1024 * 1024; // 5MB
+
+              function totalBytesOfFiles(input) {
+                if (!input || !input.files || input.files.length === 0) return 0;
+                let total = 0;
+                for (let i = 0; i < input.files.length; i++) {
+                  total += input.files[i].size;
+                }
+                return total;
+              }
+
+              if (hearingFilesInput) {
+                hearingFilesInput.addEventListener('change', function () {
+                  const total = totalBytesOfFiles(hearingFilesInput);
+                  if (total > MAX_HEARING_TOTAL_BYTES) {
+                    hearingFilesErrorEl.textContent = 'Total selected files exceed 5MB. Please choose smaller files.';
+                    hearingFilesErrorEl.style.display = 'block';
+                    hearingFilesInput.value = '';
+                    hearingFilesInput.focus();
+                    return;
+                  }
+                  hearingFilesErrorEl.style.display = 'none';
+                  hearingFilesErrorEl.textContent = '';
+                });
+              }
               if (saveHearingBtn) {
                 saveHearingBtn.addEventListener('click', function() {
                   // Determine blotter id
@@ -7672,6 +7700,17 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   const outcome = document.getElementById('hearing_outcome') ? document.getElementById('hearing_outcome').value : '';
                   const schedule = document.getElementById('hearingDateTime') ? document.getElementById('hearingDateTime').textContent.trim() : '';
                   const hearingId = document.getElementById('hearing_id') ? document.getElementById('hearing_id').value.trim() : '';
+
+                  // PRE-SUBMIT: total size validation (client-side)
+                  const preTotal = totalBytesOfFiles(hearingFilesInput);
+                  if (preTotal > MAX_HEARING_TOTAL_BYTES) {
+                    if (hearingFilesErrorEl) {
+                      hearingFilesErrorEl.textContent = 'Total selected files exceed 5MB. Please choose smaller files.';
+                      hearingFilesErrorEl.style.display = 'block';
+                    }
+                    alert('Total selected files exceed 5MB. Please choose smaller files.');
+                    return;
+                  }
 
                   // Prepare FormData for multipart submission
                   const formData = new FormData();
@@ -7699,7 +7738,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   }).then(r => r.json()).then(res => {
                     saveHearingBtn.disabled = false;
                     saveHearingBtn.textContent = 'Save Hearing';
-                    if (res && res.success) {
+                      if (res && res.success) {
                       alert(res.message || 'Hearing saved');
                       // Clear the file input after success
                       if (filesInput) filesInput.value = '';
@@ -7721,6 +7760,10 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       if (filesInput) {
                         filesInput.disabled = true;
                       }
+                      if (hearingFilesErrorEl) {
+                        hearingFilesErrorEl.style.display = 'none';
+                        hearingFilesErrorEl.textContent = '';
+                      }
                       // Disable the save button as well to prevent further saves
                       saveHearingBtn.disabled = true;
                       saveHearingBtn.textContent = 'Saved';
@@ -7732,6 +7775,11 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                         location.reload();
                       }
                     } else {
+                      // Show server error in inline error area (if any)
+                      if (res && res.message && hearingFilesErrorEl) {
+                        hearingFilesErrorEl.textContent = res.message;
+                        hearingFilesErrorEl.style.display = 'block';
+                      }
                       alert((res && res.message) ? res.message : 'Failed to save hearing');
                     }
                   }).catch(err => {
@@ -8017,9 +8065,10 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       <hr>
                       <h3>Upload Files</h3>
                         <div class="form-group">
-                          <label>Upload Image(s) (jpg, jpeg, png, pdf, docx only) (Optional)</label>
+                          <label>Upload Image(s) (jpg, jpeg, png, pdf, docx only - MAX 5MB) (Optional)</label>
                           <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
-                          <input type="file" name="blotter_files[]" multiple accept="image/*,application/pdf,.doc,.docx">
+                          <input type="file" id="updateBlotterFilesInput" name="blotter_files[]" multiple accept="image/*,application/pdf,.doc,.docx">
+                          <div id="updateFileSizeError" style="color: #b00020; display:none; margin-top:6px;"></div>
                         </div> 
                       `;
 
@@ -8028,6 +8077,50 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
                       document.getElementById('updateBlotterFields').innerHTML = html;
                       document.getElementById('updateBlotterModal').style.display = 'flex';
+                      // -- Add validation for total upload size (5MB) --
+                      (function() {
+                        const fileInput = document.getElementById('updateBlotterFilesInput');
+                        const fileError = document.getElementById('updateFileSizeError');
+                        const updateForm = document.getElementById('updateBlotterForm');
+                        const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+
+                        function checkTotalSize() {
+                          if (!fileInput || !fileInput.files) return true;
+                          const files = Array.from(fileInput.files);
+                          const total = files.reduce((sum, f) => sum + (f.size || 0), 0);
+                          if (total > MAX_BYTES) {
+                            fileError.textContent = 'Total selected files exceed 5MB. Please select smaller files or fewer files.';
+                            fileError.style.display = 'block';
+                            return false;
+                          } else {
+                            fileError.style.display = 'none';
+                            return true;
+                          }
+                        }
+
+                        // Validate on change
+                        if (fileInput) {
+                          fileInput.addEventListener('change', () => {
+                            const ok = checkTotalSize();
+                            if (!ok) {
+                              // Clear selection so user must reselect
+                              fileInput.value = '';
+                            }
+                          });
+                        }
+
+                        // Validate on submit
+                        if (updateForm) {
+                          updateForm.addEventListener('submit', (e) => {
+                            const ok = checkTotalSize();
+                            if (!ok) {
+                              e.preventDefault();
+                              alert('Total selected files exceed 5MB. Please select smaller files or fewer files.');
+                            }
+                         });
+                        }
+                      })();
+                      
 
 
 

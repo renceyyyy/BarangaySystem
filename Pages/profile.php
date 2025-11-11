@@ -3,6 +3,8 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+require_once '../Process/db_connection.php';
+
 if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
@@ -1014,7 +1016,11 @@ $stmt->close();
 
   <div class="profile-container">
     <!-- Display Messages -->
-    <?php if (isset($_SESSION['profile_message'])): ?>
+    <?php 
+    $message_shown = false;
+    if (isset($_SESSION['profile_message'])): 
+      $message_shown = true;
+    ?>
       <div class="message <?php echo $_SESSION['profile_message_type']; ?>">
         <?php echo $_SESSION['profile_message']; ?>
       </div>
@@ -1025,7 +1031,7 @@ $stmt->close();
     <?php endif; ?>
 
     <!-- Verification Notice -->
-    <?php if ($show_verification_notice && !isset($_SESSION['profile_message'])): ?>
+    <?php if (!$message_shown && $show_verification_notice): ?>
       <div class="verification-notice pending">
         <i class="fas fa-clock"></i>
         <div>

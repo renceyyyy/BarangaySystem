@@ -96,6 +96,19 @@ function getPendingRequestTypes($conn, $userId)
     $stmt->close();
   }
 
+  // Cohabitation Form
+  $sql = "SELECT COUNT(*) as count FROM cohabitationtbl WHERE UserId = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['cohabitation'] = true;
+    }
+    $stmt->close();
+  }
+
   // Complaints
   $sql = "SELECT COUNT(*) as count FROM complaintbl WHERE Userid = ? AND RequestStatus = 'Pending'";
   $stmt = db_prepare($sql);
@@ -217,7 +230,18 @@ function getUserRequests($conn, $userId)
     $stmt->close();
   }
 
-
+  // Cohabitation Form requests
+  $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+      $requests[] = $row;
+    }
+    $stmt->close();
+  }
 
   // Sort all requests by date
   usort($requests, function ($a, $b) {
@@ -443,11 +467,15 @@ function getStatusBadgeClass($status)
       $pendingRequests = [];
       $approvedRequests = [];
       $DeclinedRequests = [];
+      $releasedRequests = [];
 
       foreach ($userRequests as $request) {
         switch (strtolower($request['status'])) {
           case 'pending':
             $pendingRequests[] = $request;
+            break;
+          case 'released':
+            $releasedRequests[] = $request;
             break;
           case 'approved':
           case 'completed':
@@ -461,8 +489,12 @@ function getStatusBadgeClass($status)
         }
       }
 
-      // Sort approved and Declined requests by date (latest first)
+      // Sort approved, released and Declined requests by date (latest first)
       usort($approvedRequests, function ($a, $b) {
+        return strtotime($b['date_requested']) - strtotime($a['date_requested']);
+      });
+
+      usort($releasedRequests, function ($a, $b) {
         return strtotime($b['date_requested']) - strtotime($a['date_requested']);
       });
 
@@ -486,6 +518,10 @@ function getStatusBadgeClass($status)
           <p>Approved</p>
         </div>
         <div class="stat-card">
+          <h3><?php echo count($releasedRequests); ?></h3>
+          <p>Released</p>
+        </div>
+        <div class="stat-card">
           <h3><?php echo count($DeclinedRequests); ?></h3>
           <p>Declined</p>
         </div>
@@ -507,6 +543,9 @@ function getStatusBadgeClass($status)
           </button>
           <button class="status-tab" onclick="showTab('approved')">
             Approved <span class="tab-badge"><?php echo count($approvedRequests); ?></span>
+          </button>
+          <button class="status-tab" onclick="showTab('released')">
+            Released <span class="tab-badge"><?php echo count($releasedRequests); ?></span>
           </button>
           <button class="status-tab" onclick="showTab('Declined')">
             Declined <span class="tab-badge"><?php echo count($DeclinedRequests); ?></span>
@@ -642,6 +681,50 @@ function getStatusBadgeClass($status)
           </div>
         </div>
 
+        <!-- Released Requests Tab -->
+        <div id="released-tab" class="tab-content">
+          <div class="requests-table-container">
+            <table class="requests-table">
+              <thead>
+                <tr>
+                  <th class="col-type">Request Type</th>
+                  <th class="col-description">Description</th>
+                  <th class="col-reference">Reference No.</th>
+                  <th class="col-date">Date Requested</th>
+                  <th class="col-status">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($releasedRequests as $request): ?>
+                  <tr>
+                    <td class="col-type"><?php echo htmlspecialchars($request['type']); ?></td>
+                    <td class="col-description"><?php echo htmlspecialchars($request['description']); ?></td>
+                    <td class="col-reference">
+                      <span class="request-ref"><?php echo htmlspecialchars($request['refno']); ?></span>
+                    </td>
+                    <td class="col-date"><?php echo date('M d, Y', strtotime($request['date_requested'])); ?></td>
+                    <td class="col-status">
+                      <span class="status-badge <?php echo getStatusBadgeClass($request['status']); ?>">
+                        <?php echo ucfirst(htmlspecialchars($request['status'])); ?>
+                      </span>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+                <?php if (empty($releasedRequests)): ?>
+                  <tr>
+                    <td colspan="5" class="no-requests-row">
+                      <div class="no-requests-message">
+                        <i class="fas fa-check-circle"></i>
+                        <p>No released requests found.</p>
+                      </div>
+                    </td>
+                  </tr>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Declined Requests Tab -->
         <div id="Declined-tab" class="tab-content">
           <div class="requests-table-container">
@@ -724,7 +807,8 @@ function getStatusBadgeClass($status)
         'Unemployment Certificate': '../NewRequests/NewNoFixIncome.php?update=' + refNo,
         'Guardianship/Solo Parent': '../NewRequests/NewGuardianshipForm.php?update=' + refNo,
         'No Birth Certificate': '../NewRequests/NewNoBirthCertificate.php?update=' + refNo,
-        'Complaint': '../NewRequests/NewComplain.php?update=' + refNo
+        'Complaint': '../NewRequests/NewComplain.php?update=' + refNo,
+        'Cohabitation Form': '../NewRequests/CohabilitationForm.php?update=' + refNo
       };
 
       if (updateMap[requestType]) {

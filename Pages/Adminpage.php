@@ -56,6 +56,7 @@ require_once '../Process/db_connection.php';
             <a href="#" onclick="showPanel('businessPermitPanel')">Business Permit</a>
             <a href="#" onclick="showPanel('businessUnemploymentCertificatePanel')">Unemployment Certificate Request</a>
             <a href="#" onclick="showPanel('guardianshipPanel')">Guardianship</a>
+            <!-- <a href="#" onclick="showPanel('nobirthCertPanel')">No Birth Certificate</a> -->
       
           </div>
         </div>
@@ -478,6 +479,8 @@ function switchTab(event, tabName) {
                   <option value="all" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'all') ? 'selected' : ''; ?>>All Status</option>
                   <option value="Pending" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Printed" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Printed') ? 'selected' : ''; ?>>Printed</option>
+                  <option value="Released" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Released') ? 'selected' : ''; ?>>Released</option>
                   <!-- Declined option removed as per request -->
                 </select>
                 <button class="add-user" type="button" onclick="openDocumentModal()">
@@ -866,6 +869,8 @@ function alertNotPaid() {
                   <option value="all" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'all') ? 'selected' : ''; ?>>All Status</option>
                   <option value="Pending" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Printed" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Printed') ? 'selected' : ''; ?>>Printed</option>
+                  <option value="Released" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Released') ? 'selected' : ''; ?>>Released</option>
                   <!-- Declined option removed as per request -->
                 </select>
                 <button class="add-user" type="button" onclick="openBusinessModal()">
@@ -885,6 +890,7 @@ function alertNotPaid() {
                     <th>REFERENCE</th>
                     <th>DATE</th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -939,7 +945,7 @@ function alertNotPaid() {
                   }
 
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
-                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus 
+                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus, ReleasedBy 
                 FROM businesstbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -985,42 +991,77 @@ function alertNotPaid() {
             <td>" . htmlspecialchars($row["refno"]) . "</td>  <!-- Added htmlspecialchars -->
             <td>" . date("Y-m-d", strtotime($row["RequestedDate"])) . "</td>
             <td><span class='status-badge status-" . strtolower(htmlspecialchars($row['RequestStatus'])) . "'>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</span></td> <!-- Fixed: Removed invalid 'string:' syntax; Added badge styling -->
+             <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td> 
 
             <td>";
 
-                    // Data for print modal (escaped properly)
+                    // Data for print modal (escaped properly) - include BsnssID so client can reference the record
                     $printData = json_encode([
+                      "BsnssID" => $row['BsnssID'],
                       "refno" => $row['refno'],
                       "OwnerName" => $row['OwnerName'],
                       "RequestType" => $row['RequestType'],
                       "RequestedDate" => $row['RequestedDate'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                    if ($row["RequestStatus"] === "Approved") {
-                      echo "<button type='button' class='action-btn-2 print' onclick='openBusinessPrintModal(" . $printData . ")'>  <!-- Fixed: Removed extra ) -->
+                    if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseBusinessDocument(" . htmlspecialchars($row["BsnssID"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openBusinessPrintModal(" . $printData . ")'>  
               <i class='fas fa-print'></i>
             </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved (Declined rows won't reach here due to query)
+                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+
+      
+}
+
+
+// ✅ If Pending — show Approve + View + Decline
+elseif ($row["RequestStatus"] === "Pending") {
                       echo "<a href='approvebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
               class='action-btn-2 approve' 
               onclick=\"showCustomConfirm(event, this.href);\">
               <i class='fas fa-check'></i>
             </a>";
-                    }
 
-                    // Business-specific VIEW button (simplified; adjust data attributes to match business schema if needed)
-                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' class='action-btn-2 view'>  <!-- Fixed: Use business-specific view link and fields -->
+                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+                    class='action-btn-2 view'>  
             <i class='fas fa-eye'></i>
           </a>";
 
-                    // Show DECLINE button only if Pending (not Approved or Declined)
-                    if ($row["RequestStatus"] === "Pending") {  // Simplified logic since Declined is excluded
                       echo "<a href='declinebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
                class='action-btn-2 decline' 
                onclick=\"showCustomDeclineConfirm(event, this.href);\">
               <i class='fas fa-xmark'></i>
-            </a>";  // Fixed: Removed invalid semicolon after </a>
+            </a>"; 
+
+                    }
+                    else {
+                      echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
                     }
 
                     echo "</td></tr>";
@@ -1145,6 +1186,8 @@ function alertNotPaid() {
                   <option value="all" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'all') ? 'selected' : ''; ?>>All Status</option>
                   <option value="Pending" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Printed" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Printed') ? 'selected' : ''; ?>>Printed</option>
+                  <option value="Released" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Released') ? 'selected' : ''; ?>>Released</option>
                   <!-- Declined option removed as per request -->
                 </select>
                 <button class="add-user" type="button" onclick="openUnemploymentModal()">
@@ -1163,6 +1206,7 @@ function alertNotPaid() {
                     <th>REFERENCE</th>
                     <th>DATE</th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -1202,7 +1246,7 @@ function alertNotPaid() {
                     $insertStmt->close();
                   }
 
-                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus 
+                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus, ReleasedBy 
                         FROM unemploymenttbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -1241,42 +1285,76 @@ function alertNotPaid() {
                         <td>" . htmlspecialchars($row["refno"]) . "</td>
                         <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
                         <td>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</td> <!-- Status Column -->
-
+                        <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
                         <td>";
 
                     $docData = json_encode([
+                      "id" => $row['id'], // Add ID for status update
                       "refno" => $row['refno'],
                       "fullname" => $row['fullname'],
                       "certificate_type" => $row['certificate_type'],
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                    if ($row["RequestStatus"] === "Approved") {
-                      echo "<button type='button' class='action-btn-2 print' onclick='openUnemploymentPrintModal(JSON.parse(`$docData`))'>    
+                    // ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release'
+          onclick='releaseUnemploymentDocument(" . htmlspecialchars($row["id"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
+}
+
+                      // ✅ If Approved — show Print + View
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openUnemploymentPrintModal(JSON.parse(`$docData`))'>    
                             <i class='fas fa-print'></i>
                         </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved
-                      if ($row["RequestStatus"] !== "Declined") {
-                        echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
-                                class='action-btn-2 approve'
-                                onclick=\"showCustomConfirm(event, this.href);\">
-                                <i class='fas fa-check'></i>
-                            </a> ";
-                      }
-                    }
-                    echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
-                        <i class='fas fa-eye'></i></a>";
+                          echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
+                    } 
+
+                    // ✅ If Pending — show Approve + View + Decline
+                    elseif ($row["RequestStatus"] === "Pending") {
+                      echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
+                              class='action-btn-2 approve'
+                              onclick=\"showCustomConfirm(event, this.href);\">
+                              <i class='fas fa-check'></i>
+                          </a> ";
+
+                      echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+                          class='action-btn-2 view'>  
+                  <i class='fas fa-eye'></i>
+                </a>";
                       echo "<a href='decline.php?id=" . htmlspecialchars($row["id"]) . "' 
                             class='action-btn-2 decline' 
                             onclick=\"showCustomDeclineConfirm(event, this.href);\">
                             <i class='fas fa-xmark'></i>
                         </a>";
                     }
-
+                    // ✅ If Declined or unknown — show View only
+                    else {
+                      echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
+                    }
                     echo "</td></tr>";
                   }
                   if (!$hasRows) {
@@ -1402,6 +1480,8 @@ function alertNotPaid() {
                   <option value="all" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'all') ? 'selected' : ''; ?>>All Status</option>
                   <option value="Pending" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Printed" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Printed') ? 'selected' : ''; ?>>Printed</option>
+                  <option value="Released" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Released') ? 'selected' : ''; ?>>Released</option>
                   <!-- Declined option removed as per request -->
                 </select>
 
@@ -1422,6 +1502,7 @@ function alertNotPaid() {
                   <th>REFERENCE</th>
                   <th>DATE</th>
                   <th>STATUS</th> <!-- Added STATUS column -->
+                  <th>RELEASED BY</th>
                   <th>ACTION</th>
                 </tr>
                 </thead>
@@ -1475,7 +1556,7 @@ function alertNotPaid() {
                     $
                       $insertstmt->close();
                   }
-                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus 
+                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus, ReleasedBy 
                           FROM guardianshiptbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   $params = [];
                   $types = "";
@@ -1508,51 +1589,81 @@ function alertNotPaid() {
                     echo "<tr>
             <td>" . $row["id"] . "</td>
             <td>" . strtoupper($row["applicant_name"]) . "</td>
-            <td>" . strtoupper($row["request_type"]) . "</td>
-            
+            <td>" . strtoupper($row["request_type"]) . "</td>      
             <td>" . $row["refno"] . "</td>
             <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
             <td>" . strtoupper($row['RequestStatus']) . "</td> <!-- Status Column -->
+            <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
              <td>";
+
                     $docData = json_encode([
+                      "id" => $row['id'], // Add ID for status update
                       "refno" => $row['refno'],
                       "applicant_name" => $row['applicant_name'],
                       "request_type" => $row['request_type'],
-                     
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-                    if ($row["RequestStatus"] === "Approved") {
 
-                      echo "<button type='button' class='action-btn-2 print' onclick='openGuardianshipPrintModal(" . htmlspecialchars(json_encode([
-                        "refno" => $row['refno'],
-                        "applicant_name" => $row['applicant_name'],
-                        "request_type" => $row['request_type'],
-                        
-                        "request_date" => $row['request_date'],
-                      ]), ENT_QUOTES, 'UTF-8') . ")'>
+                    // ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseGuardianshipDocument(" . htmlspecialchars($row["id"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Approved — show Print + View
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      // Use the pre-built $docData (includes id) so the client has the record id for status update
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openGuardianshipPrintModal(" . $docData . ")'>
     <i class='fas fa-print'></i>
   </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved
+
+    echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+                    }
+// ✅ If Pending — show Approve + View + Decline
+        elseif ($row["RequestStatus"] === "Pending") {
+                      // Show APPROVE button
                       echo "<a href='approveguardianship.php?id=" . $row["id"] . "'
     class='action-btn-2 approve'
     onclick=\"showCustomConfirm(event, this.href);\">
     <i class='fas fa-check'></i></a>
   ";
-                    }
-
-
-
                     echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
                     <i class='fas fa-eye'></i></a>";
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
+
                       echo "<a href='declineguardianship.php?id=" . htmlspecialchars($row["id"]) . "'
     class='action-btn-2 decline'
     onclick=\"showCustomDeclineConfirm(event, this.href);\">
     <i class='fas fa-xmark'></i>
   </a>";
+        
+        }               
+
+
+else {
+                    echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
+                    <i class='fas fa-eye'></i></a>";
+
+                  
                     }
 
                     echo "</td></tr>";
@@ -1661,12 +1772,13 @@ function alertNotPaid() {
             </div>
           </div>
 
+         
 
           
-          
+
           
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div id="itemrequestsPanel" class="panel-content">
   <div class="item-requests-header">
@@ -2683,7 +2795,7 @@ function alertNotPaid() {
         } else {
           echo "<tr><td colspan='7'>No item requests found.</td></tr>";
         }
-        $conn->close();
+        // Singleton connection closed by PHP
 
         function actionBtn($id, $action, $label) {
           $icons = [
@@ -3268,7 +3380,7 @@ function reloadItemRequestsPanel(message) {
                   } else {
                     echo "<tr><td colspan='10'>No blotter records found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
 
 
@@ -4063,7 +4175,7 @@ function reloadItemRequestsPanel(message) {
                   } else {
                     echo "<tr><td colspan='13'>No blottered individuals found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
                 </tbody>
               </table>
@@ -4255,7 +4367,7 @@ function reloadItemRequestsPanel(message) {
                       }
                     }
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                 }
               }
 
@@ -4273,7 +4385,7 @@ function reloadItemRequestsPanel(message) {
                     $editData = ['id' => $editId, 'NewsInfo' => $editNewsInfo, 'NewsImage' => $editNewsImage];
                   }
                   $stmt->close();
-                  $conn->close();
+                  // Singleton connection closed by PHP
                 }
               }
               ?>
@@ -4336,7 +4448,7 @@ function reloadItemRequestsPanel(message) {
                 } else {
                   echo "<div class='alert alert-info mt-3'>No announcements yet.</div>";
                 }
-                $conn->close();
+                // Singleton connection closed by PHP
               }
               ?>
             </div>
@@ -4369,8 +4481,10 @@ function reloadItemRequestsPanel(message) {
                       'unemployment' => 'Unemployment Certificates',
                       'guardianship' => 'Guardianship Documents',
                       'items' => 'Item Requests',
-                      'blotters' => 'Blotter/Complaints',
-                      'collections' => 'Financial Collections'
+                        'blotters' => 'Blotter/Complaints',
+                        'collections' => 'Financial Collections',
+                        'activity logs' => 'User Activity Logs',
+                        'resident logs' => 'Resident Activity Logs'
 
                     ];
                     $selected = $_GET['report_type'] ?? '';
@@ -4485,8 +4599,8 @@ function reloadItemRequestsPanel(message) {
                     }
                     echo '</div>';
 
-                    $stmt = $connection->prepare("SELECT ReqID, CONCAT(Firstname, ' ', Lastname) AS Name, DocuType, ReqPurpose, 
-                                                 Address, DateRequested, RequestStatus 
+                    $stmt = $connection->prepare("SELECT ReqID, CONCAT(Firstname, ' ', Lastname) AS Name, DocuType, 
+                                                 Address, DateRequested, RequestStatus, ReleasedBy
                                           FROM docsreqtbl 
                                           WHERE DateRequested BETWEEN ? AND ? 
                                           ORDER BY DateRequested DESC");
@@ -4499,12 +4613,12 @@ function reloadItemRequestsPanel(message) {
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Name</th>
+                                <th>Resident Name</th>
                                 <th>Document Type</th>
-                                <th>Purpose</th>
-                                <th>Address</th>
+                                <th>Resident Address</th>
                                 <th>Date Requested</th>
-                                <th>Status</th>
+                                <th>Request Status</th>
+                                <th>Released By</th>
                             </tr>
                         </thead>
                         <tbody>';
@@ -4513,10 +4627,10 @@ function reloadItemRequestsPanel(message) {
                         <td>' . htmlspecialchars($r['ReqID']) . '</td>
                         <td>' . htmlspecialchars($r['Name']) . '</td>
                         <td>' . htmlspecialchars($r['DocuType']) . '</td>
-                        <td>' . htmlspecialchars($r['ReqPurpose']) . '</td>
                         <td>' . htmlspecialchars($r['Address']) . '</td>
                         <td>' . htmlspecialchars($r['DateRequested']) . '</td>
                         <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                        <td>' . htmlspecialchars($r['ReleasedBy']) . '</td>
                       </tr>';
                     }
                     echo '</tbody></table></div>';
@@ -4550,7 +4664,7 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     $stmt = $connection->prepare("SELECT BsnssID, BusinessName, OwnerName, RequestType, 
-                                                 BusinessLoc, RequestedDate, RequestStatus 
+                                                 BusinessLoc, RequestedDate, RequestStatus, ReleasedBy 
                                           FROM businesstbl 
                                           WHERE RequestedDate BETWEEN ? AND ? 
                                           ORDER BY RequestedDate DESC");
@@ -4564,11 +4678,12 @@ function reloadItemRequestsPanel(message) {
                             <tr>
                                 <th>Business ID</th>
                                 <th>Business Name</th>
-                                <th>Owner</th>
-                                <th>Type</th>
-                                <th>Address</th>
+                                <th>Business owner</th>
+                                <th>Document Type</th>
+                                <th>Business Address</th>
                                 <th>Date Applied</th>
-                                <th>Status</th>
+                                <th>Request Status</th>
+                                <th>Released By</th>
                             </tr>
                         </thead>
                         <tbody>';
@@ -4581,6 +4696,7 @@ function reloadItemRequestsPanel(message) {
                         <td>' . htmlspecialchars($r['BusinessLoc']) . '</td>
                         <td>' . htmlspecialchars($r['RequestedDate']) . '</td>
                         <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                        <td>' . htmlspecialchars($r['ReleasedBy']) . '</td>
                       </tr>';
                     }
                     echo '</tbody></table></div>';
@@ -4614,7 +4730,7 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     $stmt = $connection->prepare("SELECT id, refno, fullname, age, purpose, 
-                                                 request_date, RequestStatus
+                                                 request_date, RequestStatus, ReleasedBy
                                           FROM unemploymenttbl 
                                           WHERE request_date BETWEEN ? AND ? 
                                           ORDER BY request_date DESC");
@@ -4633,7 +4749,8 @@ function reloadItemRequestsPanel(message) {
                             
                                 <th>Purpose</th>
                                 <th>Request Date</th>
-                                <th>Status</th>
+                                <th>Request Status</th>
+                                <th>Released By</th>
                           
                             </tr>
                         </thead>
@@ -4648,6 +4765,7 @@ function reloadItemRequestsPanel(message) {
                         <td>' . htmlspecialchars($r['purpose']) . '</td>
                         <td>' . htmlspecialchars($r['request_date']) . '</td>
                         <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                        <td>' . htmlspecialchars($r['ReleasedBy']) . '</td>
                         
                       </tr>';
                     }
@@ -4680,7 +4798,7 @@ function reloadItemRequestsPanel(message) {
 
                     // Full details table
                     $stmt = $connection->prepare("SELECT id, refno, request_type, child_name, child_age,  applicant_name, 
-                                           request_date, RequestStatus
+                                           request_date, RequestStatus, ReleasedBy
                                       FROM guardianshiptbl 
                                       WHERE request_date BETWEEN ? AND ? 
                                       ORDER BY request_date DESC");
@@ -4696,13 +4814,10 @@ function reloadItemRequestsPanel(message) {
                             <th>Reference No.</th>
                             <th>Request Type</th>
                             <th>Child Name</th>
-                    
-                       
-                        
                             <th>Applicant Name</th>
-           
                             <th>Request Date</th>
-                            <th>Status</th>
+                            <th>Request Status</th>
+                            <th>Released By</th>
                      
                         </tr>
                     </thead>
@@ -4712,15 +4827,11 @@ function reloadItemRequestsPanel(message) {
                     <td>' . htmlspecialchars($r['id']) . '</td>
                     <td>' . htmlspecialchars($r['refno']) . '</td>
                     <td>' . htmlspecialchars($r['request_type']) . '</td>
-                    <td>' . htmlspecialchars($r['child_name']) . '</td>
-                
-                  
-                   
-               
+                    <td>' . htmlspecialchars($r['child_name']) . '</td>              
                     <td>' . htmlspecialchars($r['applicant_name']) . '</td>
-                
                     <td>' . htmlspecialchars($r['request_date']) . '</td>
                     <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                    <td>' . htmlspecialchars($r['ReleasedBy']) . '</td>
              
                   </tr>';
                     }
@@ -4768,14 +4879,13 @@ function reloadItemRequestsPanel(message) {
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Requester Name</th>
-                            <th>Item</th>
-
-                            <th>Quantity</th>
+                            <th>Resident Name</th>
+                            <th>Item Request</th>
+                            <th>Item Quantity</th>
                             <th>Event Date/Time</th>
                             <th>Date Requested</th>
-                            <th>Condition</th>
-                            <th>Status</th>
+                            <th>Request Status</th>
+                            <th>Item condition</th>
                             
                  
                         </tr>
@@ -4798,6 +4908,82 @@ function reloadItemRequestsPanel(message) {
                   } else {
                     echo '<div class="alert alert-warning">No item requests found for this date range.</div>';
                   }
+                  break;
+
+                case 'resident logs':
+                  echo '<h3>Resident Activity Logs</h3>';
+
+                  // Query user_activity_logs between selected dates
+                  $stmt = $connection->prepare("SELECT activity, category, details, ip_address, `timestamp` 
+                                      FROM user_activity_logs 
+                                      WHERE `timestamp` BETWEEN ? AND ? 
+                                      ORDER BY `timestamp` DESC");
+                  $stmt->bind_param("ss", $startDate, $endDate);
+                  $stmt->execute();
+                  $details = $stmt->get_result();
+
+                  if ($details && $details->num_rows > 0) {
+                    echo '<div class="scrollable-table-container">'
+                      . '<table class="styled-table">'
+                      . '<thead>
+                      <tr>
+                      <th>Action</th>
+                      <th>Category</th>
+                      <th>Details</th>
+                      <th>IP</th>
+                      <th>Timestamp</th>
+                      </tr>
+                      </thead>
+                      <tbody>';
+
+                    while ($r = $details->fetch_assoc()) {
+                      echo '<tr>'
+                        . '<td>' . htmlspecialchars($r['activity']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['category']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['details']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['ip_address']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['timestamp']) . '</td>'
+                        . '</tr>';
+                    }
+
+                    echo '</tbody></table></div>';
+                  } else {
+                    echo '<div class="alert alert-warning">No resident activity logs found for this date range.</div>';
+                  }
+                  $stmt->close();
+                  break;
+
+                case 'activity logs':
+                  echo '<h3>User Activity Logs</h3>';
+
+                  // Query audittrail between selected dates
+                  $stmt = $connection->prepare("SELECT AuditID, username, TimeIn, TimeOut 
+                                      FROM audittrail 
+                                      WHERE TimeIn BETWEEN ? AND ? 
+                                      ORDER BY TimeIn DESC");
+                  $stmt->bind_param("ss", $startDate, $endDate);
+                  $stmt->execute();
+                  $details = $stmt->get_result();
+
+                  if ($details && $details->num_rows > 0) {
+                    echo '<div class="scrollable-table-container">'
+                      . '<table class="styled-table">'
+                      . '<thead><tr><th>ID</th><th>USERNAME</th><th>TIME IN</th><th>TIME OUT</th></tr></thead><tbody>';
+
+                    while ($r = $details->fetch_assoc()) {
+                      echo '<tr>'
+                        . '<td>' . htmlspecialchars($r['AuditID']) . '</td>'
+                        . '<td>' . htmlspecialchars(strtoupper($r['username'])) . '</td>'
+                        . '<td>' . htmlspecialchars($r['TimeIn']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['TimeOut']) . '</td>'
+                        . '</tr>';
+                    }
+
+                    echo '</tbody></table></div>';
+                  } else {
+                    echo '<div class="alert alert-warning">No activity logs found for this date range.</div>';
+                  }
+                  $stmt->close();
                   break;
 
                    case 'blotters':
@@ -4949,6 +5135,8 @@ function reloadItemRequestsPanel(message) {
                     echo '<div class="alert alert-warning">No collection/payment records found for this date range.</div>';
                   }
                   break;
+
+                  
 
                 default:
                   echo '<div class="alert alert-warning">This report type is not implemented yet.</div>';
@@ -6553,6 +6741,7 @@ document.getElementById("printForm").addEventListener("submit", function (event)
   event.preventDefault(); // Prevent normal form submit
 
   const formData = new FormData(this);
+  const docType = selectedDocData && selectedDocData.Docutype ? selectedDocData.Docutype.toLowerCase().trim() : "";
 
   fetch("Payment.php", {
     method: "POST",
@@ -6561,38 +6750,57 @@ document.getElementById("printForm").addEventListener("submit", function (event)
   .then((response) => response.text())
   .then((response) => {
     if (response.trim() === "success") {
-      alert("Payment recorded. Now printing...");
+      alert("Payment recorded.");
       bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
 
       if (selectedDocData) {
-        // Generate the printed certificate
-        generateCertificate(selectedDocData);
-
-        // ✅ After printing, update the RequestStatus to "Printed"
-        fetch("update_status.php", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `id=${encodeURIComponent(selectedDocData.ReqId)}&status=Printed`,
-        })
-        .then(res => res.text())
-        .then(res => {
-          if (res.trim() === "success") {
-            alert("Document marked as Printed. You can now release it.");
-            location.reload(); // Refresh the table to show the new Release button
-          } else {
-            console.error("Failed to update status:", res);
-            alert("Failed to mark as Printed. Please refresh and try again.");
-          }
-        })
-        .catch(err => {
-          console.error("Status update error:", err);
-          alert("Error updating document status.");
-        });
-
+        if (docType === "cedula") {
+          // For Cedula, set status to Released and do NOT print
+          fetch("update_status.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedDocData.ReqId)}&status=Released`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Cedula marked as Released.");
+              location.reload();
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Released. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating document status.");
+          });
+        } else {
+          // For other types, print and set to Printed
+          generateCertificate(selectedDocData);
+          fetch("update_status.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedDocData.ReqId)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Document marked as Printed. You can now release it.");
+              location.reload();
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating document status.");
+          });
+        }
       } else {
         alert("No document selected for printing.");
       }
-
     } else {
       alert("Error: " + response);
     }
@@ -6633,35 +6841,92 @@ function releaseDocument(reqId) {
 // let selectedDocData = null; // Global variable to store selected document data
 
 // Function to open the modal and save the selected document's data
-function openNoBirthCertificatePrintModal(data) {
-  selectedDocData = data; // Store the selected document for later printing
+function openNoBirthPrintModal(data) {
+  selectedDocData = data; // Store for later use
 
-  document.getElementById("noBirthCertificate_modal_refno").value = data.refno;
-  document.getElementById("noBirthCertificate_modal_name").value = data.Firstname + ' ' + data.Lastname;
-  document.getElementById("noBirthCertificate_modal_type").value = data.Docutype;
-  document.getElementById("noBirthCertificate_modal_date").value = data.DateRequested || new Date().toLocaleDateString();
-
-  // ✅ Automatically set amount based on document type
-  const amountField = document.getElementById("noBirthCertificate_modal_amount");
-  const docType = data.Docutype ? data.Docutype.toLowerCase().trim() : "";
-
-  // ₱100 documents
-  const hundredPesoDocs = ["no birth certificate"];
-
-  // Free documents
- 
-
-  if (hundredPesoDocs.includes(docType)) {
-    amountField.value = 100;
-    amountField.readOnly = true;
+  // Fill in the modal fields
+  document.getElementById("nobirth_modal_refno").value = data.refno;
+  document.getElementById("nobirth_modal_name").value = data.requestor_name;
+  document.getElementById("nobirth_modal_date").value = data.request_date;
   
-  } else {
-    amountField.value = "";
-    amountField.readOnly = false;
-  }
+  // Amount is fixed at 100
+  document.getElementById("nobirth_modal_amount").value = 100;
 
-  const modal = new bootstrap.Modal(document.getElementById('printFormModal'));
+  // Show the modal
+  const modal = new bootstrap.Modal(document.getElementById('nobirthCertPrintModal'));
   modal.show();
+}
+
+// Handle No Birth Certificate Payment Form Submission
+document.getElementById("nobirthCertPrintForm").addEventListener("submit", function(event) {
+  event.preventDefault();
+
+  const formData = new FormData(this);
+
+  fetch("PaymentNoBirthCert.php", {
+    method: "POST",
+    body: formData
+  })
+  .then(response => response.text())
+  .then(response => {
+    if (response.trim() === "success") {
+      alert("Payment recorded. Now printing...");
+      bootstrap.Modal.getInstance(document.getElementById('nobirthCertPrintModal')).hide();
+
+      if (selectedDocData) {
+        // Update status to Printed
+        fetch("update_status_nobirth.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `id=${encodeURIComponent(selectedDocData.id)}&status=Printed`
+        })
+        .then(res => res.text())
+        .then(res => {
+          if (res.trim() === "success") {
+            alert("Document marked as Printed. You can now release it.");
+            location.reload();
+          } else {
+            console.error("Failed to update status:", res);
+            alert("Failed to mark as Printed. Please refresh and try again.");
+          }
+        })
+        .catch(err => {
+          console.error("Status update error:", err);
+          alert("Error updating document status.");
+        });
+      }
+    } else {
+      alert("Error: " + response);
+    }
+  })
+  .catch(error => {
+    console.error("Error submitting payment:", error);
+    alert("Something went wrong. Please try again.");
+  });
+});
+
+// Handle No Birth Certificate Release
+function releaseNoBirthDocument(id) {
+  if (!confirm("Are you sure you want to release this document?")) return;
+
+  fetch("update_status_nobirth.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Document successfully released!");
+      location.reload();
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
 }
 
 // Handle form submission
@@ -6670,7 +6935,7 @@ document.getElementById("printForm").addEventListener("submit", function (event)
 
   const formData = new FormData(this);
 
-  fetch("Paymentbirthcertificate.php", {
+  fetch("PaymentNoBirthCert.php", {
     method: "POST",
     body: formData,
   })
@@ -6681,7 +6946,26 @@ document.getElementById("printForm").addEventListener("submit", function (event)
         bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
 
         if (selectedDocData) {
-          generateCertificate(selectedDocData); // This handles different Docutype values
+          // Update status to Printed
+          fetch("update_status_nobirth.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedDocData.id)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Document marked as Printed. You can now release it.");
+              location.reload(); // Refresh to show updated status
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating document status.");
+          });
         } else {
           alert("No document selected for printing.");
         }
@@ -7036,6 +7320,26 @@ document.getElementById("businessPrintForm").addEventListener("submit", function
 
         if (selectedBusinessDocData) {
           generateCertificate(selectedBusinessDocData);
+          fetch("updatestatus_business.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedBusinessDocData.BsnssID)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Business permit marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating business permit status.");
+          });
+
         } else {
           alert("No business permit selected for printing.");
         }
@@ -7048,6 +7352,29 @@ document.getElementById("businessPrintForm").addEventListener("submit", function
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseBusinessDocument(BsnssID) {
+  if (!confirm("Are you sure you want to release this business document?")) return;
+
+  fetch("updatestatus_business.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(BsnssID)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Business document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -7101,6 +7428,27 @@ document.getElementById("unemploymentPrintForm").addEventListener("submit", func
 
         if (selectedUnemploymentDocData) {
           generateCertificate(selectedUnemploymentDocData);
+
+          // ✅ After printing, update the RequestStatus to "Printed"
+          fetch("updatestatus_unemployment.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedUnemploymentDocData.id)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Unemployment certificate marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating unemployment certificate status.");
+          });
         } else {
           alert("No unemployment certificate selected for printing.");
         }
@@ -7113,6 +7461,29 @@ document.getElementById("unemploymentPrintForm").addEventListener("submit", func
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseUnemploymentDocument(id) {
+  if (!confirm("Are you sure you want to release this unemployment document?")) return;
+
+  fetch("updatestatus_unemployment.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Unemployment document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -7167,6 +7538,27 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
         if (selectedGuardianShipDocData) {
           generateCertificate(selectedGuardianShipDocData);
+
+          // ✅ After printing, update the RequestStatus to "Printed"
+          fetch("updatestatus_guardianship.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedGuardianShipDocData.id)}&status=Printed`,
+          })
+          .then((res) => res.text())
+          .then((res) => {
+            if (res.trim() === "success") {
+              alert("Guardianship document marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch((err) => {
+            console.error("Status update error:", err);
+            alert("Error updating guardianship document status.");
+          });
         } else {
           alert("No guardianship document selected for printing.");
         }
@@ -7179,8 +7571,156 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseGuardianshipDocument(id) {
+  if (!confirm("Are you sure you want to release this guardianship document?")) return;
+
+  fetch("updatestatus_guardianship.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then((res) => res.text())
+  .then((res) => {
+    if (res.trim() === "success") {
+      alert("Guardianship document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch((err) => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
+<script>
+let selectedNoBirthCertDocData = null;
+
+function openNoBirthCertModal() {
+  const modal = document.getElementById('addNoBirthCertModal');
+  const refInput = modal.querySelector('input[name="refno"]');
+
+  // Generate reference: YYYYMMDD + random 4-digit number
+  const now = new Date();
+  const datePart = now.getFullYear().toString() +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0');
+  const randomPart = Math.floor(1000 + Math.random() * 9000);
+  const referenceNumber = datePart + randomPart;
+
+  refInput.value = referenceNumber;
+  modal.style.display = 'flex';
+}
+
+function closeNoBirthCertModal() {
+  document.getElementById('addNoBirthCertModal').style.display = 'none';
+}
+
+function openNoBirthCertPrintModal(data) {
+  if (typeof data === "string") {
+    data = JSON.parse(data);
+  }
+  selectedNoBirthCertDocData = data;
+
+  document.getElementById("nobirth_modal_refno").value = data.refno;
+  document.getElementById("nobirth_modal_name").value = data.requestor_name;
+  document.getElementById("nobirth_modal_type").value = data.DocuType;
+  document.getElementById("nobirth_modal_date").value = data.request_date || new Date().toLocaleDateString();
+
+  // Set amount based on document type
+  const amountField = document.getElementById("nobirth_modal_amount");
+  const docType = data.DocuType ? data.DocuType.toLowerCase().trim() : "";
+
+  // Set standard fees
+  if (docType === "no birth certificate" || docType === "late registration") {
+    amountField.value = 100;
+    amountField.readOnly = true;
+  } else {
+    amountField.value = "";
+    amountField.readOnly = false;
+  }
+
+  const modal = new bootstrap.Modal(document.getElementById('nobirthCertPrintFormModal'));
+  modal.show();
+}
+
+document.getElementById("nobirthCertPrintForm")?.addEventListener("submit", function(event) {
+  event.preventDefault();
+
+  const formData = new FormData(this);
+
+  fetch("PaymentNoBirthCert.php", {
+    method: "POST",
+    body: formData,
+  })
+  .then((response) => response.text())
+  .then((response) => {
+    if (response.trim() === "success") {
+      alert("Payment recorded. Now printing...");
+      bootstrap.Modal.getInstance(document.getElementById('nobirthCertPrintFormModal')).hide();
+
+      if (selectedNoBirthCertDocData) {
+        generateCertificate(selectedNoBirthCertDocData);
+
+        // Update status to "Printed"
+        fetch("updatestatus_nobirth.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `id=${encodeURIComponent(selectedNoBirthCertDocData.id)}&status=Printed`,
+        })
+        .then(res => res.text())
+        .then(res => {
+          if (res.trim() === "success") {
+            alert("Document marked as Printed. You can now release it.");
+            location.reload();
+          } else {
+            console.error("Failed to update status:", res);
+            alert("Failed to mark as Printed. Please refresh and try again.");
+          }
+        })
+        .catch(err => {
+          console.error("Status update error:", err);
+          alert("Error updating document status.");
+        });
+      } else {
+        alert("No document selected for printing.");
+      }
+    } else {
+      alert("Error: " + response);
+    }
+  })
+  .catch((error) => {
+    console.error("Error submitting payment:", error);
+    alert("Something went wrong. Please try again.");
+  });
+});
+
+function releaseNoBirthCertDocument(id) {
+  if (!confirm("Are you sure you want to release this document?")) return;
+
+  fetch("updatestatus_nobirth.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Document successfully released!");
+      location.reload();
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
+</script>
 
             <script>
               function openLogoutModal(e) {

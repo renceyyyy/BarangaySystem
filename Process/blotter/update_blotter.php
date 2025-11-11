@@ -345,7 +345,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 
-    $conn->close();
+    // Singleton connection closed by PHP
     echo "<script>alert('Blotter report updated successfully.'); window.location.href = '../../Pages/Adminpage.php?panel=blotterComplaintPanel';</script>";
     exit;
 } else {

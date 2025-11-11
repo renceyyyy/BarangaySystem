@@ -1,7 +1,8 @@
-<?php 
-require_once '../Process/db_connection.php';
-require_once './Terms&Conditions/Terms&Conditons.php';
+<?php
 session_start();
+require_once '../Process/db_connection.php';
+require_once '../Process/user_activity_logger.php';
+require_once './Terms&Conditions/Terms&Conditons.php';
 $conn = getDBConnection();
 
 $firstname = $lastname = $email = $contact_no = $address = $reason = "";
@@ -26,7 +27,7 @@ if (isset($_GET['update'])) {
     $isUpdateMode = true;
     
     // Fetch pending request data
-    $pendingCheckSql = "SELECT * FROM scholarship WHERE ID = ? AND UserID = ? AND RequestStatus = 'Pending'";
+    $pendingCheckSql = "SELECT * FROM scholarship WHERE ApplicationID = ? AND UserID = ? AND RequestStatus = 'Pending'";
     $pendingStmt = $conn->prepare($pendingCheckSql);
     if ($pendingStmt) {
         $pendingStmt->bind_param("si", $updateRefNo, $_SESSION['user_id']);
@@ -87,7 +88,7 @@ if ($user_stmt) {
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
     // Check for existing pending scholarship request (only for new submissions)
     if (!$isUpdateMode) {
-        $pendingCheckSql = "SELECT ID FROM scholarship WHERE UserID = ? AND RequestStatus = 'Pending' LIMIT 1";
+        $pendingCheckSql = "SELECT ApplicationID FROM scholarship WHERE UserID = ? AND RequestStatus = 'Pending' LIMIT 1";
         $pendingStmt = $conn->prepare($pendingCheckSql);
         if ($pendingStmt) {
             $pendingStmt->bind_param("i", $user_id);
@@ -96,7 +97,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             
             if ($pendingResult->num_rows > 0) {
                 $pendingData = $pendingResult->fetch_assoc();
-                $errors[] = "You have a pending Scholar Grant Application (Ref: " . htmlspecialchars($pendingData['ID']) . "). Please wait for approval or update your existing request before submitting a new one.";
+                $errors[] = "You have a pending Scholar Grant Application (Ref: " . htmlspecialchars($pendingData['ApplicationID']) . "). Please wait for approval or update your existing request before submitting a new one.";
             }
             $pendingStmt->close();
         }
@@ -117,7 +118,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
     if (empty($firstname)) $errors[] = "First name is required";
     if (empty($lastname)) $errors[] = "Last name is required";
     if (empty($email)) $errors[] = "Email is required";
-    elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Invalid email format";
+    if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Invalid email format";
     if (empty($contact_no)) $errors[] = "Contact number is required";
     if (empty($address)) $errors[] = "Address is required";
     
@@ -130,10 +131,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
         } elseif ($_FILES['reason_file']['size'] > 5242880) {
             $errors[] = "Reason document must be smaller than 5MB";
         } else {
-            $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-            $tmp_name = $_FILES['reason_file']['tmp_name'];
-            $mime = mime_content_type($tmp_name);
-            if (!in_array($mime, $allowed_mime_types)) {
+            $filename = $_FILES['reason_file']['name'];
+            $file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf'];
+            
+            if (!in_array($file_ext, $allowed_extensions)) {
                 $errors[] = "Reason document must be a JPG, PNG, GIF, or PDF file";
             }
         }
@@ -157,10 +159,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             if ($_FILES[$field]['size'] > 5242880) {
                 $errors[] = "$label must be smaller than 5MB";
             } else {
-                $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-                $tmp_name = $_FILES[$field]['tmp_name'];
-                $mime = mime_content_type($tmp_name);
-                if (!in_array($mime, $allowed_mime_types)) {
+                $filename = $_FILES[$field]['name'];
+                $file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf'];
+                
+                if (!in_array($file_ext, $allowed_extensions)) {
                     $errors[] = "$label must be a JPG, PNG, GIF, or PDF file";
                 }
             }
@@ -235,12 +238,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                         Firstname = ?, Lastname = ?, Email = ?, ContactNo = ?, 
                         Address = ?, Reason = ?, SchoolID = ?, BaranggayID = ?, 
                         COR = ?, ParentsID = ?, BirthCertificate = ?
-                        WHERE ID = ? AND UserID = ? AND RequestStatus = 'Pending'";
+                        WHERE ApplicationID = ? AND UserID = ? AND RequestStatus = 'Pending'";
                 
                 $stmt = $conn->prepare($sql);
                 if ($stmt) {
                     $stmt->bind_param(
-                        "ssssssssssssi",
+                        "sssssssssssii",
                         $firstname,
                         $lastname,
                         $email,
@@ -260,6 +263,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                         $success = true;
                         $success_ref_id = $updateRefNo;
                         $isUpdateSuccess = true; // Flag to show update success message
+                        
+                        // Log user activity
+                        logUserActivity(
+                            'Scholarship application updated',
+                            'scholarship_request',
+                            [
+                                'application_id' => $updateRefNo,
+                                'firstname' => $firstname,
+                                'lastname' => $lastname,
+                                'email' => $email,
+                                'action' => 'update'
+                            ]
+                        );
                     } else {
                         $errors[] = "Database error: " . $stmt->error;
                     }
@@ -296,6 +312,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                     if ($stmt->execute()) {
                         $success = true;
                         $success_ref_id = $stmt->insert_id;
+                        
+                        // Log user activity
+                        logUserActivity(
+                            'Scholarship application submitted',
+                            'scholarship_request',
+                            [
+                                'application_id' => $success_ref_id,
+                                'firstname' => $firstname,
+                                'lastname' => $lastname,
+                                'email' => $email
+                            ]
+                        );
+                        
                         $reason = "";
                         $reason_type = "text";
                     } else {
@@ -636,7 +665,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             
             <?php echo displayTermsAndConditions('scholarForm'); ?>
             
-            <div class="form-group">
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
+                <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
                 <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Application' : 'Submit Application'; ?></button>
             </div>
         </form>
@@ -753,3 +785,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
     </script>
 </body>
 </html>
+

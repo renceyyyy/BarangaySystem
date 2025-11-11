@@ -401,7 +401,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
     }
 
     $stmt->close();
-    $conn->close();
     header("Location: ../Pages/landingpage.php");
     exit();
 }
@@ -565,7 +564,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
         }
     } finally {
         if (isset($stmt)) $stmt->close();
-        if (isset($conn)) $conn->close();
     }
 
     // Return response

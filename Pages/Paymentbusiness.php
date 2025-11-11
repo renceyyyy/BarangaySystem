@@ -1,4 +1,6 @@
 <?php
+session_start();
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     // Basic sanitization (optional, since prepared statements are used)
     $refno    = trim($_POST['refno'] ?? '');
@@ -7,6 +9,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $requesteddate  = trim($_POST['date'] ?? '');
     $amount   = floatval($_POST['amount'] ?? 0);
 
+    // ✅ Get finance user's name if logged in
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'finance') {
+        $paymentReceivedBy = $_SESSION['fullname'] ?? 'Finance User';
+    } else {
+        // fallback if not finance
+        $paymentReceivedBy = $_SESSION['fullname'] ?? 'Unknown User';
+    }
+
+
     // Validate required fields
     if (!$refno || !$ownername || !$requesttype || !$amount) {
         http_response_code(400);
@@ -14,10 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 
- // Include the database connection file
 require_once '../Process/db_connection.php';
-
-// Get the database connection
 $connection = getDBConnection();
 
     if ($connection->connect_error) {
@@ -26,9 +34,11 @@ $connection = getDBConnection();
         exit;
     }
 
+    
     $stmt = $connection->prepare("
-        INSERT INTO tblpayment (refno, name, type, date, amount, RequestStatus)
-        VALUES (?, ?, ?, ?, ?, 'Pending')
+        INSERT INTO tblpayment 
+        (refno, name, type, date, amount, RequestStatus, PaymentReceivedBy)
+        VALUES (?, ?, ?, ?, ?, 'Paid', ?)
     ");
 
     if (!$stmt) {
@@ -38,7 +48,7 @@ $connection = getDBConnection();
         exit;
     }
 
-    $stmt->bind_param("ssssd", $refno, $ownername, $requesttype, $requesteddate, $amount);
+    $stmt->bind_param("ssssds", $refno, $ownername, $requesttype, $requesteddate, $amount, $paymentReceivedBy);
 
     if ($stmt->execute()) {
         echo "success";

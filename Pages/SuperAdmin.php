@@ -1766,7 +1766,7 @@
                   } else {
                     echo "<tr><td colspan='7'>No item requests found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
 
                   // helper to render a small form-button
                   function actionBtn($id, $action, $label)
@@ -1866,7 +1866,7 @@
                   } else {
                     echo "<tr><td colspan='9'>No blotter records found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
 
 
@@ -2309,7 +2309,7 @@
                   } else {
                     echo "<tr><td colspan='10'>No blottered individuals found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
                 </tbody>
               </table>
@@ -2393,7 +2393,7 @@
                 echo "<div class='alert alert-danger'>Failed to prepare statement.</div>";
             }
         }
-        $conn->close();
+        // Singleton connection closed by PHP
     }
 }
 ?>
@@ -2440,7 +2440,7 @@
           } else {
               echo "<div class='alert alert-info mt-3'>No announcements yet.</div>";
           }
-          $conn->close();
+          // Singleton connection closed by PHP
       }
     ?>
 </div>

@@ -1,8 +1,8 @@
 <?php
-require_once '../Process/db_connection.php';
-require_once '../Process/activity_logger.php';
-require_once './Terms&Conditions/Terms&Conditons.php';
 session_start();
+require_once '../Process/db_connection.php';
+require_once '../Process/user_activity_logger.php';
+require_once './Terms&Conditions/Terms&Conditons.php';
 $conn = getDBConnection();
 
 // Check if user is logged in
@@ -132,8 +132,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                 $success = true;
                 $success_ref_no = $refno;
                 
-                // Log request creation activity
-                logRequestCreatedActivity($conn, $userId, 'Complaint', $refno);
+                // Log user activity
+                logUserActivity(
+                    'Complaint submitted',
+                    'complaint_request',
+                    [
+                        'complaint_summary' => substr($complain, 0, 100),
+                        'reference_no' => $refno
+                    ]
+                );
                 
                 // Reset form but keep user data
                 $complain = '';
@@ -392,7 +399,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             <!-- Terms and Conditions Section -->
             <?php echo displayTermsAndConditions('complainForm'); ?>
             
-            <div class="form-group">
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
+                <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
                 <button type="submit" class="btn" id="submitBtn">Submit Complaint</button>
             </div>
         </form>
@@ -467,3 +477,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
     </script>
 </body>
 </html>
+

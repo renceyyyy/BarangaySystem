@@ -128,6 +128,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$conn->close();
+// Don't close singleton connection
 echo json_encode($response);
 ?>

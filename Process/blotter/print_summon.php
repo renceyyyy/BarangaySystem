@@ -52,7 +52,7 @@ while ($row = $accusedResult->fetch_assoc()) {
 }
 $stmt->close();
 
-$conn->close();
+// Singleton connection closed by PHP
 
 if (!$blotter || !$participant) {
   die("Invalid summon request.");

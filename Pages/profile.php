@@ -3,11 +3,10 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require_once '../Process/db_connection.php';
+// Initialize resident session
+require_once __DIR__ . '/../config/session_resident.php';
 
-if (session_status() === PHP_SESSION_NONE) {
-  session_start();
-}
+require_once '../Process/db_connection.php';
 
 if (!isset($_SESSION['user_id'])) {
   header("Location: ../Login/login.php");
@@ -112,9 +111,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["update_profile"])) {
   $civilstatus = $_POST['civilstatus'] ?? '';
   $nationality = trim($_POST['nationality'] ?? '');
 
-  // Basic validation
+  // Basic validation - Enhanced
   $errors = [];
 
+  // Required fields validation
   if (empty($firstname)) {
     $errors[] = "First name is required.";
   }
@@ -133,8 +133,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["update_profile"])) {
       $errors[] = "You must be at least 18 years old to complete your profile.";
     }
   }
+  
+  // Additional required fields for profile completion
+  if (empty($email)) {
+    $errors[] = "Email address is required.";
+  }
+  if (empty($contactno)) {
+    $errors[] = "Contact number is required.";
+  }
+  if (empty($address)) {
+    $errors[] = "Address is required.";
+  }
+  if (empty($birthplace)) {
+    $errors[] = "Birthplace is required.";
+  }
+  if (empty($civilstatus)) {
+    $errors[] = "Civil status is required.";
+  }
+  if (empty($nationality)) {
+    $errors[] = "Nationality is required.";
+  }
+  
+  // Email format validation
   if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $errors[] = "Invalid email format.";
+  }
+  
+  // Contact number validation
+  if (!empty($contactno) && !preg_match('/^[0-9]{10,11}$/', $contactno)) {
+    $errors[] = "Contact number must be 10-11 digits.";
+  }
+  
+  // Valid ID requirement
+  if (!isset($_FILES['valid_id']) || $_FILES['valid_id']['error'] !== UPLOAD_ERR_OK) {
+    // Check if user already has a valid ID uploaded
+    if (empty($current_user['ValidID'])) {
+      $errors[] = "Valid ID upload is required to complete your profile.";
+    }
   }
 
   if (!empty($errors)) {
@@ -144,14 +179,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["update_profile"])) {
     exit();
   }
 
-  // Convert empty strings to NULL for optional fields
+  // Convert empty strings to NULL for optional fields only (middlename is optional)
   $middlename = empty($middlename) ? NULL : $middlename;
-  $email = empty($email) ? NULL : $email;
-  $contactno = empty($contactno) ? NULL : $contactno;
-  $address = empty($address) ? NULL : $address;
-  $birthplace = empty($birthplace) ? NULL : $birthplace;
-  $civilstatus = empty($civilstatus) ? NULL : $civilstatus;
-  $nationality = empty($nationality) ? NULL : $nationality;
 
   // Calculate age from birthdate
   $calculated_age = calculateAge($birthdate);
@@ -810,6 +839,37 @@ $stmt->close();
       color: #2e7d32;
     }
 
+    /* Error message styles for form validation */
+    .error-message {
+      display: block;
+      color: #dc3545;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-top: 0.25rem;
+      padding: 0.25rem 0;
+      min-height: 1.2rem;
+      line-height: 1.2;
+    }
+
+    .form-group input.error,
+    .form-group select.error {
+      border-color: #dc3545 !important;
+      box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
+    }
+
+    .form-group input:invalid {
+      border-color: #dc3545;
+    }
+
+    .form-group input:valid:not(:placeholder-shown) {
+      border-color: #28a745;
+    }
+
+    .required {
+      color: #dc3545;
+      font-weight: 600;
+    }
+
     /* File Upload - Enhanced - FIXED */
     .custom-file-upload {
       display: flex;
@@ -1185,14 +1245,20 @@ $stmt->close();
           </div>
 
           <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($user['Email'] ?: ''); ?>">
+            <label for="email">Email *</label>
+            <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($user['Email'] ?: ''); ?>" required>
+            <span id="emailError" class="error-message"></span>
           </div>
 
           <div class="form-group">
-            <label for="contactno">Contact Number</label>
+            <label for="contactno">Contact Number *</label>
             <input type="text" name="contactno" id="contactno"
-              value="<?php echo htmlspecialchars($user['ContactNo'] ?: ''); ?>">
+              value="<?php echo htmlspecialchars($user['ContactNo'] ?: ''); ?>" 
+              pattern="[0-9]{10,11}" 
+              title="Please enter a valid 10-11 digit contact number"
+              required>
+            <small>Enter a valid 10-11 digit contact number</small>
+            <span id="contactError" class="error-message"></span>
           </div>
 
           <div class="form-group">
@@ -1214,20 +1280,22 @@ $stmt->close();
           </div>
 
           <div class="form-group">
-            <label for="address">Address</label>
+            <label for="address">Address *</label>
             <input type="text" name="address" id="address"
-              value="<?php echo htmlspecialchars($user['Address'] ?: ''); ?>">
+              value="<?php echo htmlspecialchars($user['Address'] ?: ''); ?>" required>
+            <span id="addressError" class="error-message"></span>
           </div>
 
           <div class="form-group">
-            <label for="birthplace">Birthplace</label>
+            <label for="birthplace">Birthplace *</label>
             <input type="text" name="birthplace" id="birthplace"
-              value="<?php echo htmlspecialchars($user['Birthplace'] ?: ''); ?>">
+              value="<?php echo htmlspecialchars($user['Birthplace'] ?: ''); ?>" required>
+            <span id="birthplaceError" class="error-message"></span>
           </div>
 
           <div class="form-group">
-            <label for="civilstatus">Civil Status</label>
-            <select name="civilstatus" id="civilstatus">
+            <label for="civilstatus">Civil Status *</label>
+            <select name="civilstatus" id="civilstatus" required>
               <option value="">Select Status</option>
               <option value="Single" <?php echo ($user['CivilStatus'] === 'Single') ? 'selected' : ''; ?>>Single</option>
               <option value="Married" <?php echo ($user['CivilStatus'] === 'Married') ? 'selected' : ''; ?>>Married
@@ -1237,23 +1305,33 @@ $stmt->close();
               <option value="Divorced" <?php echo ($user['CivilStatus'] === 'Divorced') ? 'selected' : ''; ?>>Divorced
               </option>
             </select>
+            <span id="civilstatusError" class="error-message"></span>
           </div>
 
           <div class="form-group">
-            <label for="nationality">Nationality</label>
+            <label for="nationality">Nationality *</label>
             <input type="text" name="nationality" id="nationality"
-              value="<?php echo htmlspecialchars($user['Nationality'] ?: ''); ?>">
+              value="<?php echo htmlspecialchars($user['Nationality'] ?: ''); ?>" required>
+            <span id="nationalityError" class="error-message"></span>
           </div>
 
           <div class="form-group">
-            <label>Valid ID</label>
-            <input type="file" name="valid_id" id="valid_id" accept="image/*,application/pdf" style="display: none;">
+           <label for="valid-id">Valid ID *</label>
+<p class="helper-text">Please provide a Barangay ID or any government-issued ID with your address listed as Barangay Sampaguita.</p>
+            <input type="file" name="valid_id" id="valid_id" accept="image/*,application/pdf" style="display: none;" 
+              <?php echo empty($user['ValidID']) ? 'required' : ''; ?>>
             <button type="button" class="file-upload-btn" onclick="document.getElementById('valid_id').click();">
               <i class="fas fa-upload"></i>
               <span>Choose File</span>
             </button>
-            <span id="file-name"></span>
-            <small>Upload a clear photo of your valid government ID (JPEG, PNG, PDF only, max 5MB)</small>
+            <span id="file-name"><?php echo !empty($user['ValidID']) ? 'File already uploaded' : ''; ?></span>
+            <small>Upload a clear photo of your valid government ID (JPEG, PNG, PDF only, max 5MB)
+              <?php if (!empty($user['ValidID'])): ?>
+                <br><em>Current file: <?php echo basename($user['ValidID']); ?> (You can upload a new one to replace it)</em>
+                <span class="existing-file" style="display: none;"></span>
+              <?php endif; ?>
+            </small>
+            <span id="validIdError" class="error-message"></span>
           </div>
 
           <div class="btn-group">
@@ -1397,6 +1475,9 @@ $stmt->close();
 
       // Check if verified notification was already dismissed
       initializeVerifiedNotice();
+
+      // Initialize form validation
+      initializeFormValidation();
     });
 
     // Initialize verified account notification
@@ -1432,6 +1513,144 @@ $stmt->close();
           localStorage.setItem('verifiedNoticeDismissed', 'true');
         }, 300);
       }
+    }
+
+    // Profile validation functions
+    function validateEmail() {
+      const email = document.getElementById('email');
+      const emailError = document.getElementById('emailError');
+      const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      
+      if (!email.value.trim()) {
+        emailError.textContent = 'Email is required.';
+        return false;
+      } else if (!emailPattern.test(email.value)) {
+        emailError.textContent = 'Please enter a valid email address.';
+        return false;
+      } else {
+        emailError.textContent = '';
+        return true;
+      }
+    }
+
+    function validateContactNo() {
+      const contact = document.getElementById('contactno');
+      const contactError = document.getElementById('contactError');
+      const contactPattern = /^[0-9]{10,11}$/;
+      
+      if (!contact.value.trim()) {
+        contactError.textContent = 'Contact number is required.';
+        return false;
+      } else if (!contactPattern.test(contact.value)) {
+        contactError.textContent = 'Contact number must be 10-11 digits.';
+        return false;
+      } else {
+        contactError.textContent = '';
+        return true;
+      }
+    }
+
+    function validateRequiredField(fieldId, errorId, fieldName) {
+      const field = document.getElementById(fieldId);
+      const error = document.getElementById(errorId);
+      
+      if (!field || !error) return true; // Field doesn't exist, skip validation
+      
+      if (!field.value.trim()) {
+        error.textContent = fieldName + ' is required.';
+        return false;
+      } else {
+        error.textContent = '';
+        return true;
+      }
+    }
+
+    function validateForm() {
+      let isValid = true;
+      
+      // Validate all required fields
+      isValid &= validateRequiredField('email', 'emailError', 'Email');
+      isValid &= validateEmail();
+      isValid &= validateRequiredField('contactno', 'contactError', 'Contact Number');
+      isValid &= validateContactNo();
+      isValid &= validateRequiredField('address', 'addressError', 'Address');
+      isValid &= validateRequiredField('birthplace', 'birthplaceError', 'Birthplace');
+      isValid &= validateRequiredField('civilstatus', 'civilstatusError', 'Civil Status');
+      isValid &= validateRequiredField('nationality', 'nationalityError', 'Nationality');
+      
+      // Validate Valid ID upload (only for new profiles without existing ID)
+      const validIdFile = document.getElementById('valid_id');
+      const validIdError = document.getElementById('validIdError');
+      const hasExistingId = document.querySelector('.existing-file') !== null;
+      
+      if (validIdFile && validIdError && !hasExistingId && (!validIdFile.files || validIdFile.files.length === 0)) {
+        validIdError.textContent = 'Valid ID is required.';
+        isValid = false;
+      } else if (validIdError) {
+        validIdError.textContent = '';
+      }
+      
+      const submitBtn = document.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = !isValid;
+        if (!isValid) {
+          submitBtn.style.opacity = '0.5';
+          submitBtn.style.cursor = 'not-allowed';
+        } else {
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
+        }
+      }
+      
+      return isValid;
+    }
+
+    // Enhanced DOMContentLoaded to include validation
+    function initializeFormValidation() {
+      // Add validation on input events
+      const fields = ['email', 'contactno', 'address', 'birthplace', 'civilstatus', 'nationality'];
+      
+      fields.forEach(function(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          field.addEventListener('input', validateForm);
+          field.addEventListener('blur', validateForm);
+        }
+      });
+      
+      // Special handling for email
+      const emailField = document.getElementById('email');
+      if (emailField) {
+        emailField.addEventListener('input', validateEmail);
+        emailField.addEventListener('blur', validateEmail);
+      }
+      
+      // Special handling for contact number
+      const contactField = document.getElementById('contactno');
+      if (contactField) {
+        contactField.addEventListener('input', validateContactNo);
+        contactField.addEventListener('blur', validateContactNo);
+      }
+      
+      // Valid ID file input
+      const validIdField = document.getElementById('valid_id');
+      if (validIdField) {
+        validIdField.addEventListener('change', validateForm);
+      }
+      
+      // Form submission validation
+      const form = document.querySelector('form');
+      if (form) {
+        form.addEventListener('submit', function(e) {
+          if (!validateForm()) {
+            e.preventDefault();
+            alert('Please complete all required fields before submitting.');
+          }
+        });
+      }
+      
+      // Initial validation
+      validateForm();
     }
   </script>
 </body>

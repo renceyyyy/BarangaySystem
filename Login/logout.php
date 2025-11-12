@@ -1,5 +1,9 @@
 <?php
-session_start();
+// Start session to access session data
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . '/../Process/db_connection.php';
 
 $conn = getDBConnection();

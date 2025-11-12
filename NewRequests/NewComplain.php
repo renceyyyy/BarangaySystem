@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once '../Process/db_connection.php';
 require_once '../Process/user_activity_logger.php';
 require_once './Terms&Conditions/Terms&Conditons.php';
@@ -55,12 +54,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
     $required = [
         'firstname' => 'First Name',
         'lastname' => 'Last Name', 
-        'complain' => 'Complaint Details'
+        'complain' => 'Complaint Details',
+        'date_of_incident' => 'Date of Incident',
+        'location_of_incident' => 'Location of Incident',
+        'incident_type' => 'Incident Type'
     ];
     
     foreach ($required as $field => $fieldName) {
         if (empty(trim($_POST[$field] ?? ''))) {
             $errors[] = "$fieldName is required!";
+        }
+    }
+
+    // Validate other incident type if selected
+    if (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Other') {
+        if (empty(trim($_POST['other_incident_type'] ?? ''))) {
+            $errors[] = "Please specify the incident type when selecting 'Other'!";
         }
     }
 
@@ -97,9 +106,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
         $firstname = mysqli_real_escape_string($conn, trim($_POST['firstname']));
         $lastname = mysqli_real_escape_string($conn, trim($_POST['lastname']));
         $complain = mysqli_real_escape_string($conn, trim($_POST['complain']));
+        $dateOfIncident = mysqli_real_escape_string($conn, trim($_POST['date_of_incident']));
+        $locationOfIncident = mysqli_real_escape_string($conn, trim($_POST['location_of_incident']));
+        $incidentType = mysqli_real_escape_string($conn, trim($_POST['incident_type']));
+        
+        // Handle "Other" incident type
+        if ($incidentType === 'Other') {
+            $incidentType = mysqli_real_escape_string($conn, trim($_POST['other_incident_type']));
+        }
 
         // Insert into database
-        $sql = "INSERT INTO complaintbl (Firstname, Lastname, Complain, Evidencepic, refno, Userid) VALUES (?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO complaintbl (Firstname, Lastname, Complain, Evidencepic, refno, Userid, DateTimeofIncident, LocationofIncident, IncidentType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
 
         if ($stmt === false) {
@@ -108,23 +125,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             // Bind parameters
             $null = null;
             if ($evidencePicData !== null) {
-                $stmt->bind_param("sssbii", 
+                $stmt->bind_param("sssbiisss", 
                     $firstname,
                     $lastname,
                     $complain,
                     $null,
                     $refno,
-                    $userId
+                    $userId,
+                    $dateOfIncident,
+                    $locationOfIncident,
+                    $incidentType
                 );
                 $stmt->send_long_data(3, $evidencePicData); // Parameter index 3 is Evidencepic
             } else {
-                $stmt->bind_param("ssssii", 
+                $stmt->bind_param("ssssiisss", 
                     $firstname,
                     $lastname,
                     $complain,
                     $null,
                     $refno,
-                    $userId
+                    $userId,
+                    $dateOfIncident,
+                    $locationOfIncident,
+                    $incidentType
                 );
             }
 
@@ -132,18 +155,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                 $success = true;
                 $success_ref_no = $refno;
                 
-                // Log user activity
+                // Log request creation activity
                 logUserActivity(
                     'Complaint submitted',
                     'complaint_request',
                     [
-                        'complaint_summary' => substr($complain, 0, 100),
-                        'reference_no' => $refno
+                        'reference_no' => $refno,
+                        'incident_type' => $incidentType
                     ]
                 );
                 
                 // Reset form but keep user data
                 $complain = '';
+                $_POST['date_of_incident'] = '';
+                $_POST['location_of_incident'] = '';
+                $_POST['incident_type'] = '';
+                $_POST['other_incident_type'] = '';
             } else {
                 $errors[] = "Error submitting complaint: " . $stmt->error;
             }
@@ -190,6 +217,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             font-weight: bold;
         }
         input[type="text"],
+        input[type="date"],
+        select,
         textarea {
             width: 100%;
             padding: 8px;
@@ -236,6 +265,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
         .btn:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
+        }
+        .btn-secondary {
+            background-color: #6c757d !important;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268 !important;
         }
         .form-section {
             margin-bottom: 30px;
@@ -380,6 +415,40 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             </div>
             
             <div class="form-section">
+                <h2>Incident Information</h2>
+                
+                <div class="form-group">
+                    <label for="date_of_incident">Date of Incident <span class="required">*</span></label>
+                    <input type="date" id="date_of_incident" name="date_of_incident" value="<?php echo htmlspecialchars($_POST['date_of_incident'] ?? ''); ?>" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="location_of_incident">Location of Incident <span class="required">*</span></label>
+                    <input type="text" id="location_of_incident" name="location_of_incident" value="<?php echo htmlspecialchars($_POST['location_of_incident'] ?? ''); ?>" placeholder="Please provide the exact location where the incident occurred" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="incident_type">Incident Type <span class="required">*</span></label>
+                    <select id="incident_type" name="incident_type" required>
+                        <option value="">Select Incident Type</option>
+                        <option value="Theft" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Theft') ? 'selected' : ''; ?>>Theft</option>
+                        <option value="Assault" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Assault') ? 'selected' : ''; ?>>Assault</option>
+                        <option value="Vandalism" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Vandalism') ? 'selected' : ''; ?>>Vandalism</option>
+                        <option value="Domestic Dispute" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Domestic Dispute') ? 'selected' : ''; ?>>Domestic Dispute</option>
+                        <option value="Noise Complaint" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Noise Complaint') ? 'selected' : ''; ?>>Noise Complaint</option>
+                        <option value="Traffic Violation" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Traffic Violation') ? 'selected' : ''; ?>>Traffic Violation</option>
+                        <option value="Grave Threat" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Grave Threat') ? 'selected' : ''; ?>>Grave Threat</option>
+                        <option value="Other" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Other') ? 'selected' : ''; ?>>Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="otherIncidentGroup" style="display: none;">
+                    <label for="other_incident_type">Specify Other Incident Type <span class="required">*</span></label>
+                    <input type="text" id="other_incident_type" name="other_incident_type" value="<?php echo htmlspecialchars($_POST['other_incident_type'] ?? ''); ?>" placeholder="Please specify the type of incident">
+                </div>
+            </div>
+            
+            <div class="form-section">
                 <h2>Complaint Details</h2>
                 
                 <div class="form-group">
@@ -417,6 +486,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             const form = document.getElementById('complaintForm');
             const evidenceInput = document.getElementById('evidence_image');
             const evidencePreview = document.getElementById('evidence_preview');
+            const incidentTypeSelect = document.getElementById('incident_type');
+            const otherIncidentGroup = document.getElementById('otherIncidentGroup');
+            const otherIncidentInput = document.getElementById('other_incident_type');
+
+            // Handle incident type selection
+            function toggleOtherIncidentType() {
+                if (incidentTypeSelect.value === 'Other') {
+                    otherIncidentGroup.style.display = 'block';
+                    otherIncidentInput.required = true;
+                } else {
+                    otherIncidentGroup.style.display = 'none';
+                    otherIncidentInput.required = false;
+                    otherIncidentInput.value = '';
+                }
+                validateForm();
+            }
+
+            incidentTypeSelect.addEventListener('change', toggleOtherIncidentType);
+            
+            // Initialize on page load
+            toggleOtherIncidentType();
 
             function validateForm() {
                 let isValid = true;
@@ -428,6 +518,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                         isValid = false;
                     }
                 });
+                
+                // Special validation for other incident type
+                if (incidentTypeSelect.value === 'Other' && !otherIncidentInput.value.trim()) {
+                    isValid = false;
+                }
                 
                 submitBtn.disabled = !isValid;
             }
@@ -477,4 +572,3 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
     </script>
 </body>
 </html>
-

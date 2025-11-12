@@ -1,8 +1,7 @@
 <?php
 // Handle notification counter updates
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Initialize resident session
+require_once __DIR__ . '/../config/session_resident.php';
 
 header('Content-Type: application/json');
 

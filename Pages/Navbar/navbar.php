@@ -1,7 +1,6 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Session should already be initialized by parent page
+// Don't initialize session here as this file is included after HTML output
 
 // Include database connection module
 require_once '../Process/db_connection.php';
@@ -126,19 +125,6 @@ if (isset($_SESSION['user_id'])) {
         $result = $stmt->get_result();
         if ($result->fetch_assoc()['count'] > 0) {
             $pendingTypes['guardianship'] = true;
-        }
-        $stmt->close();
-    }
-
-    // No Birth Certificate
-    $sql = "SELECT COUNT(*) as count FROM no_birthcert_tbl WHERE user_id = ? AND RequestStatus = 'Pending'";
-    $stmt = $conn->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param("i", $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($result->fetch_assoc()['count'] > 0) {
-            $pendingTypes['no_birth'] = true;
         }
         $stmt->close();
     }
@@ -525,42 +511,7 @@ unset($_SESSION['verification_notification']);
             }
         }
 
-        /* Custom Notification Popup */
-        .custom-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: #4CAF50;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 5px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 9999;
-            display: none;
-            max-width: 350px;
-            animation: slideIn 0.3s ease-out;
-            font-family: 'Archivo', sans-serif;
-        }
-
-        .custom-notification.verification {
-            background-color: #4CAF50;
-        }
-
-        .custom-notification.warning {
-            background-color: #ffcc00;
-            color: #333;
-        }
-
-        .custom-notification i {
-            margin-right: 10px;
-            font-size: 1.2rem;
-        }
-
-        .custom-notification-content {
-            display: flex;
-            align-items: center;
-        }
-
+        /* Animation for real-time notifications (defined in Script_realtime_notifications.js) */
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -665,14 +616,6 @@ unset($_SESSION['verification_notification']);
 </head>
 
 <body>
-    <!-- Custom Notification Popup -->
-    <div class="custom-notification" id="customNotification">
-        <div class="custom-notification-content">
-            <i class="fas fa-check-circle"></i>
-            <span id="notificationMessage"></span>
-        </div>
-    </div>
-
     <!-- Change Password Modal -->
     <div id="changePasswordModal" class="modal">
         <div class="modal-content">
@@ -774,9 +717,6 @@ unset($_SESSION['verification_notification']);
 
                             <!-- Cohabitation -->
                             <a href="../NewRequests/CohabilitationForm.php">Cohabitation</a>
-
-                            <!-- No Birth Certificate -->
-                            <a href="../NewRequests/NewNoBirthCertificate.php">No Birth Certificate</a>
                             
                         <?php else: ?>
                             <a href="#"
@@ -797,9 +737,6 @@ unset($_SESSION['verification_notification']);
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Guardianship</a>
                             <a href="#"
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Cohabitation</a>
-                            <a href="#"
-                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">No
-                                Birth Certificate</a>
                         <?php endif; ?>
                     <?php else: ?>
                         <a href="../Login/login.php">Request Government Documents</a>
@@ -1119,35 +1056,154 @@ unset($_SESSION['verification_notification']);
                 });
             }
         });
-
-        // Custom notification function
-        function showNotification(message, type = 'warning') {
-            const notification = document.getElementById('customNotification');
-            const messageElement = document.getElementById('notificationMessage');
-
-            // Set notification type
-            notification.className = 'custom-notification';
-            if (type === 'verification') {
-                notification.classList.add('verification');
-                notification.querySelector('i').className = 'fas fa-check-circle';
-            } else {
-                notification.classList.add('warning');
-                notification.querySelector('i').className = 'fas fa-exclamation-circle';
-            }
-
-            messageElement.textContent = message;
-            notification.style.display = 'block';
-            notification.style.animation = 'slideIn 0.3s ease-out';
-
-            // Auto hide after 5 seconds
-            setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease-out';
+    </script>
+    
+    <!-- Real-Time Notification System -->
+    <script>
+        const RESIDENT_USER_ID = '<?php echo $_SESSION['user_id'] ?? ''; ?>';
+        const RESIDENT_ROLE = '<?php echo $_SESSION['role'] ?? 'resident'; ?>';
+        
+        // Only run for residents
+        if (RESIDENT_USER_ID && RESIDENT_ROLE === 'resident') {
+            const STORAGE_KEY = `barangay_resident_${RESIDENT_USER_ID}_status`;
+            const CHECK_INTERVAL = 5000; // 5 seconds
+            
+            // Function to show notification
+            function showStatusNotification(message, status) {
+                const notification = document.createElement('div');
+                
+                let bgColor, textColor, borderColor;
+                if (status === 'approved' || status === 'completed') {
+                    bgColor = '#e8f5e9';
+                    textColor = '#2e7d32';
+                    borderColor = '#2e7d32';
+                } else if (status === 'declined') {
+                    bgColor = '#ffebee';
+                    textColor = '#c62828';
+                    borderColor = '#c62828';
+                } else if (status === 'released') {
+                    bgColor = '#e3f2fd';
+                    textColor = '#1565c0';
+                    borderColor = '#1565c0';
+                } else {
+                    bgColor = '#fff3e0';
+                    textColor = '#e65100';
+                    borderColor = '#e65100';
+                }
+                
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    z-index: 99999;
+                    max-width: 450px;
+                    padding: 16px 20px;
+                    border-radius: 4px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    font-family: Arial, sans-serif;
+                    font-size: 15px;
+                    font-weight: bold;
+                    line-height: 1.6;
+                    cursor: pointer;
+                    border-left: 4px solid ${borderColor};
+                    background: ${bgColor};
+                    color: ${textColor};
+                `;
+                
+                notification.textContent = message;
+                notification.onclick = function() {
+                    document.body.removeChild(notification);
+                };
+                
+                document.body.appendChild(notification);
+                
                 setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 300);
-            }, 5000);
+                    if (notification.parentNode) {
+                        document.body.removeChild(notification);
+                    }
+                }, 10000);
+            }
+            
+            // Function to check for updates
+            function checkForStatusUpdates() {
+                const timestamp = Date.now();
+                const apiPath = '/BarangaySystem/BarangaySystem/Process/check_status_updates.php?t=' + timestamp;
+                
+                fetch(apiPath, {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success || !data.requests) {
+                        return;
+                    }
+                    
+                    const currentRequests = data.requests;
+                    const stored = localStorage.getItem(STORAGE_KEY);
+                    
+                    if (!stored) {
+                        const snapshot = {
+                            userId: RESIDENT_USER_ID,
+                            timestamp: timestamp,
+                            requests: currentRequests
+                        };
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+                        return;
+                    }
+                    
+                    const previousData = JSON.parse(stored);
+                    const previousRequests = previousData.requests;
+                    
+                    // Check for changes
+                    for (const refno in currentRequests) {
+                        const current = currentRequests[refno];
+                        const previous = previousRequests[refno];
+                        
+                        if (previous && current.status !== previous.status) {
+                            let message = '';
+                            const status = current.status.toLowerCase();
+                            
+                            if (status === 'approved' || status === 'completed') {
+                                message = `Your ${current.type} (Ref No: ${refno}) is approved. Please proceed to the barangay office and pay the needed fee to get your request.`;
+                            } else if (status === 'declined') {
+                                const reason = current.decline_reason || 'administrative reasons';
+                                message = `Unfortunately, your ${current.type} (Ref No: ${refno}) is declined due to ${reason}. For inquiries, go to the barangay or contact us at: 86380301.`;
+                            } else if (status === 'released') {
+                                message = `Your ${current.type} (Ref No: ${refno}) is now ready for release. You may claim it at the barangay office.`;
+                            } else {
+                                message = `Your ${current.type} (Ref No: ${refno}) status has been updated to: ${current.status}`;
+                            }
+                            
+                            showStatusNotification(message, current.status);
+                        }
+                    }
+                    
+                    // Update snapshot
+                    const snapshot = {
+                        userId: RESIDENT_USER_ID,
+                        timestamp: timestamp,
+                        requests: currentRequests
+                    };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+                    
+                })
+                .catch(error => {
+                    console.error('[Notification] Error:', error);
+                });
+            }
+            
+            // Start checking every 5 seconds
+            setInterval(checkForStatusUpdates, CHECK_INTERVAL);
+            setTimeout(checkForStatusUpdates, 1000);
         }
     </script>
+
 </body>
 
 </html>

@@ -1,9 +1,30 @@
 <?php
+// Set resident session name BEFORE starting session
+session_name('BarangayResidentSession');
+
+// Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
+
 if (!isset($_SESSION['user_id'])) {
   header("Location: ../Login/login.php");
+  exit();
+}
+
+// Prevent admin/staff from accessing resident pages
+$userRole = $_SESSION['role'] ?? 'resident';
+if (in_array($userRole, ['admin', 'finance', 'sk', 'SuperAdmin'])) {
+  // Redirect admin back to their dashboard
+  if ($userRole === 'admin') {
+    header("Location: Adminpage.php");
+  } elseif ($userRole === 'finance') {
+    header("Location: FinancePage.php");
+  } elseif ($userRole === 'sk') {
+    header("Location: SKpage.php");
+  } elseif ($userRole === 'SuperAdmin') {
+    header("Location: SuperAdmin.php");
+  }
   exit();
 }
 
@@ -281,6 +302,16 @@ function getStatusBadgeClass($status)
   <link rel="stylesheet" href="../Styles/StylesProfile.css">
   <link rel="stylesheet" href="../Styles/ReqStatus.css">
   <style>
+    /* Pulse animation for real-time indicator */
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.3;
+      }
+    }
+
     .status-badge {
       padding: 6px 12px;
       border-radius: 20px;
@@ -433,6 +464,22 @@ function getStatusBadgeClass($status)
     <div class="page-header">
       <h1><i class="fas fa-file-alt"></i> My Request Status</h1>
       <p>Track all your submitted requests and their current status</p>
+      <!-- Real-time monitoring indicator -->
+      <div id="realtimeIndicator" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #28a745; margin-top: 8px;">
+        <i class="fas fa-circle" style="font-size: 0.5rem; animation: pulse 2s infinite;"></i>
+        <span>Real-time monitoring active</span>
+      </div>
+    </div>
+
+    <!-- Document Collection Information -->
+    <div style="background-color: #d1edff; border: 1px solid #b3d7ff; border-radius: 6px; padding: 15px 20px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 15px;">
+      <i class="fas fa-info-circle" style="color: #0b5ed7; font-size: 1.3rem; flex-shrink: 0; margin-top: 2px;"></i>
+      <div>
+        <strong style="color: #0b5ed7;">Document Collection Information</strong>
+        <p style="margin: 5px 0 0 0; color: #0b5ed7; font-size: 0.95rem; line-height: 1.4;">
+          To claim your approved requested documents, please proceed to the barangay hall, pay the required payment, and collect your documents. For any questions or clarifications, please contact us at <strong>86380301</strong> during office hours.
+        </p>
+      </div>
     </div>
 
     <?php 
@@ -817,6 +864,323 @@ function getStatusBadgeClass($status)
         alert('Update feature not available for this request type.');
       }
     }
+  </script>
+  
+  <!-- Real-time Notification System -->
+  <script>
+    // Real-time notification checking
+    let notificationCheckInterval;
+    let isPageVisible = true;
+    const STORAGE_KEY = 'barangay_resident_<?php echo $_SESSION['user_id']; ?>_status';
+    const USER_ID = '<?php echo $_SESSION['user_id']; ?>';
+    const USER_ROLE = '<?php echo $userRole; ?>';
+
+    // Function to get stored request snapshot
+    function getStoredSnapshot() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) return null;
+        
+        const data = JSON.parse(stored);
+        
+        // Validate that stored data belongs to current user
+        if (data.userId && data.userId !== USER_ID) {
+          console.log('⚠️ Stored data belongs to different user, clearing...');
+          localStorage.removeItem(STORAGE_KEY);
+          return null;
+        }
+        
+        return data.requests || data;
+      } catch (e) {
+        console.log('Error reading stored snapshot:', e);
+        return null;
+      }
+    }
+
+    // Function to save request snapshot
+    function saveSnapshot(snapshot) {
+      try {
+        const data = {
+          userId: USER_ID,
+          role: USER_ROLE,
+          timestamp: Date.now(),
+          requests: snapshot
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.log('Error saving snapshot:', e);
+      }
+    }
+
+    // Function to check for status updates
+    function checkForStatusUpdates() {
+      // Only check if page is visible and user is active
+      if (!isPageVisible) return;
+      
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      
+      fetch(`../Process/check_status_updates.php?t=${timestamp}`, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Check if user role changed (admin logged in)
+        if (data.error && data.role) {
+          console.log('⚠️ Session changed - redirecting...');
+          // Admin logged in, stop monitoring and redirect
+          clearInterval(notificationCheckInterval);
+          window.location.href = '../Login/login.php';
+          return;
+        }
+        
+        if (data.success && data.requests) {
+          const currentRequests = data.requests;
+          const previousRequests = getStoredSnapshot();
+          
+          console.log('📊 Current requests:', Object.keys(currentRequests).length);
+          console.log('📊 Previous requests:', previousRequests ? Object.keys(previousRequests).length : 0);
+          
+          // If this is the first check, just store the current state
+          if (!previousRequests) {
+            saveSnapshot(currentRequests);
+            console.log('✅ Real-time monitoring initialized - snapshot saved');
+            return;
+          }
+          
+          // Compare current with previous to detect changes
+          const notifications = [];
+          
+          // Check each current request against previous state
+          for (const refno in currentRequests) {
+            const currentReq = currentRequests[refno];
+            const previousReq = previousRequests[refno];
+            
+            // Normalize status to lowercase for comparison
+            const currentStatus = currentReq.status.toLowerCase();
+            const previousStatus = previousReq ? previousReq.status.toLowerCase() : null;
+            
+            console.log(`🔍 Checking ${refno}: ${previousStatus} -> ${currentStatus}`);
+            
+            // If request exists in both and status changed
+            if (previousReq && currentStatus !== previousStatus) {
+              console.log(`🔔 STATUS CHANGE DETECTED! ${refno}: ${previousStatus} -> ${currentStatus}`);
+              const statusChangeNotif = detectStatusChange(currentReq, previousReq);
+              if (statusChangeNotif) {
+                notifications.push(statusChangeNotif);
+                console.log('✅ Notification created:', statusChangeNotif);
+              }
+            }
+          }
+          
+          // Show notifications if any status changes detected
+          if (notifications.length > 0) {
+            console.log('🎉 Showing notifications:', notifications.length);
+            
+            notifications.forEach(notification => {
+              showStatusNotification(notification.message, notification.type);
+            });
+            
+            // Update stored snapshot AFTER showing notification
+            saveSnapshot(currentRequests);
+            
+            // Refresh the page after showing notifications
+            setTimeout(() => {
+              console.log('🔄 Reloading page to show updated status...');
+              location.reload();
+            }, 4000);
+          } else {
+            // No changes, just update the snapshot
+            console.log('✅ No status changes detected');
+            saveSnapshot(currentRequests);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('❌ Error checking updates:', error);
+      });
+    }
+
+    // Function to detect and create notification for status change
+    function detectStatusChange(currentReq, previousReq) {
+      const oldStatus = previousReq.status;
+      const newStatus = currentReq.status;
+      const requestType = currentReq.type || 'Request';
+      const refNo = currentReq.refno || 'N/A';
+      
+      // Pending -> Approved
+      if (oldStatus === 'pending' && (newStatus === 'approved' || newStatus === 'completed')) {
+        return {
+          type: 'approved',
+          message: `Your ${requestType} (Ref No: ${refNo}) is approved. Please proceed to the barangay office and pay the needed fee to get your request.`
+        };
+      }
+      
+      // Pending -> Declined
+      if (oldStatus === 'pending' && newStatus === 'declined') {
+        const reason = currentReq.decline_reason || 'incomplete requirements';
+        return {
+          type: 'declined',
+          message: `Unfortunately, your ${requestType} (Ref No: ${refNo}) is declined due to ${reason}. For inquiries, go to the barangay or contact us at: 86380301.`
+        };
+      }
+      
+      // Approved -> Released
+      if ((oldStatus === 'approved' || oldStatus === 'completed') && newStatus === 'released') {
+        return {
+          type: 'released',
+          message: `Your ${requestType} (Ref No: ${refNo}) is now ready for pickup. Please proceed to the barangay office.`
+        };
+      }
+      
+      return null;
+    }
+
+    // Function to show status update notifications - Simple and clean design
+    function showStatusNotification(message, type) {
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        max-width: 450px;
+        padding: 16px 20px;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+        animation: slideInFromRight 0.4s ease-out;
+        cursor: pointer;
+        border-left: 4px solid;
+      `;
+      
+      // Set simple single-tone color based on type
+      if (type === 'approved') {
+        notification.style.backgroundColor = '#e8f5e9';
+        notification.style.color = '#2e7d32';
+        notification.style.borderLeftColor = '#2e7d32';
+      } else if (type === 'declined') {
+        notification.style.backgroundColor = '#ffebee';
+        notification.style.color = '#c62828';
+        notification.style.borderLeftColor = '#c62828';
+      } else if (type === 'released') {
+        notification.style.backgroundColor = '#e3f2fd';
+        notification.style.color = '#1565c0';
+        notification.style.borderLeftColor = '#1565c0';
+      } else {
+        notification.style.backgroundColor = '#f5f5f5';
+        notification.style.color = '#424242';
+        notification.style.borderLeftColor = '#757575';
+      }
+      
+      // Simple text, no icons
+      notification.textContent = message;
+      
+      // Add click to dismiss
+      notification.addEventListener('click', function() {
+        notification.style.animation = 'slideOutToRight 0.3s ease-out';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      });
+      
+      // Add to page
+      document.body.appendChild(notification);
+      
+      // Auto remove after 10 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.style.animation = 'slideOutToRight 0.3s ease-out';
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.parentNode.removeChild(notification);
+            }
+          }, 300);
+        }
+      }, 10000);
+    }
+
+    // Add CSS animations for notifications
+    if (!document.getElementById('notification-animations')) {
+      const style = document.createElement('style');
+      style.id = 'notification-animations';
+      style.textContent = `
+        @keyframes slideInFromRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideOutToRight {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Page visibility detection
+    document.addEventListener('visibilitychange', function() {
+      isPageVisible = !document.hidden;
+      
+      if (isPageVisible) {
+        // Page became visible, do immediate check
+        checkForStatusUpdates();
+      }
+    });
+
+    // Start checking for updates when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // Clean up any admin localStorage keys
+      const allKeys = Object.keys(localStorage);
+      allKeys.forEach(key => {
+        if (key.includes('barangay') && !key.includes('resident') && !key.includes(USER_ID)) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      console.log('✅ Real-time notification system active (User ID: ' + USER_ID + ')');
+      
+      // Initial check after a short delay
+      setTimeout(checkForStatusUpdates, 2000);
+      
+      // Set up regular interval checking (every 5 seconds)
+      notificationCheckInterval = setInterval(checkForStatusUpdates, 5000);
+    });
+
+    // Clean up interval when page unloads
+    window.addEventListener('beforeunload', function() {
+      if (notificationCheckInterval) {
+        clearInterval(notificationCheckInterval);
+      }
+    });
+
+    // Also check when window gains focus
+    window.addEventListener('focus', function() {
+      setTimeout(checkForStatusUpdates, 500);
+    });
   </script>
 </body>
 

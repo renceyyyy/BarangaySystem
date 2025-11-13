@@ -35,56 +35,56 @@ include 'dashboard.php';
       <div class="col-12 col-md-2 sidebar">
         <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
-        <button class="sidebar-btn" onclick="showPanel('dashboardPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
         </button>
-        <button class="sidebar-btn" onclick="showPanel('residencePanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('residencePanel')">
           <i class="fas fa-users"></i> Residence
         </button>
         <div class="dropdown w-100">
-          <button class="sidebar-btn w-100" onclick="toggleDropdown(event)">
+          <button class="sidebar-btn w-100" type="button" onclick="toggleDropdown(event); return false;">
             <i class="fas fa-book"></i> Document Request <i class="fas fa-caret-down ms-auto"></i>
           </button>
 
           <div id="dropdownMenu" class="dropdown-content-custom">
-            <a href="#" onclick="showPanel('governmentDocumentPanel')">Government Document</a>
-            <a href="#" onclick="showPanel('businessPermitPanel')">Business Permit</a>
-            <a href="#" onclick="showPanel('businessUnemploymentCertificatePanel')">Unemployment Certificate Request</a>
-            <a href="#" onclick="showPanel('guardianshipPanel')">Guardianship</a>
-             <a href="#" onclick="showPanel('nobirthcertificatePanel')">Birth Certificate</a>
+            <a href="javascript:void(0);" onclick="showPanel('governmentDocumentPanel'); return false;">Government Document</a>
+            <a href="javascript:void(0);" onclick="showPanel('businessPermitPanel'); return false;">Business Permit</a>
+            <a href="javascript:void(0);" onclick="showPanel('businessUnemploymentCertificatePanel'); return false;">Unemployment Certificate Request</a>
+            <a href="javascript:void(0);" onclick="showPanel('guardianshipPanel'); return false;">Guardianship</a>
+             <a href="javascript:void(0);" onclick="showPanel('nobirthcertificatePanel'); return false;">Birth Certificate</a>
           </div>
         </div>
 
-        <button class="sidebar-btn" onclick="showPanel('itemrequestsPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('itemrequestsPanel')">
           <i class="fas fa-box-open"></i> Item Request
         </button>
 
-        <!-- <button class="sidebar-btn" onclick="showPanel('blotterComplaintPanel')">
+        <!-- <button class="sidebar-btn" type="button" onclick="showPanel('blotterComplaintPanel')">
           <i class="fas fa-exclamation-triangle"></i> Blotter/Complaint
         </button> -->
 
         <div class="dropdown w-100">
-          <button class="sidebar-btn w-100" onclick="toggleDropdown(event, 'blotterDropdownMenu')">
+          <button class="sidebar-btn w-100" type="button" onclick="toggleDropdown(event, 'blotterDropdownMenu'); return false;">
             <i class="fas fa-exclamation-triangle"></i> Blotter <i class="fas fa-caret-down ms-auto"></i>
           </button>
           <div id="blotterDropdownMenu" class="dropdown-content-custom">
-            <a href="#" onclick="showPanel('blotterComplaintPanel')">Blotter/Complaint</a>
-            <a href="#" onclick="showPanel('blotteredIndividualsPanel')">Blottered Individuals</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotterComplaintPanel'); return false;">Blotter/Complaint</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotteredIndividualsPanel'); return false;">Blottered Individuals</a>
           </div>
         </div>
 
 
 
-        <button class="sidebar-btn" onclick="showPanel('reportsPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('reportsPanel')">
           <i class="fas fa-file-alt"></i> Reports
         </button>
-        <button class="sidebar-btn" onclick="showPanel('auditTrailPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('auditTrailPanel')">
           <i class="fas fa-history"></i> Audit Trail
         </button>
-        <button class="sidebar-btn" onclick="showPanel('announcementPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('announcementPanel')">
           <i class="fas fa-newspaper"></i> Announcement
         </button>
-        <a href="#" class="logout-link mt-auto" onclick="openLogoutModal(event)">
+        <a href="javascript:void(0);" class="logout-link mt-auto" onclick="openLogoutModal(event); return false;">
           <i class="fas fa-sign-out-alt"></i> Logout
         </a>
 
@@ -3899,6 +3899,7 @@ window.addEventListener("DOMContentLoaded", function() {
               // }
 
               function toggleDropdown(event, id = "dropdownMenu") {
+                event.preventDefault();
                 event.stopPropagation();
                 document.querySelectorAll('.dropdown-content-custom').forEach(menu => {
                   if (menu.id !== id) menu.style.display = "none";

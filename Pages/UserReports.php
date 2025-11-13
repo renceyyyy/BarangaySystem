@@ -161,7 +161,7 @@ function getUserRequests($conn, $userId)
   $requests = [];
 
   // Document requests
-  $sql = "SELECT 'Document Request' as type, DocuType as description, refno, DateRequested as date_requested, RequestStatus as status FROM docsreqtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+  $sql = "SELECT 'Document Request' as type, DocuType as description, refno, DateRequested as date_requested, RequestStatus as status, ReleasedBy as released_by, DateRequested as released_date FROM docsreqtbl WHERE UserId = ? ORDER BY DateRequested DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -174,7 +174,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Business requests 
-  $sql = "SELECT 'Business Request' as type, CONCAT(BusinessName, ' - ', RequestType) as description, refno, RequestedDate as date_requested, RequestStatus as status FROM businesstbl WHERE UserId = ? ORDER BY RequestedDate DESC";
+  $sql = "SELECT 'Business Request' as type, CONCAT(BusinessName, ' - ', RequestType) as description, refno, RequestedDate as date_requested, RequestStatus as status, ReleasedBy as released_by, RequestedDate as released_date FROM businesstbl WHERE UserId = ? ORDER BY RequestedDate DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -187,7 +187,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Scholarship applications
-  $sql = "SELECT 'Scholarship Application' as type, 'Scholarship Application' as description, ApplicationID as refno, DateApplied as date_requested, RequestStatus as status FROM scholarship WHERE UserID = ? ORDER BY DateApplied DESC";
+  $sql = "SELECT 'Scholarship Application' as type, 'Scholarship Application' as description, ApplicationID as refno, DateApplied as date_requested, RequestStatus as status, NULL as released_by, DateApplied as released_date FROM scholarship WHERE UserID = ? ORDER BY DateApplied DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -200,7 +200,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Unemployment certificates
-  $sql = "SELECT 'Unemployment Certificate' as type, CONCAT(certificate_type, ' Certificate') as description, refno, request_date as date_requested, RequestStatus as status FROM unemploymenttbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'Unemployment Certificate' as type, CONCAT(certificate_type, ' Certificate') as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM unemploymenttbl WHERE user_id = ? ORDER BY request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -213,7 +213,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Guardianship/Solo Parent requests
-  $sql = "SELECT 'Guardianship/Solo Parent' as type, CONCAT(request_type, ' for ', child_name) as description, refno, request_date as date_requested, RequestStatus as status FROM guardianshiptbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'Guardianship/Solo Parent' as type, CONCAT(request_type, ' for ', child_name) as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM guardianshiptbl WHERE user_id = ? ORDER BY request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -226,7 +226,7 @@ function getUserRequests($conn, $userId)
   }
 
   // No Birth Certificate requests
-  $sql = "SELECT 'No Birth Certificate' as type, 'No Birth Certificate Request' as description, refno, request_date as date_requested, RequestStatus as status FROM no_birthcert_tbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'No Birth Certificate' as type, 'No Birth Certificate Request' as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM no_birthcert_tbl WHERE user_id = ? ORDER BY request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -239,7 +239,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Complain requests 
-  $sql = "SELECT 'Complaint' as type, Complain as description, refno, DateComplained as date_requested, RequestStatus as status FROM complaintbl WHERE Userid = ? ORDER BY DateComplained DESC";
+  $sql = "SELECT 'Complaint' as type, Complain as description, refno, DateComplained as date_requested, RequestStatus as status, NULL as released_by, DateComplained as released_date FROM complaintbl WHERE Userid = ? ORDER BY DateComplained DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -252,7 +252,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Cohabitation Form requests
-  $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+  $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status, ReleasedBy as released_by, DateRequested as released_date FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -738,6 +738,7 @@ function getStatusBadgeClass($status)
                   <th class="col-description">Description</th>
                   <th class="col-reference">Reference No.</th>
                   <th class="col-date">Date Requested</th>
+                  <th class="col-released-by">Released By</th>
                   <th class="col-status">Status</th>
                 </tr>
               </thead>
@@ -750,6 +751,9 @@ function getStatusBadgeClass($status)
                       <span class="request-ref"><?php echo htmlspecialchars($request['refno']); ?></span>
                     </td>
                     <td class="col-date"><?php echo date('M d, Y', strtotime($request['date_requested'])); ?></td>
+                    <td class="col-released-by">
+                      <?php echo !empty($request['released_by']) ? htmlspecialchars($request['released_by']) : 'N/A'; ?>
+                    </td>
                     <td class="col-status">
                       <span class="status-badge <?php echo getStatusBadgeClass($request['status']); ?>">
                         <?php echo ucfirst(htmlspecialchars($request['status'])); ?>
@@ -759,7 +763,7 @@ function getStatusBadgeClass($status)
                 <?php endforeach; ?>
                 <?php if (empty($releasedRequests)): ?>
                   <tr>
-                    <td colspan="5" class="no-requests-row">
+                    <td colspan="6" class="no-requests-row">
                       <div class="no-requests-message">
                         <i class="fas fa-check-circle"></i>
                         <p>No released requests found.</p>

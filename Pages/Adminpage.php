@@ -46,57 +46,57 @@ require_once '../Process/db_connection.php';
       <div class="col-12 col-md-2 sidebar">
         <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
-        <button class="sidebar-btn" onclick="showPanel('dashboardPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
         </button>
-        <button class="sidebar-btn" onclick="showPanel('residencePanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('residencePanel')">
           <i class="fas fa-users"></i> Residence
         </button>
         <div class="dropdown w-100">
-          <button class="sidebar-btn w-100" onclick="toggleDropdown(event)">
+          <button class="sidebar-btn w-100" type="button" onclick="toggleDropdown(event); return false;">
             <i class="fas fa-book"></i> Document Request <i class="fas fa-caret-down ms-auto"></i>
           </button>
 
           <div id="dropdownMenu" class="dropdown-content-custom">
-            <a href="#" onclick="showPanel('governmentDocumentPanel')">Government Document</a>
-            <a href="#" onclick="showPanel('businessPermitPanel')">Business Permit</a>
-            <a href="#" onclick="showPanel('businessUnemploymentCertificatePanel')">Unemployment Certificate Request</a>
-            <a href="#" onclick="showPanel('guardianshipPanel')">Guardianship</a>
-            <!-- <a href="#" onclick="showPanel('nobirthCertPanel')">No Birth Certificate</a> -->
+            <a href="javascript:void(0);" onclick="showPanel('governmentDocumentPanel'); return false;">Government Document</a>
+            <a href="javascript:void(0);" onclick="showPanel('businessPermitPanel'); return false;">Business Permit</a>
+            <a href="javascript:void(0);" onclick="showPanel('businessUnemploymentCertificatePanel'); return false;">Unemployment Certificate Request</a>
+            <a href="javascript:void(0);" onclick="showPanel('guardianshipPanel'); return false;">Guardianship</a>
+            <!-- <a href="javascript:void(0);" onclick="showPanel('nobirthCertPanel'); return false;">No Birth Certificate</a> -->
       
           </div>
         </div>
 
-        <button class="sidebar-btn" onclick="showPanel('itemrequestsPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('itemrequestsPanel')">
           <i class="fas fa-box-open"></i> Item Request
         </button>
 
-        <!-- <button class="sidebar-btn" onclick="showPanel('blotterComplaintPanel')">
+        <!-- <button class="sidebar-btn" type="button" onclick="showPanel('blotterComplaintPanel')">
           <i class="fas fa-exclamation-triangle"></i> Blotter/Complaint
         </button> -->
 
         <div class="dropdown w-100">
-          <button class="sidebar-btn w-100" onclick="toggleDropdown(event, 'blotterDropdownMenu')">
+          <button class="sidebar-btn w-100" type="button" onclick="toggleDropdown(event, 'blotterDropdownMenu'); return false;">
             <i class="fas fa-exclamation-triangle"></i> Blotter <i class="fas fa-caret-down ms-auto"></i>
           </button>
           <div id="blotterDropdownMenu" class="dropdown-content-custom">
-            <a href="#" onclick="showPanel('blotterComplaintPanel')">Blotter/Complaint</a>
-            <a href="#" onclick="showPanel('blotteredIndividualsPanel')">Blottered Individuals</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotterComplaintPanel'); return false;">Blotter/Complaint</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotteredIndividualsPanel'); return false;">Blottered Individuals</a>
           </div>
         </div>
 
 
 
-        <button class="sidebar-btn" onclick="showPanel('reportsPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('reportsPanel')">
           <i class="fas fa-file-alt"></i> Reports
         </button>
-        <!-- <button class="sidebar-btn" onclick="showPanel('auditTrailPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('auditTrailPanel')">
           <i class="fas fa-history"></i> Activity Logs
-        </button> -->
-        <button class="sidebar-btn" onclick="showPanel('announcementPanel')">
+        </button>
+        <button class="sidebar-btn" type="button" onclick="showPanel('announcementPanel')">
           <i class="fas fa-newspaper"></i> Announcement
         </button>
-        <a href="#" class="logout-link mt-auto" onclick="openLogoutModal(event)">
+        <a href="javascript:void(0);" class="logout-link mt-auto" onclick="openLogoutModal(event); return false;">
           <i class="fas fa-sign-out-alt"></i> Logout
         </a>
 
@@ -105,8 +105,8 @@ require_once '../Process/db_connection.php';
           <div class="modal-box">
             <p>Are you sure you want to logout?</p>
             <div class="modal-actions">
-              <button class="btn-yes" onclick="confirmLogout()">Yes</button>
-              <button class="btn-no" onclick="closeLogoutModal()">No</button>
+              <button class="btn-yes" type="button" onclick="confirmLogout()">Yes</button>
+              <button class="btn-no" type="button" onclick="closeLogoutModal()">No</button>
             </div>
           </div>
         </div>
@@ -185,13 +185,13 @@ require_once '../Process/db_connection.php';
 
   <!-- Tab Navigation -->
   <div class="tabs-container">
-    <button class="tab-btn active" onclick="switchTab(event, 'unverified')">
+    <button class="tab-btn active" type="button" onclick="switchTab(event, 'unverified')">
       Unverified
     </button>
-    <button class="tab-btn" onclick="switchTab(event, 'pending')">
+    <button class="tab-btn" type="button" onclick="switchTab(event, 'pending')">
       Pending
     </button>
-    <button class="tab-btn" onclick="switchTab(event, 'verified')">
+    <button class="tab-btn" type="button" onclick="switchTab(event, 'verified')">
       Verified
     </button>
   </div>
@@ -4403,7 +4403,13 @@ function reloadItemRequestsPanel(message) {
                   <?php if ($editData && $editData['NewsImage']): ?>
                     <div class="mt-2">
                       <small>Current Image:</small><br>
-                      <img src="<?php echo htmlspecialchars('/Capstone/' . $editData['NewsImage']); ?>" alt="Current" style="max-width: 100px;">
+                      <?php 
+                        $currentImgPath = $editData['NewsImage'];
+                        if (strpos($currentImgPath, 'Assets/') === 0) {
+                          $currentImgPath = '../' . $currentImgPath;
+                        }
+                      ?>
+                      <img src="<?php echo htmlspecialchars($currentImgPath); ?>" alt="Current" style="max-width: 100px;" onerror="this.style.display='none';">
                     </div>
                   <?php endif; ?>
                 </div>
@@ -4431,10 +4437,22 @@ function reloadItemRequestsPanel(message) {
                 if ($res && $res->num_rows) {
                   echo "<div class='row g-4 mt-2'>";
                   while ($r = $res->fetch_assoc()) {
-                    $img = $r['NewsImage'] ? htmlspecialchars('/Capstone/' . $r['NewsImage']) : null;
+                    // Fix image path - database stores: Assets/announcements/filename.jpg
+                    // We need the path with ../ prefix for display from Pages folder
+                    $img = null;
+                    if ($r['NewsImage']) {
+                      $imagePath = $r['NewsImage'];
+                      // If path starts with Assets/, prepend ../
+                      if (strpos($imagePath, 'Assets/') === 0) {
+                        $img = '../' . $imagePath;
+                      } else {
+                        $img = $imagePath;
+                      }
+                      $img = htmlspecialchars($img);
+                    }
                     echo "<div class='col-md-4 col-sm-6'>
                           <div class='announcement-card card'>
-                            " . ($img ? "<img src='" . $img . "' alt='Announcement image' />" : "") . "
+                            " . ($img ? "<img src='" . $img . "' alt='Announcement image' onerror=\"this.style.display='none';\" />" : "") . "
                             <div class='card-body'>
                               <div class='announcement-text'>" . nl2br(htmlspecialchars($r['NewsInfo'])) . "</div>
                               <div class='announcement-date'>" . htmlspecialchars($r['DatedReported']) . "</div>
@@ -5936,6 +5954,7 @@ function reloadItemRequestsPanel(message) {
               // }
 
               function toggleDropdown(event, id = "dropdownMenu") {
+                event.preventDefault();
                 event.stopPropagation();
                 document.querySelectorAll('.dropdown-content-custom').forEach(menu => {
                   if (menu.id !== id) menu.style.display = "none";

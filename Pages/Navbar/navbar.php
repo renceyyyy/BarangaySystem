@@ -1174,8 +1174,10 @@ unset($_SESSION['verification_notification']);
                             } else if (status === 'declined') {
                                 const reason = current.decline_reason || 'administrative reasons';
                                 message = `Unfortunately, your ${current.type} (Ref No: ${refno}) is declined due to ${reason}. For inquiries, go to the barangay or contact us at: 86380301.`;
+                            } else if (status === 'printed') {
+                                message = `Your Document Request (Ref No: ${refno}) has been printed.`;
                             } else if (status === 'released') {
-                                message = `Your ${current.type} (Ref No: ${refno}) is now ready for release. You may claim it at the barangay office.`;
+                                message = `Your Document Request (Ref No: ${refno}) has been released.`;
                             } else {
                                 message = `Your ${current.type} (Ref No: ${refno}) status has been updated to: ${current.status}`;
                             }

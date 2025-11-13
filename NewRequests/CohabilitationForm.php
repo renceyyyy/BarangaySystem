@@ -544,6 +544,83 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
             const otherPurposeContainer = document.getElementById('otherPurposeContainer');
             const otherPurposeField = document.getElementById('otherPurpose');
 
+            // Validation functions
+            function validateName() {
+                const name = document.getElementById('name');
+                const value = name.value.trim();
+                const namePattern = /^[a-zA-Z\s\-.]+$/;
+                
+                if (value.length < 2) {
+                    name.setCustomValidity('Name must be at least 2 characters long');
+                    return false;
+                } else if (value.length > 100) {
+                    name.setCustomValidity('Name must not exceed 100 characters');
+                    return false;
+                } else if (!namePattern.test(value)) {
+                    name.setCustomValidity('Name can only contain letters, spaces, hyphens, and periods');
+                    return false;
+                } else {
+                    name.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validatePartnerSince() {
+                const partnerSince = document.getElementById('partnersince');
+                const value = partnerSince.value;
+                
+                if (!value) {
+                    partnerSince.setCustomValidity('Partner since date is required');
+                    return false;
+                }
+                
+                const selectedDate = new Date(value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const minDate = new Date();
+                minDate.setFullYear(today.getFullYear() - 100);
+                
+                if (selectedDate > today) {
+                    partnerSince.setCustomValidity('Partner since date cannot be in the future');
+                    return false;
+                } else if (selectedDate < minDate) {
+                    partnerSince.setCustomValidity('Partner since date must be within the last 100 years');
+                    return false;
+                } else {
+                    partnerSince.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateOtherPurpose() {
+                if (purposeSelect.value === 'Other') {
+                    const value = otherPurposeField.value.trim();
+                    
+                    if (value.length < 3) {
+                        otherPurposeField.setCustomValidity('Please specify your purpose (at least 3 characters)');
+                        return false;
+                    } else if (value.length > 200) {
+                        otherPurposeField.setCustomValidity('Purpose must not exceed 200 characters');
+                        return false;
+                    } else {
+                        otherPurposeField.setCustomValidity('');
+                        return true;
+                    }
+                }
+                otherPurposeField.setCustomValidity('');
+                return true;
+            }
+
+            // Add real-time validation
+            document.getElementById('name').addEventListener('input', function() { validateName(); validateForm(); });
+            document.getElementById('name').addEventListener('blur', validateName);
+            
+            document.getElementById('partnersince').addEventListener('change', function() { validatePartnerSince(); validateForm(); });
+            
+            otherPurposeField.addEventListener('input', function() { validateOtherPurpose(); validateForm(); });
+            otherPurposeField.addEventListener('blur', validateOtherPurpose);
+
             // Handle "Other" purpose visibility
             function toggleOtherPurpose() {
                 if (purposeSelect.value === 'Other') {
@@ -554,6 +631,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
                     otherPurposeField.removeAttribute('required');
                     otherPurposeField.value = '';
                 }
+                validateOtherPurpose();
                 validateForm();
             }
 
@@ -562,6 +640,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
 
             function validateForm() {
                 let isValid = true;
+                
+                // Run all validation functions
+                isValid = validateName() && isValid;
+                isValid = validatePartnerSince() && isValid;
+                isValid = validateOtherPurpose() && isValid;
                 
                 // Check required fields
                 const requiredFields = form.querySelectorAll('[required]');
@@ -577,21 +660,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
                     isValid = false;
                 }
 
-                // Additional validation for date field
-                const partnerSince = document.getElementById('partnersince').value;
-                if (partnerSince) {
-                    const today = new Date().toISOString().split('T')[0];
-                    if (partnerSince > today) {
-                        isValid = false;
-                    }
-                }
-
                 submitBtn.disabled = !isValid;
             }
 
             // Real-time form validation
             form.addEventListener('input', validateForm);
             form.addEventListener('change', validateForm);
+
+            // Form submission validation
+            form.addEventListener('submit', function(e) {
+                if (!validateForm()) {
+                    e.preventDefault();
+                    alert('Please correct the errors in the form before submitting.');
+                    return false;
+                }
+            });
 
             // Initialize
             validateForm();

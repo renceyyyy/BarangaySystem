@@ -11,23 +11,6 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once '../Process/db_connection.php';
 // News Handler
 require_once '../Process/news_handler.php';
-// approved notification
-require_once 'approval_notification.php';
-// declined notification - CORRECTED FILENAME
-require_once 'decline_notification.php';
-
-// Check for approved requests if user is logged in
-if (isset($_SESSION['user_id'])) {
-    $approvedRequests = checkApprovedRequests($conn, $_SESSION['user_id']);
-    $declinedRequests = checkDeclinedRequests($conn, $_SESSION['user_id']);
-}
-
-// Optional: Add function to manually reset notification counter (for admin use)
-if (isset($_GET['reset_notifications']) && isset($_SESSION['user_id'])) {
-    resetNotificationCounter();
-    header('Location: index.php');
-    exit;
-}
 
 ?>
 <!DOCTYPE html>
@@ -301,38 +284,7 @@ if (isset($_GET['reset_notifications']) && isset($_SESSION['user_id'])) {
             text-decoration: none;
         }
 
-        /* Notification positioning to avoid overlap with fixed navbar */
-        .approval-notification {
-            z-index: 10001;
-            top: 100px !important;
-            right: 20px;
-        }
 
-        .decline-notification {
-            z-index: 10002;
-            top: 100px !important;
-            right: 450px;
-        }
-
-        @media (max-width: 1024px) {
-            .decline-notification {
-                right: 20px;
-                top: 450px !important;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .approval-notification,
-            .decline-notification {
-                width: 95%;
-                right: 2.5%;
-                top: 100px !important;
-            }
-            
-            .decline-notification {
-                top: 450px !important;
-            }
-        }
     </style>
 </head>
 
@@ -463,20 +415,42 @@ if (isset($_GET['reset_notifications']) && isset($_SESSION['user_id'])) {
             <div class="news-slider">
                 <?php foreach ($newsItems as $index => $news): ?>
                     <div class="news-slide" data-aos="fade-up" data-aos-delay="<?= ($index + 1) * 100 ?>">
-                        <?php if (!empty($news['Newsimage'])): ?>
-                            <div class="news-img">
-                                <img src="data:image/jpeg;base64,<?= base64_encode($news['Newsimage']) ?>" alt="News Image">
+                        <a href="Newspage.php" class="news-slide-link">
+                            <?php 
+                            $imagePath = '';
+                            $imageExists = false;
+                            
+                            if (!empty($news['Newsimage'])) {
+                                // Database stores: Assets/announcements/filename.jpg
+                                // We need: ../Assets/announcements/filename.jpg for the HTML src
+                                if (strpos($news['Newsimage'], 'Assets/') === 0) {
+                                    $imagePath = '../' . $news['Newsimage'];
+                                    // Check if file exists using the full server path
+                                    $fullPath = __DIR__ . '/../' . $news['Newsimage'];
+                                    $imageExists = file_exists($fullPath);
+                                } else {
+                                    $imagePath = $news['Newsimage'];
+                                    $imageExists = file_exists(__DIR__ . '/' . $imagePath);
+                                }
+                            }
+                            ?>
+                            <?php if (!empty($imagePath) && $imageExists): ?>
+                                <div class="news-img">
+                                    <img src="<?php echo htmlspecialchars($imagePath); ?>" alt="News Image">
+                                </div>
+                            <?php else: ?>
+                                <div class="news-img">
+                                    <div class="placeholder-image">
+                                        <i class="fas fa-newspaper"></i>
+                                        <span>News Image</span>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            <div class="news-slide-content">
+                                <p class="news-content"><?= htmlspecialchars($news['Newsinfo'] ?? '') ?></p>
+                                <p class="news-date">Posted on: <?= date('F j, Y', strtotime($news['DatedReported'])) ?></p>
                             </div>
-                        <?php else: ?>
-                            <div class="news-img">
-                                <div class="placeholder-image">News Image</div>
-                            </div>
-                        <?php endif; ?>
-                        <div class="news-slide-content">
-                            <h3>News Update #<?= $index + 1 ?></h3>
-                            <p class="news-content"><?= htmlspecialchars($news['Newsinfo'] ?? '') ?></p>
-                            <p class="news-date">Posted on: <?= date('F j, Y', strtotime($news['DatedReported'])) ?></p>
-                        </div>
+                        </a>
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -563,6 +537,8 @@ if (isset($_GET['reset_notifications']) && isset($_SESSION['user_id'])) {
             const nextBtn = document.querySelector('.slider-next');
             const dotsContainer = document.querySelector('.slider-dots');
 
+            if (!slider || slides.length === 0) return;
+
             let currentSlide = 0;
             const slideCount = slides.length;
 
@@ -606,10 +582,10 @@ if (isset($_GET['reset_notifications']) && isset($_SESSION['user_id'])) {
             }
 
             // Event listeners
-            nextBtn.addEventListener('click', nextSlide);
-            prevBtn.addEventListener('click', prevSlide);
+            if (prevBtn) prevBtn.addEventListener('click', prevSlide);
+            if (nextBtn) nextBtn.addEventListener('click', nextSlide);
 
-            // Auto-advance slides (optional)
+            // Auto-advance slides
             let slideInterval = setInterval(nextSlide, 5000);
 
             // Pause on hover
@@ -776,29 +752,7 @@ if (isset($_GET['reset_notifications']) && isset($_SESSION['user_id'])) {
                 });
             <?php endif; ?>
         });
-
-        // Function to close decline notification
-        function closeDeclineNotification() {
-            const notification = document.getElementById('declineNotification');
-            if (notification) {
-                notification.style.animation = 'slideOutRight 0.4s ease-out forwards';
-                setTimeout(() => {
-                    notification.remove();
-                }, 400);
-            }
-        }
     </script>
-
-    <?php
-    // Display approval notifications
-    if (isset($approvedRequests) && !empty($approvedRequests)) {
-        displayApprovalNotifications($approvedRequests);
-    }
-    // Display declined notifications
-    if (isset($declinedRequests) && !empty($declinedRequests)) {
-        displayDeclineNotifications($declinedRequests);
-    }
-    ?>
 </body>
 
 </html>

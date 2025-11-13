@@ -565,8 +565,10 @@ require_once '../Process/news_handler.php';
                             <div class="article-content">
                                 <div class="article-image">
                                     <?php if (!empty($news['Newsimage'])): ?>
-                                        <img src="data:image/jpeg;base64,<?= base64_encode($news['Newsimage']) ?>" alt="News Image"
-                                            loading="lazy">
+                                        <img src="../<?php echo htmlspecialchars($news['Newsimage']); ?>" 
+                                             alt="News Image" 
+                                             loading="lazy"
+                                             onerror="this.parentElement.innerHTML='<div class=\'image-placeholder\'><i class=\'fas fa-newspaper\'></i><span>News Article</span></div>'">
                                     <?php else: ?>
                                         <div class="image-placeholder">
                                             <i class="fas fa-newspaper"></i>

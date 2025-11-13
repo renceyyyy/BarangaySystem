@@ -23,7 +23,7 @@ $isUpdateSuccess = false; // Track if update was successful
 if (isset($_GET['update'])) {
     $updateRefNo = trim($_GET['update']);
     $isUpdateMode = true;
-    
+
     // Fetch the pending request data
     $check_sql = "SELECT * FROM docsreqtbl WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending' LIMIT 1";
     $check_stmt = $conn->prepare($check_sql);
@@ -101,7 +101,7 @@ if ($isUpdateMode) {
         $ftjs_update_stmt->execute();
         $ftjs_update_result = $ftjs_update_stmt->get_result();
         $ftjs_update_row = $ftjs_update_result->fetch_assoc();
-        
+
         if ($ftjs_update_row['count'] > 0) {
             $update_blocked_doc_types[] = 'First Time Job Seeker';
         }
@@ -125,6 +125,11 @@ if ($isUpdateMode && $pendingRequest) {
     $yearsOfResidency = $pendingRequest['YearsOfResidency'] ?? '';
     $selectedDocType = $pendingRequest['DocuType'] ?? '';
     $birthdate = $pendingRequest['BirthDate'] ?? '';
+
+    // FIXED: In update mode, only show the single document type from this pending request
+    // The user can check this one to keep it, or uncheck it and check others to replace/add
+    $doctypes = !empty($selectedDocType) ? [$selectedDocType] : [];
+
     // Handle empty birthdate in update mode - fallback to user profile
     if (empty($birthdate) || $birthdate === '0000-00-00' || $birthdate === '0') {
         // Fetch birthdate from user profile
@@ -144,8 +149,6 @@ if ($isUpdateMode && $pendingRequest) {
             $user_birthdate_stmt->close();
         }
     }
-    // Initialize doctypes array for checkboxes (split by comma if multiple)
-    $doctypes = !empty($selectedDocType) ? array_map('trim', explode(',', $selectedDocType)) : [];
 } else {
     // Fetch from user profile
     $user_sql = "SELECT Firstname, Lastname, Gender, ContactNo, Address, CivilStatus, Birthdate FROM userloginfo WHERE UserID = ?";
@@ -200,7 +203,7 @@ if ($isUpdateMode && $pendingRequest) {
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
     // Get document types early so we can validate them
     $doctypes_to_submit = isset($_POST["doctype"]) ? (array) $_POST["doctype"] : [];
-    
+
     // Check for First Time Job Seeker restriction in update mode
     if ($isUpdateMode && !empty($doctypes_to_submit)) {
         foreach ($doctypes_to_submit as $doctype_check) {
@@ -210,12 +213,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             }
         }
     }
-    
+
     // Check for pending requests of SPECIFIC document types - applies to both new and update modes
     if (!empty($doctypes_to_submit)) {
         foreach ($doctypes_to_submit as $doctype_check) {
             $doctype_check = trim($doctype_check);
-            
+
             if ($isUpdateMode) {
                 // For update mode: Check if there are OTHER pending requests for the same document type (excluding current request)
                 $pending_check = "SELECT refno FROM docsreqtbl WHERE Userid = ? AND DocuType = ? AND RequestStatus = 'Pending' AND refno != ? LIMIT 1";
@@ -247,12 +250,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             }
         }
     }
-    
+
     // Validate terms and conditions agreement
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
     }
-    
+
     // Enable error reporting
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
@@ -310,11 +313,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
         $errors[] = "Birth Date is required when requesting No Birth Certificate.";
     }
 
+    // Check if ONLY "No Birth Certificate" is selected (no image required)
+    $onlyNoBirthCert = (count($doctypes) === 1 && in_array('No Birth Certificate', $doctypes));
+    $requiresImage = !$onlyNoBirthCert; // Image not required if only No Birth Certificate
+
     // Handle file upload
     $certificateImage = null;
     $file_upload_error = '';
     $hasNewFile = false;
-    
+
     if (isset($_FILES['certificateImage'])) {
         if ($_FILES['certificateImage']['error'] === UPLOAD_ERR_OK) {
             $hasNewFile = true;
@@ -337,11 +344,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             }
         } elseif ($_FILES['certificateImage']['error'] !== UPLOAD_ERR_NO_FILE) {
             $errors[] = "File upload error occurred.";
-        } elseif (!$isUpdateMode) {
-            // Only require file for new requests
+        } elseif (!$isUpdateMode && $requiresImage) {
+            // Only require file for new requests AND if not "No Birth Certificate" only
             $errors[] = "Certificate proof image is required.";
         }
-    } elseif (!$isUpdateMode) {
+    } elseif (!$isUpdateMode && $requiresImage) {
+        // Only require file if image is needed
         $errors[] = "Certificate proof image is required.";
     }
 
@@ -354,78 +362,216 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
         try {
             if ($isUpdateMode) {
-                // UPDATE existing pending request - update as single record, not loop
-                $docTypeString = implode(',', $doctypes); // Join multiple selected types with comma
-                
-                if ($hasNewFile && $certificateImage) {
-                    // Update with new image
-                    $sql = "UPDATE docsreqtbl SET 
-                        DocuType = ?, Firstname = ?, Lastname = ?,
-                        Gender = ?, ContactNO = ?, ReqPurpose = ?, 
-                        Address = ?, CertificateImage = ?, 
-                        YearsOfResidency = ?, CivilStatus = ?, BirthDate = ?
-                        WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending'";
+                // FIXED: Update mode - handle multiple document types correctly
+                // Get the original document type from the pending request
+                $originalDocType = $pendingRequest['DocuType'] ?? '';
 
-                    $stmt = $conn->prepare($sql);
-                    if (!$stmt) {
-                        throw new Exception("Prepare failed: " . $conn->error);
+                // Check if user is updating to a different document type or adding new ones
+                $newDocTypes = [];
+                $updateExisting = false;
+
+                foreach ($doctypes as $doctype) {
+                    $doctype = trim($doctype);
+                    if ($doctype === $originalDocType) {
+                        $updateExisting = true; // Keep updating the original record
+                    } else {
+                        $newDocTypes[] = $doctype; // New document type to create separate request
+                    }
+                }
+
+                // If original doc type is still selected, update it
+                if ($updateExisting) {
+                    if ($hasNewFile && $certificateImage) {
+                        // Update with new image
+                        $sql = "UPDATE docsreqtbl SET 
+                            Firstname = ?, Lastname = ?,
+                            Gender = ?, ContactNO = ?, ReqPurpose = ?, 
+                            Address = ?, CertificateImage = ?, 
+                            YearsOfResidency = ?, CivilStatus = ?, BirthDate = ?
+                            WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending'";
+
+                        $stmt = $conn->prepare($sql);
+                        if (!$stmt) {
+                            throw new Exception("Prepare failed: " . $conn->error);
+                        }
+
+                        $stmt->bind_param(
+                            "ssssssbiissi",
+                            $firstname,
+                            $lastname,
+                            $gender,
+                            $contactNo,
+                            $reqPurpose,
+                            $address,
+                            $certificateImage,
+                            $yearsOfResidency,
+                            $civilStatus,
+                            $birthdate,
+                            $updateRefNo,
+                            $userId
+                        );
+
+                        // Send long blob data
+                        $stmt->send_long_data(6, $certificateImage);
+                    } else {
+                        // Update without changing image
+                        $sql = "UPDATE docsreqtbl SET 
+                            Firstname = ?, Lastname = ?,
+                            Gender = ?, ContactNO = ?, ReqPurpose = ?, 
+                            Address = ?, YearsOfResidency = ?, CivilStatus = ?, BirthDate = ?
+                            WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending'";
+
+                        $stmt = $conn->prepare($sql);
+                        if (!$stmt) {
+                            throw new Exception("Prepare failed: " . $conn->error);
+                        }
+
+                        $stmt->bind_param(
+                            "ssssssisssi",
+                            $firstname,
+                            $lastname,
+                            $gender,
+                            $contactNo,
+                            $reqPurpose,
+                            $address,
+                            $yearsOfResidency,
+                            $civilStatus,
+                            $birthdate,
+                            $updateRefNo,
+                            $userId
+                        );
                     }
 
-                    $stmt->bind_param(
-                        "sssssssbiissi",
-                        $docTypeString,
-                        $firstname,
-                        $lastname,
-                        $gender,
-                        $contactNo,
-                        $reqPurpose,
-                        $address,
-                        $certificateImage,
-                        $yearsOfResidency,
-                        $civilStatus,
-                        $birthdate,
-                        $updateRefNo,
-                        $userId
-                    );
-
-                    // Send long blob data
-                    $stmt->send_long_data(7, $certificateImage);
-                } else {
-                    // Update without changing image
-                    $sql = "UPDATE docsreqtbl SET 
-                        DocuType = ?, Firstname = ?, Lastname = ?,
-                        Gender = ?, ContactNO = ?, ReqPurpose = ?, 
-                        Address = ?, YearsOfResidency = ?, CivilStatus = ?, BirthDate = ?
-                        WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending'";
-
-                    $stmt = $conn->prepare($sql);
-                    if (!$stmt) {
-                        throw new Exception("Prepare failed: " . $conn->error);
+                    if (!$stmt->execute()) {
+                        throw new Exception("Execute failed: " . $stmt->error);
                     }
 
-                    $stmt->bind_param(
-                        "ssssssissssi",
-                        $docTypeString,
-                        $firstname,
-                        $lastname,
-                        $gender,
-                        $contactNo,
-                        $reqPurpose,
-                        $address,
-                        $yearsOfResidency,
-                        $civilStatus,
-                        $birthdate,
-                        $updateRefNo,
-                        $userId
+                    $successCount++;
+                    $stmt->close();
+
+                    // Log user activity for update
+                    logUserActivity(
+                        'Government document request updated',
+                        'government_document_update',
+                        [
+                            'document_type' => $originalDocType,
+                            'reference_no' => $updateRefNo,
+                            'action' => 'update'
+                        ]
                     );
                 }
 
-                if (!$stmt->execute()) {
-                    throw new Exception("Execute failed: " . $stmt->error);
+                // If user added NEW document types, create separate requests for them
+                if (!empty($newDocTypes)) {
+                    // IMPROVED: Handle images for new document types intelligently
+                    $imageToUse = null;
+
+                    if ($hasNewFile && $certificateImage) {
+                        // User uploaded a new image - use it for new documents
+                        $imageToUse = $certificateImage;
+                    } else {
+                        // No new image uploaded - reuse the existing image from pending request
+                        // This is helpful so users don't need to upload the same proof again
+                        $imageToUse = $pendingRequest['CertificateImage'] ?? null;
+                    }
+
+                    foreach ($newDocTypes as $newDocType) {
+                        // Generate new reference number for each new document type
+                        $newRefNo = date('Ymd') . rand(1000, 9999);
+
+                        // Check if this is "First Time Job Seeker" and user already has one
+                        if ($newDocType === "First Time Job Seeker") {
+                            $check_dup_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = ?";
+                            $check_dup_stmt = $conn->prepare($check_dup_sql);
+                            if ($check_dup_stmt) {
+                                $check_dup_stmt->bind_param("is", $userId, $newDocType);
+                                $check_dup_stmt->execute();
+                                $check_dup_result = $check_dup_stmt->get_result();
+                                $check_dup_row = $check_dup_result->fetch_assoc();
+
+                                if ($check_dup_row['count'] > 0) {
+                                    throw new Exception("You've already requested a First Time Job Seeker certificate. This is a one-time request only.");
+                                }
+                                $check_dup_stmt->close();
+                            }
+                        }
+
+                        // Insert new request for the new document type
+                        $sql = "INSERT INTO docsreqtbl (
+                            Userid, DocuType, Firstname, Lastname,
+                            Gender, ContactNO, ReqPurpose, Address, refno, CertificateImage, 
+                            YearsOfResidency, CivilStatus, BirthDate, DateRequested
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+                        $stmt = $conn->prepare($sql);
+                        if (!$stmt) {
+                            throw new Exception("Prepare failed: " . $conn->error);
+                        }
+
+                        $null = null;
+                        $stmt->bind_param(
+                            "issssssssbiss",
+                            $userId,
+                            $newDocType,
+                            $firstname,
+                            $lastname,
+                            $gender,
+                            $contactNo,
+                            $reqPurpose,
+                            $address,
+                            $newRefNo,
+                            $null,
+                            $yearsOfResidency,
+                            $civilStatus,
+                            $birthdate
+                        );
+
+                        // Send long blob data
+                        if ($imageToUse) {
+                            $stmt->send_long_data(9, $imageToUse);
+                        }
+
+                        if (!$stmt->execute()) {
+                            throw new Exception("Execute failed: " . $stmt->error);
+                        }
+
+                        // Log user activity for new request
+                        logUserActivity(
+                            'Government document requested (added during update)',
+                            'document_request',
+                            [
+                                'document_type' => $newDocType,
+                                'reference_no' => $newRefNo,
+                                'action' => 'new_from_update'
+                            ]
+                        );
+
+                        $successCount++;
+                        $stmt->close();
+                    }
                 }
 
-                $successCount++;
-                $stmt->close();
+                // If user removed the original document type and only selected new ones
+                if (!$updateExisting && !empty($newDocTypes)) {
+                    // Delete the original pending request since it's being replaced
+                    $delete_sql = "DELETE FROM docsreqtbl WHERE refno = ? AND Userid = ? AND RequestStatus = 'Pending'";
+                    $delete_stmt = $conn->prepare($delete_sql);
+                    if ($delete_stmt) {
+                        $delete_stmt->bind_param("si", $updateRefNo, $userId);
+                        $delete_stmt->execute();
+                        $delete_stmt->close();
+
+                        logUserActivity(
+                            'Government document request replaced',
+                            'government_document_delete',
+                            [
+                                'document_type' => $originalDocType,
+                                'reference_no' => $updateRefNo,
+                                'action' => 'replaced_with_new'
+                            ]
+                        );
+                    }
+                }
 
                 $conn->commit();
 
@@ -433,22 +579,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                     $success = true;
                     $success_ref_no = $updateRefNo;
                     $isUpdateSuccess = true; // Flag to show update success message
-                    
-                    // Log user activity for update
-                    logUserActivity(
-                        'Government document request updated',
-                        'government_document_update',
-                        [
-                            'document_type' => implode(',', $doctypes),
-                            'reference_no' => $updateRefNo,
-                            'action' => 'update'
-                        ]
-                    );
                 }
             } else {
                 // INSERT new request
                 $refno = date('Ymd') . rand(1000, 9999);
-                
+
                 foreach ($doctypes as $doctype) {
                     $doctype = trim($doctype);
 
@@ -461,7 +596,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                             $check_dup_stmt->execute();
                             $check_dup_result = $check_dup_stmt->get_result();
                             $check_dup_row = $check_dup_result->fetch_assoc();
-                            
+
                             if ($check_dup_row['count'] > 0) {
                                 // User already has a First Time Job Seeker request
                                 throw new Exception("You've already requested a First Time Job Seeker certificate. This is a one-time request only. For further information, please visit the barangay or contact us at Telephone: 86380301.");
@@ -676,7 +811,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             cursor: not-allowed;
         }
 
-        .checkbox-item input[type="checkbox"]:disabled + label {
+        .checkbox-item input[type="checkbox"]:disabled+label {
             opacity: 0.7;
             cursor: not-allowed;
         }
@@ -783,18 +918,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
     </div>
 
     <div class="container">
-        <h1><?php echo $isUpdateMode ? 'Update Government Document Request' : 'Government Document Request Form'; ?></h1>
+        <h1><?php echo $isUpdateMode ? 'Update Government Document Request' : 'Government Document Request Form'; ?>
+        </h1>
 
         <?php if ($isUpdateMode): ?>
-        <div class="user-info-note" style="background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460;">
-            <strong>Update Mode:</strong> You are updating your pending request (Ref: <?php echo htmlspecialchars($updateRefNo); ?>). 
-            Modify the information below and click "Update Request" to save changes.
-        </div>
+            <div class="user-info-note" style="background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460;">
+                <strong>Update Mode:</strong> You are updating your pending request (Ref:
+                <?php echo htmlspecialchars($updateRefNo); ?>).
+                Modify the information below and click "Update Request" to save changes.
+            </div>
         <?php else: ?>
-        <div class="user-info-note">
-            <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and
-            update if necessary.
-        </div>
+            <div class="user-info-note">
+                <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and
+                update if necessary.
+            </div>
         <?php endif; ?>
 
         <?php if (!empty($errors)): ?>
@@ -831,7 +968,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                         <label for="gender">Gender <span class="required">*</span></label>
                         <select id="gender" name="gender" required>
                             <option value="">Select Gender</option>
-                            <option value="Male" <?php echo (isset($gender) && $gender === 'Male') ? 'selected' : ''; ?>>Male</option>
+                            <option value="Male" <?php echo (isset($gender) && $gender === 'Male') ? 'selected' : ''; ?>>
+                                Male</option>
                             <option value="Female" <?php echo (isset($gender) && $gender === 'Female') ? 'selected' : ''; ?>>Female</option>
                             <option value="Other" <?php echo (isset($gender) && $gender === 'Other') ? 'selected' : ''; ?>>Other</option>
                         </select>
@@ -851,10 +989,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                 </div>
 
                 <div class="form-group">
-                    <label for="yearsOfResidency">Years of Residency in this Barangay <span class="required">*</span></label>
-                    <input type="number" id="yearsOfResidency" name="yearsOfResidency" 
-                        value="<?php echo htmlspecialchars($yearsOfResidency ?? ''); ?>" 
-                        min="0" max="100" step="1" 
+                    <label for="yearsOfResidency">Years of Residency in this Barangay <span
+                            class="required">*</span></label>
+                    <input type="number" id="yearsOfResidency" name="yearsOfResidency"
+                        value="<?php echo htmlspecialchars($yearsOfResidency ?? ''); ?>" min="0" max="100" step="1"
                         placeholder="Enter number of years" required>
                 </div>
 
@@ -873,31 +1011,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
             <div class="form-section">
                 <h2>Document Details</h2>
-                
+
                 <?php if (!empty($pending_doc_types)): ?>
-                <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 10px 15px; margin-bottom: 15px; font-size: 0.9em;">
-                    <i class="fas fa-info-circle" style="color: #856404; margin-right: 8px;"></i>
-                    <strong style="color: #856404;">Note:</strong> 
-                    <span style="color: #856404;">
-                        <?php if ($isUpdateMode): ?>
-                            Some document types are disabled because you have other pending requests for them. You cannot have multiple pending requests for the same document type.
-                        <?php else: ?>
-                            Some document types are disabled because you already have pending requests for them.
-                        <?php endif; ?>
-                    </span>
-                </div>
+                    <div
+                        style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 10px 15px; margin-bottom: 15px; font-size: 0.9em;">
+                        <i class="fas fa-info-circle" style="color: #856404; margin-right: 8px;"></i>
+                        <strong style="color: #856404;">Note:</strong>
+                        <span style="color: #856404;">
+                            <?php if ($isUpdateMode): ?>
+                                Some document types are disabled because you have other pending requests for them. You cannot
+                                have multiple pending requests for the same document type.
+                            <?php else: ?>
+                                Some document types are disabled because you already have pending requests for them.
+                            <?php endif; ?>
+                        </span>
+                    </div>
                 <?php endif; ?>
 
                 <div class="form-group">
                     <label>Select Document Type(s) <span class="required">*</span></label>
                     <div class="checkbox-group">
                         <div class="checkbox-item">
-                            <input type="checkbox" id="cedula" name="doctype[]" value="Cedula" 
-                                <?php 
-                                    $checked = (isset($doctypes) && in_array('Cedula', $doctypes)) ? 'checked' : '';
-                                    $disabled = in_array('Cedula', $pending_doc_types) ? 'disabled' : '';
-                                    echo $checked . ' ' . $disabled;
-                                ?>>
+                            <input type="checkbox" id="cedula" name="doctype[]" value="Cedula" <?php
+                            $checked = (isset($doctypes) && in_array('Cedula', $doctypes)) ? 'checked' : '';
+                            $disabled = in_array('Cedula', $pending_doc_types) ? 'disabled' : '';
+                            echo $checked . ' ' . $disabled;
+                            ?>>
                             <label for="cedula">
                                 Cedula
                                 <?php if (in_array('Cedula', $pending_doc_types)): ?>
@@ -906,11 +1045,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                             </label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="checkbox" id="barangay_certificate" name="doctype[]" value="Barangay Certificate" 
-                                <?php 
-                                    $checked = (isset($doctypes) && in_array('Barangay Certificate', $doctypes)) ? 'checked' : '';
-                                    $disabled = in_array('Barangay Certificate', $pending_doc_types) ? 'disabled' : '';
-                                    echo $checked . ' ' . $disabled;
+                            <input type="checkbox" id="barangay_certificate" name="doctype[]"
+                                value="Barangay Certificate" <?php
+                                $checked = (isset($doctypes) && in_array('Barangay Certificate', $doctypes)) ? 'checked' : '';
+                                $disabled = in_array('Barangay Certificate', $pending_doc_types) ? 'disabled' : '';
+                                echo $checked . ' ' . $disabled;
                                 ?>>
                             <label for="barangay_certificate">
                                 Barangay Certificate
@@ -920,12 +1059,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                             </label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="checkbox" id="employment_form" name="doctype[]" value="Employment Form" 
-                                <?php 
-                                    $checked = (isset($doctypes) && in_array('Employment Form', $doctypes)) ? 'checked' : '';
-                                    $disabled = in_array('Employment Form', $pending_doc_types) ? 'disabled' : '';
-                                    echo $checked . ' ' . $disabled;
-                                ?>>
+                            <input type="checkbox" id="employment_form" name="doctype[]" value="Employment Form" <?php
+                            $checked = (isset($doctypes) && in_array('Employment Form', $doctypes)) ? 'checked' : '';
+                            $disabled = in_array('Employment Form', $pending_doc_types) ? 'disabled' : '';
+                            echo $checked . ' ' . $disabled;
+                            ?>>
                             <label for="employment_form">
                                 Employment Form
                                 <?php if (in_array('Employment Form', $pending_doc_types)): ?>
@@ -934,38 +1072,39 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                             </label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="checkbox" id="first_time_job_seeker" name="doctype[]" value="First Time Job Seeker" 
-                                <?php 
-                                    $checked = (isset($doctypes) && in_array('First Time Job Seeker', $doctypes)) ? 'checked' : '';
-                                    $disabled = '';
-                                    $message = '';
-                                    
-                                    if (in_array('First Time Job Seeker', $pending_doc_types)) {
-                                        $disabled = 'disabled';
-                                        $message = ' (Already have pending request)';
-                                    } elseif (!$isUpdateMode && in_array('First Time Job Seeker', $blocked_doc_types)) {
-                                        $disabled = 'disabled';
-                                        $message = ' (Already approved/completed - one time only)';
-                                    } elseif ($isUpdateMode && in_array('First Time Job Seeker', $update_blocked_doc_types)) {
-                                        $disabled = 'disabled';
-                                        $message = ' (You already have an approved/completed request - one time only)';
-                                    }
-                                    
-                                    echo $checked . ' ' . $disabled;
+                            <input type="checkbox" id="first_time_job_seeker" name="doctype[]"
+                                value="First Time Job Seeker" <?php
+                                $checked = (isset($doctypes) && in_array('First Time Job Seeker', $doctypes)) ? 'checked' : '';
+                                $disabled = '';
+                                $message = '';
+
+                                if (in_array('First Time Job Seeker', $pending_doc_types)) {
+                                    $disabled = 'disabled';
+                                    $message = ' (Already have pending request)';
+                                } elseif (!$isUpdateMode && in_array('First Time Job Seeker', $blocked_doc_types)) {
+                                    $disabled = 'disabled';
+                                    $message = ' (Already approved/completed - one time only)';
+                                } elseif ($isUpdateMode && in_array('First Time Job Seeker', $update_blocked_doc_types)) {
+                                    $disabled = 'disabled';
+                                    $message = ' (You already have an approved/completed request - one time only)';
+                                }
+
+                                echo $checked . ' ' . $disabled;
                                 ?>>
                             <label for="first_time_job_seeker">
                                 First Time Job Seeker
                                 <?php if (!empty($message)): ?>
-                                    <span style="color: #d9534f; font-size: 0.9em;"><?php echo htmlspecialchars($message); ?></span>
+                                    <span
+                                        style="color: #d9534f; font-size: 0.9em;"><?php echo htmlspecialchars($message); ?></span>
                                 <?php endif; ?>
                             </label>
                         </div>
                         <div class="checkbox-item">
-                            <input type="checkbox" id="no_birth_certificate" name="doctype[]" value="No Birth Certificate" 
-                                <?php 
-                                    $checked = (isset($doctypes) && in_array('No Birth Certificate', $doctypes)) ? 'checked' : '';
-                                    $disabled = in_array('No Birth Certificate', $pending_doc_types) ? 'disabled' : '';
-                                    echo $checked . ' ' . $disabled;
+                            <input type="checkbox" id="no_birth_certificate" name="doctype[]"
+                                value="No Birth Certificate" <?php
+                                $checked = (isset($doctypes) && in_array('No Birth Certificate', $doctypes)) ? 'checked' : '';
+                                $disabled = in_array('No Birth Certificate', $pending_doc_types) ? 'disabled' : '';
+                                echo $checked . ' ' . $disabled;
                                 ?>>
                             <label for="no_birth_certificate">
                                 No Birth Certificate
@@ -998,25 +1137,33 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             <div class="form-section">
                 <h2>Required Proof</h2>
 
-                <div class="form-group">
-                    <label for="certificateImage">Certificate Proof Image <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
-                    <input type="file" id="certificateImage" name="certificateImage" class="file-input" 
-                        <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
-                    <div class="file-info">
-                        <?php if ($isUpdateMode): ?>
-                            Upload a new proof document to replace the existing one (JPG, PNG, GIF, PDF - Max: 5MB). Leave empty to keep current file.
-                        <?php else: ?>
-                            Upload a valid proof document (JPG, PNG, GIF, PDF - Max: 5MB)
-                        <?php endif; ?>
+                <div class="form-group" id="certificateImageGroup">
+                    <label for="certificateImage" class="form-label">
+                        <strong>Valid Identification or Supporting Document</strong>
+                        <span class="required" id="imageRequired">*</span>
+                        <br>
+                        <small class="text-muted">
+                            Please upload any document that clearly shows your <em>name</em> and <em>address</em> within
+                            the barangay.
+                        </small>
+                    </label>
+
+                    <input type="file" id="certificateImage" name="certificateImage" class="file-input"
+                        accept=".jpg,.jpeg,.png,.gif,.pdf">
+
+                    <div class="file-info text-muted">
+                        <small>Supported formats: JPG, PNG, GIF, PDF &nbsp;|&nbsp; Max file size: 5MB</small>
                     </div>
                 </div>
+
             </div>
 
             <!-- Terms and Conditions Section -->
             <?php echo displayTermsAndConditions('governmentDocsForm'); ?>
 
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
-                <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                <a href="../Pages/landingpage.php" class="btn btn-secondary"
+                    style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
                 <button type="submit" class="btn" id="submitBtn">
@@ -1033,9 +1180,203 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             const closeSuccessMessage = document.getElementById('closeSuccessMessage');
             const submitBtn = document.getElementById('submitBtn');
             const form = document.getElementById('documentForm');
+            const certificateImageGroup = document.getElementById('certificateImageGroup');
+            const certificateImageInput = document.getElementById('certificateImage');
+            const imageRequired = document.getElementById('imageRequired');
+
+            // Validation functions
+            function validateName(fieldId) {
+                const field = document.getElementById(fieldId);
+                const value = field.value.trim();
+                const namePattern = /^[a-zA-Z\s\-.]+$/;
+                
+                if (value.length < 2) {
+                    field.setCustomValidity('Name must be at least 2 characters long');
+                    return false;
+                } else if (value.length > 50) {
+                    field.setCustomValidity('Name must not exceed 50 characters');
+                    return false;
+                } else if (!namePattern.test(value)) {
+                    field.setCustomValidity('Name can only contain letters, spaces, hyphens, and periods');
+                    return false;
+                } else {
+                    field.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateContactNumber() {
+                const contactNo = document.getElementById('contactNo');
+                const value = contactNo.value.trim();
+                
+                if (value.length < 10) {
+                    contactNo.setCustomValidity('Contact number must be at least 10 digits');
+                    return false;
+                } else if (value.length > 13) {
+                    contactNo.setCustomValidity('Contact number must not exceed 13 characters');
+                    return false;
+                } else if (!/^\+?[0-9]+$/.test(value)) {
+                    contactNo.setCustomValidity('Contact number can only contain numbers and optional + prefix');
+                    return false;
+                } else {
+                    contactNo.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateAddress() {
+                const address = document.getElementById('address');
+                const value = address.value.trim();
+                
+                if (value.length < 10) {
+                    address.setCustomValidity('Address must be at least 10 characters long');
+                    return false;
+                } else if (value.length > 200) {
+                    address.setCustomValidity('Address must not exceed 200 characters');
+                    return false;
+                } else {
+                    address.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateYearsOfResidency() {
+                const years = document.getElementById('yearsOfResidency');
+                const value = parseFloat(years.value);
+                
+                if (isNaN(value)) {
+                    years.setCustomValidity('Years of residency must be a valid number');
+                    return false;
+                } else if (value < 0) {
+                    years.setCustomValidity('Years of residency cannot be negative');
+                    return false;
+                } else if (value > 150) {
+                    years.setCustomValidity('Years of residency must be reasonable (max 150 years)');
+                    return false;
+                } else {
+                    years.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateBirthdate() {
+                const birthdateInput = document.getElementById('birthdate');
+                const noBirthCertSelected = document.getElementById('no_birth_certificate').checked && !document.getElementById('no_birth_certificate').disabled;
+                
+                if (!noBirthCertSelected) {
+                    birthdateInput.setCustomValidity('');
+                    return true;
+                }
+                
+                const value = birthdateInput.value;
+                
+                if (!value) {
+                    birthdateInput.setCustomValidity('Birthdate is required when requesting No Birth Certificate');
+                    return false;
+                }
+                
+                const birthdate = new Date(value);
+                const today = new Date();
+                const minDate = new Date();
+                minDate.setFullYear(today.getFullYear() - 150);
+                
+                if (birthdate > today) {
+                    birthdateInput.setCustomValidity('Birthdate cannot be in the future');
+                    return false;
+                } else if (birthdate < minDate) {
+                    birthdateInput.setCustomValidity('Birthdate must be within the last 150 years');
+                    return false;
+                } else {
+                    birthdateInput.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validatePurpose() {
+                const purpose = document.getElementById('reqPurpose');
+                const value = purpose.value.trim();
+                
+                if (value.length < 5) {
+                    purpose.setCustomValidity('Purpose must be at least 5 characters long');
+                    return false;
+                } else if (value.length > 300) {
+                    purpose.setCustomValidity('Purpose must not exceed 300 characters');
+                    return false;
+                } else {
+                    purpose.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateImageUpload() {
+                const imageInput = document.getElementById('certificateImage');
+                const isUpdateMode = <?php echo $isUpdateMode ? 'true' : 'false'; ?>;
+                
+                if (!imageInput.required && !imageInput.files.length) {
+                    imageInput.setCustomValidity('');
+                    return true;
+                }
+                
+                if (imageInput.required && !imageInput.files.length) {
+                    imageInput.setCustomValidity('Image of valid ID is required');
+                    return false;
+                }
+                
+                if (imageInput.files.length > 0) {
+                    const file = imageInput.files[0];
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+                    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+                    
+                    if (!allowedTypes.includes(file.type)) {
+                        imageInput.setCustomValidity('Only JPG and PNG image files are allowed');
+                        return false;
+                    }
+                    
+                    if (file.size > maxSize) {
+                        imageInput.setCustomValidity('Image size must be less than 2MB');
+                        return false;
+                    }
+                    
+                    imageInput.setCustomValidity('');
+                }
+                return true;
+            }
+
+            // Add real-time validation
+            document.getElementById('firstname').addEventListener('input', function() { validateName('firstname'); validateForm(); });
+            document.getElementById('firstname').addEventListener('blur', function() { validateName('firstname'); });
+            
+            document.getElementById('lastname').addEventListener('input', function() { validateName('lastname'); validateForm(); });
+            document.getElementById('lastname').addEventListener('blur', function() { validateName('lastname'); });
+            
+            document.getElementById('contactNo').addEventListener('input', function() { validateContactNumber(); validateForm(); });
+            document.getElementById('contactNo').addEventListener('blur', validateContactNumber);
+            
+            document.getElementById('address').addEventListener('input', function() { validateAddress(); validateForm(); });
+            document.getElementById('address').addEventListener('blur', validateAddress);
+            
+            document.getElementById('yearsOfResidency').addEventListener('input', function() { validateYearsOfResidency(); validateForm(); });
+            document.getElementById('yearsOfResidency').addEventListener('blur', validateYearsOfResidency);
+            
+            document.getElementById('birthdate').addEventListener('change', function() { validateBirthdate(); validateForm(); });
+            
+            document.getElementById('reqPurpose').addEventListener('input', function() { validatePurpose(); validateForm(); });
+            document.getElementById('reqPurpose').addEventListener('blur', validatePurpose);
+            
+            document.getElementById('certificateImage').addEventListener('change', function() { validateImageUpload(); validateForm(); });
 
             function validateForm() {
                 let isValid = true;
+
+                // Run all validation functions
+                isValid = validateName('firstname') && isValid;
+                isValid = validateName('lastname') && isValid;
+                isValid = validateContactNumber() && isValid;
+                isValid = validateAddress() && isValid;
+                isValid = validateYearsOfResidency() && isValid;
+                isValid = validateBirthdate() && isValid;
+                isValid = validatePurpose() && isValid;
+                isValid = validateImageUpload() && isValid;
 
                 // Check required fields
                 const requiredFields = form.querySelectorAll('[required]');
@@ -1051,20 +1392,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                     isValid = false;
                 }
 
-                // Validate years of residency is a number
-                const yearsOfResidency = document.getElementById('yearsOfResidency');
-                if (yearsOfResidency.value && isNaN(yearsOfResidency.value)) {
-                    isValid = false;
-                }
-
-                // Validate birthdate if No Birth Certificate is selected and not disabled
-                const noBirthCertSelected = document.getElementById('no_birth_certificate').checked && !document.getElementById('no_birth_certificate').disabled;
-                const birthdateInput = document.getElementById('birthdate');
-                if (noBirthCertSelected && !birthdateInput.value.trim()) {
-                    isValid = false;
-                }
-
                 submitBtn.disabled = !isValid;
+            }
+
+            // Handle document type checkbox changes to show/hide image field
+            function updateImageFieldVisibility() {
+                const documentTypes = form.querySelectorAll('input[name="doctype[]"]:checked:not(:disabled)');
+                const checkedTypes = Array.from(documentTypes).map(cb => cb.value);
+
+                // Check if ONLY "No Birth Certificate" is selected
+                const onlyNoBirthCert = checkedTypes.length === 1 && checkedTypes.includes('No Birth Certificate');
+
+                if (onlyNoBirthCert) {
+                    // Hide image field and make it optional
+                    certificateImageGroup.style.display = 'none';
+                    certificateImageInput.required = false;
+                    imageRequired.style.display = 'none';
+                } else {
+                    // Show image field and make it required (except in update mode with existing image)
+                    certificateImageGroup.style.display = 'block';
+                    <?php if (!$isUpdateMode): ?>
+                        certificateImageInput.required = true;
+                        imageRequired.style.display = 'inline';
+                    <?php else: ?>
+                        certificateImageInput.required = false;
+                        imageRequired.style.display = 'none';
+                    <?php endif; ?>
+                }
+
+                validateForm();
             }
 
             // Handle No Birth Certificate checkbox toggle
@@ -1080,7 +1436,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                     birthdateGroup.style.display = 'none';
                     birthdateInput.required = false;
                 }
-                validateForm();
+                updateImageFieldVisibility(); // Also check image field visibility
             }
 
             if (noBirthCertCheckbox) {
@@ -1089,25 +1445,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                 toggleBirthdateField();
             }
 
-            // Handle disabled checkboxes - uncheck if they become disabled and show appropriate messages
+            // Add change listener to all document type checkboxes
             const allDocTypeCheckboxes = document.querySelectorAll('input[name="doctype[]"]');
-            
-            allDocTypeCheckboxes.forEach(function(checkbox) {
+            allDocTypeCheckboxes.forEach(function (checkbox) {
+                checkbox.addEventListener('change', updateImageFieldVisibility);
+
                 if (checkbox.disabled) {
                     checkbox.checked = false;
-                    
+
                     // Add click event to show message if user tries to click disabled checkbox
-                    checkbox.addEventListener('click', function(e) {
+                    checkbox.addEventListener('click', function (e) {
                         if (this.disabled) {
                             e.preventDefault();
                             let message = 'This document type is not available.';
-                            
+
                             if (this.value === 'First Time Job Seeker') {
                                 message = 'You can only request First Time Job Seeker certificate once, and you already have a previous request.';
                             } else {
                                 message = 'You already have a pending request for ' + this.value + '. Please wait for approval or update your existing request.';
                             }
-                            
+
                             alert(message);
                             return false;
                         }
@@ -1115,12 +1472,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                 }
             });
 
+            // Initialize image field visibility on page load
+            updateImageFieldVisibility();
+
             // Real-time form validation
             form.addEventListener('input', validateForm);
             form.addEventListener('change', validateForm);
 
             // Form submission validation
-            form.addEventListener('submit', function(e) {
+            form.addEventListener('submit', function (e) {
+                // Run all validations before submit
+                if (!validateForm()) {
+                    e.preventDefault();
+                    alert('Please correct the errors in the form before submitting.');
+                    return false;
+                }
+                
                 // Additional check for disabled checkboxes that might be checked
                 const disabledChecked = form.querySelectorAll('input[name="doctype[]"]:disabled:checked');
                 if (disabledChecked.length > 0) {
@@ -1157,4 +1524,3 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 </body>
 
 </html>
-

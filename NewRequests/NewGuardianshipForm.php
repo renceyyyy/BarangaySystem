@@ -554,7 +554,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
                 <div class="form-group">
                     <label for="childAge">Child's Age <span class="required">*</span></label>
                     <input type="number" id="childAge" name="childAge" value="<?php echo htmlspecialchars($childAge); ?>" min="0" max="18" placeholder="Enter age (0-18)">
-                    <div class="info-text">Age must be between 0 and 18 years</div>
+                    <div class="info-text">Age must be between 1 and 21 years</div>
                 </div>
                 
                 <div class="form-group">
@@ -609,6 +609,144 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
             const submitBtn = document.getElementById('submitBtn');
             const form = document.getElementById('guardianshipForm');
 
+            // Validation functions
+            function validateName(fieldId) {
+                const field = document.getElementById(fieldId);
+                const value = field.value.trim();
+                const namePattern = /^[a-zA-Z\s\-.]+$/;
+                
+                if (value.length < 2) {
+                    field.setCustomValidity('Name must be at least 2 characters long');
+                    return false;
+                } else if (value.length > 100) {
+                    field.setCustomValidity('Name must not exceed 100 characters');
+                    return false;
+                } else if (!namePattern.test(value)) {
+                    field.setCustomValidity('Name can only contain letters, spaces, hyphens, and periods');
+                    return false;
+                } else {
+                    field.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateChildAge() {
+                const childAge = document.getElementById('childAge');
+                const value = parseInt(childAge.value);
+                
+                if (isNaN(value)) {
+                    childAge.setCustomValidity('Child age must be a valid number');
+                    return false;
+                } else if (value < 0) {
+                    childAge.setCustomValidity('Child age cannot be negative');
+                    return false;
+                } else if (value > 21) {
+                    childAge.setCustomValidity('Child age must not exceed 21 years');
+                    return false;
+                } else {
+                    childAge.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateAddress() {
+                const address = document.getElementById('childAddress');
+                const value = address.value.trim();
+                
+                if (value.length < 10) {
+                    address.setCustomValidity('Address must be at least 10 characters long');
+                    return false;
+                } else if (value.length > 200) {
+                    address.setCustomValidity('Address must not exceed 200 characters');
+                    return false;
+                } else {
+                    address.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validatePurpose() {
+                const purpose = document.getElementById('purpose');
+                const value = purpose.value.trim();
+                
+                if (value.length < 5) {
+                    purpose.setCustomValidity('Purpose must be at least 5 characters long');
+                    return false;
+                } else if (value.length > 300) {
+                    purpose.setCustomValidity('Purpose must not exceed 300 characters');
+                    return false;
+                } else {
+                    purpose.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateRelationship() {
+                const relationship = document.getElementById('applicantRelationship');
+                const value = relationship.value.trim();
+                const namePattern = /^[a-zA-Z\s\-.]+$/;
+                
+                if (value.length < 2) {
+                    relationship.setCustomValidity('Relationship must be at least 2 characters long');
+                    return false;
+                } else if (!namePattern.test(value)) {
+                    relationship.setCustomValidity('Relationship can only contain letters, spaces, hyphens, and periods');
+                    return false;
+                } else {
+                    relationship.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            function validateDate(fieldId) {
+                const field = document.getElementById(fieldId);
+                const value = field.value;
+                
+                if (!value) {
+                    return true; // Let required attribute handle empty validation
+                }
+                
+                const selectedDate = new Date(value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const minDate = new Date();
+                minDate.setFullYear(today.getFullYear() - 50);
+                
+                if (selectedDate > today) {
+                    field.setCustomValidity('Date cannot be in the future');
+                    return false;
+                } else if (selectedDate < minDate) {
+                    field.setCustomValidity('Date must be within the last 50 years');
+                    return false;
+                } else {
+                    field.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            // Add real-time validation
+            document.getElementById('childName').addEventListener('input', function() { validateName('childName'); validateForm(); });
+            document.getElementById('childName').addEventListener('blur', function() { validateName('childName'); });
+            
+            document.getElementById('applicantName').addEventListener('input', function() { validateName('applicantName'); validateForm(); });
+            document.getElementById('applicantName').addEventListener('blur', function() { validateName('applicantName'); });
+            
+            document.getElementById('childAge').addEventListener('input', function() { validateChildAge(); validateForm(); });
+            document.getElementById('childAge').addEventListener('blur', validateChildAge);
+            
+            document.getElementById('childAddress').addEventListener('input', function() { validateAddress(); validateForm(); });
+            document.getElementById('childAddress').addEventListener('blur', validateAddress);
+            
+            document.getElementById('purpose').addEventListener('input', function() { validatePurpose(); validateForm(); });
+            document.getElementById('purpose').addEventListener('blur', validatePurpose);
+            
+            document.getElementById('applicantRelationship').addEventListener('input', function() { validateRelationship(); validateForm(); });
+            document.getElementById('applicantRelationship').addEventListener('blur', validateRelationship);
+            
+            document.getElementById('guardianshipSince').addEventListener('change', function() { validateDate('guardianshipSince'); validateForm(); });
+            document.getElementById('soloParentSince').addEventListener('change', function() { validateDate('soloParentSince'); validateForm(); });
+
             function toggleRequestType() {
                 if (guardianshipRadio.checked) {
                     guardianshipOption.classList.add('selected');
@@ -631,6 +769,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
 
             function validateForm() {
                 let isValid = true;
+                
+                // Run all validation functions
+                isValid = validateName('childName') && isValid;
+                isValid = validateName('applicantName') && isValid;
+                isValid = validateChildAge() && isValid;
+                isValid = validateAddress() && isValid;
+                isValid = validatePurpose() && isValid;
+                isValid = validateRelationship() && isValid;
+                
+                if (guardianshipRadio.checked) {
+                    isValid = validateDate('guardianshipSince') && isValid;
+                }
+                if (soloParentRadio.checked) {
+                    isValid = validateDate('soloParentSince') && isValid;
+                }
                 
                 // Check required fields
                 const requiredFields = form.querySelectorAll('[required]');
@@ -656,12 +809,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
                     isValid = false;
                 }
 
-                // Age validation
-                const childAge = document.getElementById('childAge').value;
-                if (childAge && (childAge < 0 || childAge > 18)) {
-                    isValid = false;
-                }
-
                 submitBtn.disabled = !isValid;
             }
 
@@ -682,6 +829,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
             // Real-time form validation
             form.addEventListener('input', validateForm);
             form.addEventListener('change', validateForm);
+
+            // Form submission validation
+            form.addEventListener('submit', function(e) {
+                if (!validateForm()) {
+                    e.preventDefault();
+                    alert('Please correct the errors in the form before submitting.');
+                    return false;
+                }
+            });
 
             // Initialize
             toggleRequestType();

@@ -275,15 +275,15 @@ include 'dashboard.php';
       <div class="col-12 col-md-2 sidebar">
         <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
-        <button class="sidebar-btn" onclick="showPanel('dashboardPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
         </button>
         
-        <button class="sidebar-btn" onclick="showPanel('scholarshipPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('scholarshipPanel')">
           <i class="fas fa-graduation-cap"></i> Scholarship Applications
         </button>
 
-        <a href="#" class="logout-link mt-auto" onclick="confirmLogout(event)">
+        <a href="javascript:void(0);" class="logout-link mt-auto" onclick="confirmLogout(event); return false;">
           <i class="fas fa-sign-out-alt"></i> Logout
         </a>
       </div>

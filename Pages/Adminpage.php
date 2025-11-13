@@ -84,9 +84,9 @@ require_once '../Process/db_connection.php';
         <button class="sidebar-btn" onclick="showPanel('reportsPanel')">
           <i class="fas fa-file-alt"></i> Reports
         </button>
-        <button class="sidebar-btn" onclick="showPanel('auditTrailPanel')">
+        <!-- <button class="sidebar-btn" onclick="showPanel('auditTrailPanel')">
           <i class="fas fa-history"></i> Activity Logs
-        </button>
+        </button> -->
         <button class="sidebar-btn" onclick="showPanel('announcementPanel')">
           <i class="fas fa-newspaper"></i> Announcement
         </button>
@@ -155,14 +155,6 @@ require_once '../Process/db_connection.php';
             </div>
 
             <div class="chart-container">
-              <div class="boxes">
-                <h4>Age Distribution</h4>
-                <canvas id="ageChart"></canvas>
-              </div>
-              <div class="genderbox">
-                <h4>Gender Distribution</h4>
-                <canvas id="genderChart"></canvas>
-              </div>
               <div class="business-box">
                 <h4>Business Permit Requests</h4>
                 <canvas id="businessChart"></canvas>
@@ -171,7 +163,10 @@ require_once '../Process/db_connection.php';
                 <h4>Government Document Requests</h4>
                 <canvas id="documentChart"></canvas>
               </div>
-              
+              <div class="guardianship-box">
+                <h4>Guardianship Requests</h4>
+                <canvas id="guardianshipChart"></canvas>
+              </div>
               <div class="unemployment-box">
                 <h4>Unemployment Certificate Requests</h4>
                 <canvas id="unemploymentChart"></canvas>
@@ -5330,159 +5325,14 @@ function reloadItemRequestsPanel(message) {
 
 
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
             <script>
-              const ageLabels = <?php echo json_encode($ageLabels); ?>;
-              const ageCounts = <?php echo json_encode($ageCounts); ?>;
-
-              const civilLabels = <?php echo json_encode($civilLabels); ?>;
-              const civilCounts = <?php echo json_encode($civilCounts); ?>;
+              
 
               const DocutypeLabels = <?php echo json_encode($DocutypeLabels); ?>;
               const DocutypeCounts = <?php echo json_encode($DocutypeCounts); ?>;
 
-              const ctx = document.getElementById('ageChart').getContext('2d');
-
-              new Chart(ctx, {
-                type: 'bar',
-                data: {
-                  labels: ageLabels,
-                  datasets: [{
-                    label: 'Residents',
-                    data: ageCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: 'rgba(66, 209, 73, 0.2)', // soft green fill
-                    pointBackgroundColor: '#42d149',
-                    pointBorderColor: '#1c552b',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  plugins: {
-                    title: {
-                      display: true,
-                      font: {
-                        size: 18,
-                        weight: 'bold'
-                      }
-                    },
-                    legend: {
-                      display: true,
-                      position: 'top'
-                    },
-                    tooltip: {
-                      backgroundColor: '#1c552b',
-                      titleColor: '#fff',
-                      bodyColor: '#fff',
-                      borderColor: '#42d149',
-                      borderWidth: 1
-                    }
-                  },
-                  scales: {
-                    x: {
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
-                      grid: {
-                        color: '#e0e0e0'
-                      }
-                    },
-                    y: {
-                      beginAtZero: true,
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
-                      grid: {
-                        color: '#f0f0f0'
-                      }
-                    }
-                  }
-                }
-              });
-              new Chart(document.getElementById('civilChart'), {
-                type: 'bar',
-                data: {
-                  labels: civilLabels,
-                  datasets: [{
-                    label: 'Residents',
-                    data: civilCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: 'rgba(66, 209, 73, 0.2)', // soft green fill
-                    pointBackgroundColor: '#42d149',
-                    pointBorderColor: '#1c552b',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  plugins: {
-                    title: {
-                      display: true,
-                      font: {
-                        size: 18,
-                        weight: 'bold'
-                      }
-                    },
-                    legend: {
-                      display: true,
-                      position: 'top'
-                    },
-                    tooltip: {
-                      backgroundColor: '#1c552b',
-                      titleColor: '#fff',
-                      bodyColor: '#fff',
-                      borderColor: '#42d149',
-                      borderWidth: 1
-                    }
-                  },
-                  scales: {
-                    x: {
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
-                      grid: {
-                        color: '#e0e0e0'
-                      }
-                    },
-                    y: {
-                      beginAtZero: true,
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
-                      grid: {
-                        color: '#f0f0f0'
-                      }
-                    }
-                  }
-                }
-              });
               new Chart(document.getElementById('documentChart'), {
                 type: 'bar',
                 data: {
@@ -5552,53 +5402,7 @@ function reloadItemRequestsPanel(message) {
                   }
                 }
               });
-              const genderLabels = <?php echo json_encode($genderLabels); ?>;
-              const genderCounts = <?php echo json_encode($genderCounts); ?>;
-
-
-              new Chart(document.getElementById('genderChart'), {
-                type: 'pie',
-                data: {
-                  labels: genderLabels,
-                  datasets: [{
-                    label: 'Residents',
-                    data: genderCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: [
-                      '#6acf6fff', // green
-                      '#22843afb', // dark green
-                    ],
-                    pointBackgroundColor: '#1fff2b4f',
-                    pointBorderColor: '#177f33ff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  plugins: {
-                    legend: {
-                      position: 'bottom'
-                    },
-                    datalabels: {
-                      formatter: (value, context) => {
-                        const data = context.chart.data.datasets[0].data;
-                        const total = data.reduce((acc, val) => acc + val, 0);
-                        const percentage = ((value / total) * 100).toFixed(1);
-                        return percentage + '%';
-                      },
-                      color: '#fff',
-                      font: {
-                        weight: 'bold'
-                      }
-                    }
-                  }
-                },
-                plugins: [ChartDataLabels]
-              });
+              
 
               const unemploymentLabels = <?php echo json_encode($unemploymentLabels); ?>;
               const unemploymentCounts = <?php echo json_encode($unemploymentCounts); ?>;
@@ -5647,6 +5451,80 @@ function reloadItemRequestsPanel(message) {
                 },
                 plugins: [ChartDataLabels]
               });
+
+              // guardianship data (note: dashboard.php uses $guadianshipLabels/$guadianshipCounts)
+              const guardianshipLabels = <?php echo json_encode($guadianshipLabels ?? []); ?>;
+              const guardianshipCounts = <?php echo json_encode($guadianshipCounts ?? []); ?>;
+              new Chart(document.getElementById('guardianshipChart'), {
+                type: 'bar',
+                data: {
+                  labels: guardianshipLabels,
+                  datasets: [{
+                    label: 'Guardianship Requests',
+                    data: guardianshipCounts,
+                    fill: true,
+                    borderColor: '#2e7d32', // dark green line
+                    backgroundColor: 'rgba(66, 209, 73, 0.2)', // soft green fill
+                    pointBackgroundColor: '#42d149',
+                    pointBorderColor: '#1c552b',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#42d149',
+                    tension: 0.3, // smooth curves
+                    borderWidth: 2,
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  plugins: {
+                    title: {
+                      display: true,
+                      font: {
+                        size: 18,
+                        weight: 'bold'
+                      }
+                    },
+                    legend: {
+                      display: true,
+                      position: 'top'
+                    },
+                    tooltip: {
+                      backgroundColor: '#1c552b',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      borderColor: '#42d149',
+                      borderWidth: 1
+                    }
+                  },
+                  scales: {
+                    x: {
+                      title: {
+                        display: true,
+
+                        font: {
+                          weight: 'bold'
+                        }
+                      },
+                      grid: {
+                        color: '#e0e0e0'
+                      }
+                    },
+                    y: {
+                      beginAtZero: true,
+                      title: {
+                        display: true,
+
+                        font: {
+                          weight: 'bold'
+                        }
+                      },
+                      grid: {
+                        color: '#f0f0f0'
+                      }
+                    }
+                  }
+                }
+              });
+
 
               const businessLabels = <?php echo json_encode($businessLabels); ?>;
               const businessCounts = <?php echo json_encode($businessCounts); ?>;

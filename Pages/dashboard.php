@@ -2,52 +2,6 @@
 // Connect to database
 $connection = new mysqli("localhost", "root", "", "barangaydb");
 
-// Get age distribution (10-20, 21-30, etc.)
-// Get age group distribution (only 10–60, exclude empty groups)
-$ageQuery = "
-    SELECT 
-        CASE 
-            WHEN age BETWEEN 10 AND 20 THEN '10-20'
-            WHEN age BETWEEN 21 AND 30 THEN '21-30'
-            WHEN age BETWEEN 31 AND 40 THEN '31-40'
-            WHEN age BETWEEN 41 AND 50 THEN '41-50'
-            WHEN age BETWEEN 51 AND 60 THEN '51-60'
-        END AS age_group,
-        COUNT(*) AS total
-    FROM userloginfo
-    WHERE age BETWEEN 10 AND 60
-    GROUP BY age_group
-    HAVING total > 0
-    ORDER BY MIN(age)
-";
-
-$ageResult = $connection->query($ageQuery);
-
-$ageLabels = [];
-$ageCounts = [];
-
-while ($row = $ageResult->fetch_assoc()) {
-    $ageLabels[] = $row['age_group'];
-    $ageCounts[] = $row['total'];
-}
-
-
-// Get civil status distribution (only Single, Married, Widowed, Divorced)
-$civilQuery = "
-    SELECT CivilStatus, COUNT(*) AS total 
-    FROM userloginfo 
-    WHERE CivilStatus IN ('Single', 'Married', 'Widowed', 'Divorced')
-    GROUP BY CivilStatus
-";
-$civilResult = $connection->query($civilQuery);
-
-$civilLabels = [];
-$civilCounts = [];
-
-while ($row = $civilResult->fetch_assoc()) {
-    $civilLabels[] = $row['CivilStatus'];
-    $civilCounts[] = $row['total'];
-}
 
 
 $businessQuery = "SELECT RequestType, COUNT(*) AS total FROM businesstbl GROUP BY RequestType";
@@ -61,21 +15,16 @@ while ($row = $businessResult->fetch_assoc()) {
     $businessCounts[] = $row['total'];
 }
 
-// Get gender distribution
-$genderQuery = "
-    SELECT Gender, COUNT(*) AS total 
-    FROM userloginfo 
-    WHERE Gender IN ('Male', 'Female') 
-    GROUP BY Gender
-";
-$genderResult = $connection->query($genderQuery);
+//get guardianship data
+$guadianshipQuery = "SELECT request_type, COUNT(*) AS total FROM guardianshiptbl GROUP BY request_type";
+$guadianshipResult = $connection->query($guadianshipQuery);
 
-$genderLabels = [];
-$genderCounts = [];
+$guadianshipLabels = [];
+$guadianshipCounts = [];
 
-while ($row = $genderResult->fetch_assoc()) {
-    $genderLabels[] = $row['Gender'];
-    $genderCounts[] = $row['total'];
+while ($row = $guadianshipResult->fetch_assoc()) {
+    $guadianshipLabels[] = $row['request_type'];
+    $guadianshipCounts[] = $row['total'];
 }
 
 

@@ -1,4 +1,16 @@
-<?php include 'dashboard.php'; ?>
+<?php 
+// Initialize role-based session for SK
+require_once __DIR__ . '/../config/session_config.php';
+initRoleBasedSession('sk');
+
+// Security check — only sk users allowed
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'sk') {
+    header("Location: ../Login/login.php");
+    exit();
+}
+
+include 'dashboard.php'; 
+?>
 
 <!DOCTYPE html>
 <html lang="en">

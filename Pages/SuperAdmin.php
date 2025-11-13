@@ -1,5 +1,15 @@
-<?php include 'dashboard.php';
+<?php 
+// Initialize role-based session for SuperAdmin
+require_once __DIR__ . '/../config/session_config.php';
+initRoleBasedSession('SuperAdmin');
 
+// Security check — only SuperAdmin users allowed
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'SuperAdmin') {
+    header("Location: ../Login/login.php");
+    exit();
+}
+
+include 'dashboard.php';
 ?>
 
 <!DOCTYPE html>

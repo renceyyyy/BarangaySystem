@@ -1,7 +1,12 @@
 <?php
+// Set resident session name BEFORE starting session
+session_name('BarangayResidentSession');
+
+// Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
 // Add database connection
 require_once '../Process/db_connection.php';
 // News Handler

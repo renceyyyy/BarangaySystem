@@ -1,7 +1,13 @@
 <?php
-session_start(); // ✅ Always first — before any HTML or includes
+// Set staff session name BEFORE starting session
+session_name('BarangayStaffSession');
 
-// Security check — only finance users allowed
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Security check — only admin users allowed
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../Login/login.php");
     exit();

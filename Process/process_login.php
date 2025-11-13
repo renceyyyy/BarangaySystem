@@ -1,5 +1,5 @@
 <?php
-session_start();
+// Don't start session yet - we need to set the session name first based on role
 require_once 'db_connection.php';
 
 // Get database connection
@@ -8,6 +8,11 @@ $conn = getDBConnection();
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
+
+    // Start a temporary session for error messages
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
 
     if (empty($username) || empty($password)) {
         $_SESSION['login_error'] = "Username and password are required";
@@ -44,11 +49,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $user = $result->fetch_assoc();
 
         if (password_verify($password, $user['Password'])) {
+            $userRole = $user['Role'];
+            
+            // Destroy any existing temp session
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_destroy();
+            }
+            
+            // Set role-specific session name BEFORE starting session
+            if (in_array($userRole, ['admin', 'finance', 'sk', 'SuperAdmin'])) {
+                session_name('BarangayStaffSession');
+            } else {
+                session_name('BarangayResidentSession');
+            }
+            
+            // Now start the role-specific session
+            session_start();
+            
             // ✅ Store all session info
             $_SESSION['user_id'] = $user['UserID'];
             $_SESSION['username'] = $user['Username'];
-            $_SESSION['role'] = $user['Role'];
+            $_SESSION['role'] = $userRole;
             $_SESSION['fullname'] = $user['FullName']; // full name from userloginfo
+            $_SESSION['login_time'] = time();
 
             // Insert TimeIn into audittrail
             $timeIn = date("Y-m-d H:i:s");

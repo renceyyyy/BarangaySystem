@@ -1,7 +1,7 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Initialize resident session
+require_once __DIR__ . '/../config/session_resident.php';
+
 require_once '../Process/news_handler.php';
 ?>
 <!DOCTYPE html>

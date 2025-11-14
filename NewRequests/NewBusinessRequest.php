@@ -799,165 +799,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
             const submitBtn = document.getElementById('submitBtn');
             const form = document.getElementById('businessForm');
 
-            // Validation functions
-            function validateBusinessName() {
-                const businessName = document.getElementById('BusinessName');
-                const value = businessName.value.trim();
-                
-                if (value.length < 3) {
-                    businessName.setCustomValidity('Business name must be at least 3 characters long');
-                    return false;
-                } else if (value.length > 100) {
-                    businessName.setCustomValidity('Business name must not exceed 100 characters');
-                    return false;
-                } else {
-                    businessName.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateOwnerName() {
-                const ownerName = document.getElementById('OwnerName');
-                const value = ownerName.value.trim();
-                const namePattern = /^[a-zA-Z\s\-.]+$/;
-                
-                if (value.length < 2) {
-                    ownerName.setCustomValidity('Owner name must be at least 2 characters long');
-                    return false;
-                } else if (!namePattern.test(value)) {
-                    ownerName.setCustomValidity('Owner name can only contain letters, spaces, hyphens, and periods');
-                    return false;
-                } else {
-                    ownerName.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateContactNumber() {
-                const contactNo = document.getElementById('OwnerContact');
-                const value = contactNo.value.trim();
-                // Philippine mobile number format: 09XX-XXX-XXXX or 639XXXXXXXXX or 11 digits
-                const phonePattern = /^(09|\+639|639)\d{9}$/;
-                
-                if (value.length < 10) {
-                    contactNo.setCustomValidity('Contact number must be at least 10 digits');
-                    return false;
-                } else if (value.length > 13) {
-                    contactNo.setCustomValidity('Contact number must not exceed 13 characters');
-                    return false;
-                } else if (!/^\+?[0-9]+$/.test(value)) {
-                    contactNo.setCustomValidity('Contact number can only contain numbers and optional + prefix');
-                    return false;
-                } else {
-                    contactNo.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateBusinessLocation() {
-                const businessLoc = document.getElementById('BusinessLoc');
-                const value = businessLoc.value.trim();
-                
-                if (value.length < 10) {
-                    businessLoc.setCustomValidity('Business location must be at least 10 characters long');
-                    return false;
-                } else if (value.length > 500) {
-                    businessLoc.setCustomValidity('Business location must not exceed 500 characters');
-                    return false;
-                } else {
-                    businessLoc.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validatePurpose() {
-                const purpose = document.getElementById('Purpose');
-                const value = purpose.value.trim();
-                
-                if (value.length < 10) {
-                    purpose.setCustomValidity('Purpose must be at least 10 characters long');
-                    return false;
-                } else if (value.length > 500) {
-                    purpose.setCustomValidity('Purpose must not exceed 500 characters');
-                    return false;
-                } else {
-                    purpose.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateClosureDate() {
-                if (requestTypeClosure.checked) {
-                    const closureDate = document.getElementById('ClosureDate');
-                    const value = closureDate.value;
-                    
-                    if (!value) {
-                        closureDate.setCustomValidity('Closure date is required for business closure');
-                        return false;
-                    }
-                    
-                    const selectedDate = new Date(value);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    
-                    if (selectedDate < today) {
-                        closureDate.setCustomValidity('Closure date cannot be in the past');
-                        return false;
-                    } else {
-                        closureDate.setCustomValidity('');
-                        return true;
-                    }
-                }
-                return true;
-            }
-
-            function validateFileUpload() {
-                const fileInput = document.getElementById('businessProof');
-                const isUpdateMode = <?php echo $isUpdateMode ? 'true' : 'false'; ?>;
-                
-                if (!isUpdateMode && !fileInput.files.length) {
-                    fileInput.setCustomValidity('Proof document is required');
-                    return false;
-                }
-                
-                if (fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
-                    const maxSize = 2 * 1024 * 1024; // 2MB
-                    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-                    
-                    if (!allowedTypes.includes(file.type)) {
-                        fileInput.setCustomValidity('Only JPG, PNG, and PDF files are allowed');
-                        return false;
-                    }
-                    
-                    if (file.size > maxSize) {
-                        fileInput.setCustomValidity('File size must be less than 2MB');
-                        return false;
-                    }
-                    
-                    fileInput.setCustomValidity('');
-                }
-                return true;
-            }
-
-            // Add real-time validation
-            document.getElementById('BusinessName').addEventListener('input', validateBusinessName);
-            document.getElementById('BusinessName').addEventListener('blur', validateBusinessName);
-            
-            document.getElementById('OwnerName').addEventListener('input', validateOwnerName);
-            document.getElementById('OwnerName').addEventListener('blur', validateOwnerName);
-            
-            document.getElementById('OwnerContact').addEventListener('input', validateContactNumber);
-            document.getElementById('OwnerContact').addEventListener('blur', validateContactNumber);
-            
-            document.getElementById('BusinessLoc').addEventListener('input', validateBusinessLocation);
-            document.getElementById('BusinessLoc').addEventListener('blur', validateBusinessLocation);
-            
-            document.getElementById('Purpose').addEventListener('input', validatePurpose);
-            document.getElementById('Purpose').addEventListener('blur', validatePurpose);
-            
-            document.getElementById('ClosureDate').addEventListener('change', validateClosureDate);
-            document.getElementById('businessProof').addEventListener('change', validateFileUpload);
+            // Toggle request type function
 
             function toggleRequestType() {
                 if (requestTypePermit.checked) {
@@ -971,31 +813,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
                     closureDateField.classList.add('active');
                     closureDateInput.required = true;
                 }
-                validateClosureDate();
-                validateForm();
-            }
-
-            function validateForm() {
-                let isValid = true;
-
-                // Run all validation functions
-                isValid = validateBusinessName() && isValid;
-                isValid = validateOwnerName() && isValid;
-                isValid = validateContactNumber() && isValid;
-                isValid = validateBusinessLocation() && isValid;
-                isValid = validatePurpose() && isValid;
-                isValid = validateClosureDate() && isValid;
-                isValid = validateFileUpload() && isValid;
-
-                // Check required fields
-                const requiredFields = form.querySelectorAll('[required]');
-                requiredFields.forEach(field => {
-                    if (!field.value.trim() && field.offsetParent !== null) {
-                        isValid = false;
-                    }
-                });
-
-                submitBtn.disabled = !isValid;
             }
 
             // Event listeners for request type change
@@ -1009,22 +826,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
                 toggleRequestType();
             });
 
-            // Real-time form validation
-            form.addEventListener('input', validateForm);
-            form.addEventListener('change', validateForm);
-
-            // Form submission validation
-            form.addEventListener('submit', function(e) {
-                if (!validateForm()) {
-                    e.preventDefault();
-                    alert('Please correct the errors in the form before submitting.');
-                    return false;
-                }
-            });
-
             // Initialize
             toggleRequestType();
-            validateForm();
 
             // Show success message if submission was successful
             <?php if (isset($success) && $success): ?>

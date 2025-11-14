@@ -4456,7 +4456,17 @@ window.addEventListener("DOMContentLoaded", function() {
             document.getElementById('modalCivilStat').value = this.getAttribute('data-civilstatus');
             document.getElementById('modalNationality').value = this.getAttribute('data-nationality');
             document.getElementById('modalAccountStatus').value = this.getAttribute('data-accountstatus');
-
+            
+            // Set ValidID image
+            const validIDImg = document.getElementById('modalValidID');
+            const validIDData = this.getAttribute('data-validid');
+            if (validIDData) {
+              validIDImg.src = validIDData;
+              validIDImg.style.display = 'block';
+            } else {
+              validIDImg.src = '';
+              validIDImg.style.display = 'none';
+            }
 
                   document.getElementById('viewModal').style.display = 'flex';
                 });

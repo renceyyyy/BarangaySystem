@@ -726,7 +726,7 @@ unset($_SESSION['verification_notification']);
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Request
                                 Business Permit</a>
                             <a href="#"
-                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Blotter/Complaint</a>
+                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Complain</a>
                             <a href="#"
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Apply
                                 for Scholar</a>
@@ -739,12 +739,13 @@ unset($_SESSION['verification_notification']);
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Cohabitation</a>
                         <?php endif; ?>
                     <?php else: ?>
-                        <a href="../Login/login.php">Request Government Documents</a>
-                        <a href="../Login/login.php">Request Business Permit</a>
-                        <a href="../Login/login.php">Blotter/Complaint</a>
-                        <a href="../Login/login.php">Apply for Scholar</a>
-                        <a href="../Login/login.php">No fix income/No income</a>
-                        <a href="../Login/login.php">Guardianship</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Request Government Documents</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Request Business Permit</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Complain</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Apply for Scholar</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">No fix income/No income</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Guardianship</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Cohabitation</a>
                     
                     <?php endif; ?>
                 </div>
@@ -788,6 +789,66 @@ unset($_SESSION['verification_notification']);
     -->
 
     <script src="../Script.js"></script>
+
+    <!-- Global Notification Function -->
+    <script>
+        // Show notification function - must be global to be used in inline onclick handlers
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            
+            let bgColor, textColor, borderColor;
+            switch(type) {
+                case 'warning':
+                    bgColor = '#fff3e0';
+                    textColor = '#e65100';
+                    borderColor = '#e65100';
+                    break;
+                case 'success':
+                case 'verification':
+                    bgColor = '#e8f5e9';
+                    textColor = '#2e7d32';
+                    borderColor = '#2e7d32';
+                    break;
+                case 'error':
+                    bgColor = '#ffebee';
+                    textColor = '#c62828';
+                    borderColor = '#c62828';
+                    break;
+                default:
+                    bgColor = '#e3f2fd';
+                    textColor = '#1565c0';
+                    borderColor = '#1565c0';
+            }
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: ${bgColor};
+                color: ${textColor};
+                padding: 15px 20px;
+                border-radius: 8px;
+                border-left: 4px solid ${borderColor};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                max-width: 350px;
+                font-size: 14px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
 
     <!-- Mobile Responsive Script -->
     <script>
@@ -1063,8 +1124,12 @@ unset($_SESSION['verification_notification']);
         const RESIDENT_USER_ID = '<?php echo $_SESSION['user_id'] ?? ''; ?>';
         const RESIDENT_ROLE = '<?php echo $_SESSION['role'] ?? 'resident'; ?>';
         
-        // Only run for residents
-        if (RESIDENT_USER_ID && RESIDENT_ROLE === 'resident') {
+        console.log('[Notification System] User ID:', RESIDENT_USER_ID);
+        console.log('[Notification System] User Role:', RESIDENT_ROLE);
+        
+        // Only run for residents (role is 'resident' or empty/undefined for residents)
+        if (RESIDENT_USER_ID && (RESIDENT_ROLE === 'resident' || RESIDENT_ROLE === '')) {
+            console.log('[Notification System] ✓ Starting notification system...');
             const STORAGE_KEY = `barangay_resident_${RESIDENT_USER_ID}_status`;
             const CHECK_INTERVAL = 5000; // 5 seconds
             
@@ -1085,6 +1150,11 @@ unset($_SESSION['verification_notification']);
                     bgColor = '#e3f2fd';
                     textColor = '#1565c0';
                     borderColor = '#1565c0';
+                } else if (status === 'verified') {
+                    // Special styling for account verification
+                    bgColor = '#e8f5e9';
+                    textColor = '#1b5e20';
+                    borderColor = '#4caf50';
                 } else {
                     bgColor = '#fff3e0';
                     textColor = '#e65100';
@@ -1117,11 +1187,18 @@ unset($_SESSION['verification_notification']);
                 
                 document.body.appendChild(notification);
                 
+                // For account verification, show longer (15 seconds) and reload page after
+                const displayTime = status === 'verified' ? 15000 : 10000;
+                
                 setTimeout(() => {
                     if (notification.parentNode) {
                         document.body.removeChild(notification);
                     }
-                }, 10000);
+                    // Reload page after account verification notification to update UI
+                    if (status === 'verified') {
+                        window.location.reload();
+                    }
+                }, displayTime);
             }
             
             // Function to check for updates
@@ -1140,60 +1217,24 @@ unset($_SESSION['verification_notification']);
                 })
                 .then(response => response.json())
                 .then(data => {
+                    console.log('[Notification Debug]', data);
+                    
                     if (!data.success || !data.requests) {
+                        console.warn('[Notification] No success or requests in response');
                         return;
                     }
                     
-                    const currentRequests = data.requests;
-                    const stored = localStorage.getItem(STORAGE_KEY);
-                    
-                    if (!stored) {
-                        const snapshot = {
-                            userId: RESIDENT_USER_ID,
-                            timestamp: timestamp,
-                            requests: currentRequests
-                        };
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-                        return;
-                    }
-                    
-                    const previousData = JSON.parse(stored);
-                    const previousRequests = previousData.requests;
-                    
-                    // Check for changes
-                    for (const refno in currentRequests) {
-                        const current = currentRequests[refno];
-                        const previous = previousRequests[refno];
+                    // Show new notifications from server (database-backed)
+                    if (data.newNotifications && data.newNotifications.length > 0) {
+                        console.log('[Notification] ✓ New notifications received:', data.newNotifications.length);
                         
-                        if (previous && current.status !== previous.status) {
-                            let message = '';
-                            const status = current.status.toLowerCase();
-                            
-                            if (status === 'approved' || status === 'completed') {
-                                message = `Your ${current.type} (Ref No: ${refno}) is approved. Please proceed to the barangay office and pay the needed fee to get your request.`;
-                            } else if (status === 'declined') {
-                                const reason = current.decline_reason || 'administrative reasons';
-                                message = `Unfortunately, your ${current.type} (Ref No: ${refno}) is declined due to ${reason}. For inquiries, go to the barangay or contact us at: 86380301.`;
-                            } else if (status === 'printed') {
-                                message = `Your Document Request (Ref No: ${refno}) has been printed.`;
-                            } else if (status === 'released') {
-                                message = `Your Document Request (Ref No: ${refno}) has been released.`;
-                            } else {
-                                message = `Your ${current.type} (Ref No: ${refno}) status has been updated to: ${current.status}`;
-                            }
-                            
-                            showStatusNotification(message, current.status);
-                        }
+                        data.newNotifications.forEach(notification => {
+                            console.log('[Notification] Showing:', notification.message);
+                            showStatusNotification(notification.message, notification.status);
+                        });
+                    } else {
+                        console.log('[Notification] No new notifications');
                     }
-                    
-                    // Update snapshot
-                    const snapshot = {
-                        userId: RESIDENT_USER_ID,
-                        timestamp: timestamp,
-                        requests: currentRequests
-                    };
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-                    
                 })
                 .catch(error => {
                     console.error('[Notification] Error:', error);
@@ -1203,6 +1244,10 @@ unset($_SESSION['verification_notification']);
             // Start checking every 5 seconds
             setInterval(checkForStatusUpdates, CHECK_INTERVAL);
             setTimeout(checkForStatusUpdates, 1000);
+            
+            console.log('[Notification System] ✓ Notification polling started');
+        } else {
+            console.log('[Notification System] ✗ Not starting - User ID:', RESIDENT_USER_ID, 'Role:', RESIDENT_ROLE);
         }
     </script>
 

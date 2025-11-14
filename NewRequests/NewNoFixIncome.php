@@ -586,120 +586,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
             const submitBtn = document.getElementById('submitBtn');
             const form = document.getElementById('unemploymentForm');
 
-            // Validation functions
-            function validateName() {
-                const fullname = document.getElementById('fullname');
-                const value = fullname.value.trim();
-                const namePattern = /^[a-zA-Z\s\-.]+$/;
-                
-                if (value.length < 2) {
-                    fullname.setCustomValidity('Full name must be at least 2 characters long');
-                    return false;
-                } else if (value.length > 100) {
-                    fullname.setCustomValidity('Full name must not exceed 100 characters');
-                    return false;
-                } else if (!namePattern.test(value)) {
-                    fullname.setCustomValidity('Full name can only contain letters, spaces, hyphens, and periods');
-                    return false;
-                } else {
-                    fullname.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateAge() {
-                const age = document.getElementById('age');
-                const value = parseInt(age.value);
-                
-                if (isNaN(value)) {
-                    age.setCustomValidity('Age must be a valid number');
-                    return false;
-                } else if (value < 18) {
-                    age.setCustomValidity('Age must be at least 18 years old');
-                    return false;
-                } else if (value > 99) {
-                    age.setCustomValidity('Age must not exceed 99 years');
-                    return false;
-                } else {
-                    age.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateAddress() {
-                const address = document.getElementById('address');
-                const value = address.value.trim();
-                
-                if (value.length < 10) {
-                    address.setCustomValidity('Address must be at least 10 characters long');
-                    return false;
-                } else if (value.length > 200) {
-                    address.setCustomValidity('Address must not exceed 200 characters');
-                    return false;
-                } else {
-                    address.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validatePurpose() {
-                const purpose = document.getElementById('purpose');
-                const value = purpose.value.trim();
-                
-                if (value.length < 5) {
-                    purpose.setCustomValidity('Purpose must be at least 5 characters long');
-                    return false;
-                } else if (value.length > 300) {
-                    purpose.setCustomValidity('Purpose must not exceed 300 characters');
-                    return false;
-                } else {
-                    purpose.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateDate(fieldId) {
-                const field = document.getElementById(fieldId);
-                
-                if (!field.required || !field.value) {
-                    field.setCustomValidity('');
-                    return true;
-                }
-                
-                const selectedDate = new Date(field.value);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                const minDate = new Date();
-                minDate.setFullYear(today.getFullYear() - 50);
-                
-                if (selectedDate > today) {
-                    field.setCustomValidity('Date cannot be in the future');
-                    return false;
-                } else if (selectedDate < minDate) {
-                    field.setCustomValidity('Date must be within the last 50 years');
-                    return false;
-                } else {
-                    field.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            // Add real-time validation
-            document.getElementById('fullname').addEventListener('input', function() { validateName(); validateForm(); });
-            document.getElementById('fullname').addEventListener('blur', validateName);
-            
-            document.getElementById('age').addEventListener('input', function() { validateAge(); validateForm(); });
-            document.getElementById('age').addEventListener('blur', validateAge);
-            
-            document.getElementById('address').addEventListener('input', function() { validateAddress(); validateForm(); });
-            document.getElementById('address').addEventListener('blur', validateAddress);
-            
-            document.getElementById('purpose').addEventListener('input', function() { validatePurpose(); validateForm(); });
-            document.getElementById('purpose').addEventListener('blur', validatePurpose);
-            
-            document.getElementById('unemployedSince').addEventListener('change', function() { validateDate('unemployedSince'); validateForm(); });
-            document.getElementById('noFixedIncomeSince').addEventListener('change', function() { validateDate('noFixedIncomeSince'); validateForm(); });
+            // Toggle certificate type function
 
             function toggleCertificateType() {
                 if (certificateTypeNoIncome.checked) {
@@ -722,40 +609,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
                     unemployedSinceInput.required = false;
                     noFixedIncomeSinceInput.required = false;
                 }
-                validateForm();
-            }
-
-            function validateForm() {
-                let isValid = true;
-                
-                // Run all validation functions
-                isValid = validateName() && isValid;
-                isValid = validateAge() && isValid;
-                isValid = validateAddress() && isValid;
-                isValid = validatePurpose() && isValid;
-                
-                if (certificateTypeNoIncome.checked) {
-                    isValid = validateDate('unemployedSince') && isValid;
-                }
-                if (certificateTypeNoFixedIncome.checked) {
-                    isValid = validateDate('noFixedIncomeSince') && isValid;
-                }
-                
-                // Check required fields
-                const requiredFields = form.querySelectorAll('[required]');
-                requiredFields.forEach(field => {
-                    if (!field.value.trim() && field.offsetParent !== null) {
-                        isValid = false;
-                    }
-                });
-                
-                // Check certificate type
-                const certificateTypeSelected = form.querySelector('input[name="certificateType"]:checked');
-                if (!certificateTypeSelected) {
-                    isValid = false;
-                }
-                
-                submitBtn.disabled = !isValid;
             }
 
             // Event listeners for certificate type change
@@ -769,22 +622,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
                 toggleCertificateType();
             });
 
-            // Real-time form validation
-            form.addEventListener('input', validateForm);
-            form.addEventListener('change', validateForm);
-
-            // Form submission validation
-            form.addEventListener('submit', function(e) {
-                if (!validateForm()) {
-                    e.preventDefault();
-                    alert('Please correct the errors in the form before submitting.');
-                    return false;
-                }
-            });
-
             // Initialize
             toggleCertificateType();
-            validateForm();
 
             // Set maximum date for date fields to today
             const today = new Date().toISOString().split('T')[0];

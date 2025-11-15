@@ -71,6 +71,11 @@ require_once '../Process/db_connection.php';
           <i class="fas fa-box-open"></i> Item Request
         </button>
 
+
+        <button class="sidebar-btn" type="button" onclick="showPanel('onlineComplaintsPanel')">
+          <i class="fas fa-comments"></i> Online Complaints
+        </button>
+
         <!-- <button class="sidebar-btn" type="button" onclick="showPanel('blotterComplaintPanel')">
           <i class="fas fa-exclamation-triangle"></i> Blotter/Complaint
         </button> -->
@@ -80,7 +85,7 @@ require_once '../Process/db_connection.php';
             <i class="fas fa-exclamation-triangle"></i> Blotter <i class="fas fa-caret-down ms-auto"></i>
           </button>
           <div id="blotterDropdownMenu" class="dropdown-content-custom">
-            <a href="javascript:void(0);" onclick="showPanel('blotterComplaintPanel'); return false;">Blotter/Complaint</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotterComplaintPanel'); return false;">Blotter Reporting</a>
             <a href="javascript:void(0);" onclick="showPanel('blotteredIndividualsPanel'); return false;">Blottered Individuals</a>
           </div>
         </div>
@@ -3433,12 +3438,207 @@ function reloadItemRequestsPanel(message) {
 </script>
 
 
+          <!-- NEW: Online Complaints Panel -->
+          <div id="onlineComplaintsPanel" class="panel-content">
+            <h1>Online Complaints</h1>
+
+            <!-- Search Form -->
+            <form method="GET" action="" class="govdoc-search-form">
+              <div class="govdoc-search-group">
+                <input type="text" name="search_online_complainant" class="govdoc-search-input" 
+                placeholder="Search by Complainant Name" 
+                value="<?php echo htmlspecialchars($_GET['search_online_complainant'] ?? ''); ?>">
+                <button type="submit" class="govdoc-search-button">Search</button>
+  
+              </div>
+            </form>
+
+            <div class="scrollable-table-container">
+              <table class="styled-table">
+                <thead>
+                  <tr>
+                    <th>CmpID</th>
+                    <th>REFERENCE NO</th>
+                    <th>COMPLAINANT</th>
+                    <th>DATE TIME OF INCIDENT</th>
+                    <th>LOCATION</th>
+                    <th>INCIDENT TYPE</th>
+                    <th>DATE COMPLAINED</th>
+                    <th>ACTION</th>
+                  </tr>
+                </thead>
+                <tbody id="onlineComplaintsBody">
+                  <?php
+                  // Use existing DB helper
+                  $conn = new mysqli($servername, $username, $password, $database);
+                  if ($conn->connect_error) {
+                    echo "<div class='alert alert-danger'>DB connection failed.</div>";
+                  } else {
+                    // Get and sanitize search term
+                    $search = isset($_GET['search_online_complainant']) ? trim($_GET['search_online_complainant']) : '';
+                    
+                    // Build SQL query
+                    $sql = "SELECT CmpID, Firstname, Lastname, Middlename, refno, DateTimeofIncident, LocationofIncident, IncidentType, DateComplained FROM complaintbl";
+                    
+                    // Add WHERE clause if search term is provided
+                    if ($search !== '') {
+                      $searchEscaped = $conn->real_escape_string($search);
+                      $sql .= " WHERE CONCAT(Lastname, ', ', Firstname, ' ', COALESCE(Middlename, '')) LIKE '%$searchEscaped%'";
+                    }
+                    
+                    $sql .= " ORDER BY DateComplained DESC";
+                    
+                    $res = $conn->query($sql);
+                    if ($res && $res->num_rows > 0) {
+                      while ($row = $res->fetch_assoc()) {
+                        $refno = htmlspecialchars($row['refno'] ?? 'N/A');
+                        $fullname = htmlspecialchars(trim($row['Lastname'] . ', ' . $row['Firstname'] . ' ' . ($row['Middlename'] ?? '')));
+                        $incidentDt = $row['DateTimeofIncident'] ? htmlspecialchars(date('F d, Y h:i A', strtotime($row['DateTimeofIncident']))) : 'N/A';
+                        $location = htmlspecialchars($row['LocationofIncident'] ?? 'N/A');
+                        $type = htmlspecialchars($row['IncidentType'] ?? 'N/A');
+                        $dateComplained = $row['DateComplained'] ? htmlspecialchars(date('F d, Y h:i A', strtotime($row['DateComplained']))) : 'N/A';
+                        echo "<tr>
+                          <td>" . htmlspecialchars($row['CmpID']) . "</td>
+                          <td>$refno</td>
+                          <td>$fullname</td>
+                          <td>$incidentDt</td>
+                          <td>$location</td>
+                          <td>$type</td>
+                          <td>$dateComplained</td>
+                          <td>
+                            <button class='action-btn-2 view-complaint' data-id='" . htmlspecialchars($row['CmpID']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
+                              <i class='fas fa-eye'></i>
+                            </button>
+                          </td>
+                        </tr>";
+                      }
+                    } else {
+                      echo "<tr><td colspan='8' style='text-align:center;'>No online complaints found.</td></tr>";
+                    }
+                    
+                    $conn->close();
+                  }
+                  ?>
+                </tbody>
+              </table>
+            </div>       
+          </div> <!-- end of online complaints panel -->
+
+          <!-- View Online Complaint Modal -->
+          <div id="viewComplaintModal" class="popup" style="display:none;">
+            <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
+              <span class="close-btn" onclick="closeViewComplaintModal()">&times;</span>
+              <div style="text-align: center;">
+                <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+              </div>
+              <h1 style="text-align:center;">Online Complaint Details</h1>
+              <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
+                Complaint ID: <span id="view_complaint_id"></span>
+              </div>
+              <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
+                Reference No: <span id="view_complaint_refno"></span>
+              </div>
+
+              <div style="font-size:16px; font-weight:bold;">
+                Date Complained:
+              </div>
+              <span id="view_complaint_date_complained" style="font-size:16px;"></span>  
+              <br><br>
+
+              <form class="modal-form">
+                <!-- Complainant Details -->
+                <h3>Complainant Details</h3>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="view_complaint_lastname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="view_complaint_firstname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" id="view_complaint_middlename" readonly>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" id="view_complaint_address" readonly>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="text" id="view_complaint_age" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" id="view_complaint_contact_no" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="text" id="view_complaint_email" readonly>
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- Complaint Details -->
+                <h3>Complaint Details</h3>
+                <div class="form-grid" style="grid-template-columns:1.1fr 1.2fr .7fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Date and Time of Incident</label>
+                    <input type="text" id="view_complaint_incident_datetime" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Location of Incident</label>
+                    <input type="text" id="view_complaint_location" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Type of Incident</label>
+                    <input type="text" id="view_complaint_type" readonly>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Detailed Description of the Complaint</label>
+                  <textarea id="view_complaint_description" rows="7" readonly></textarea>
+                </div>
+                
+                <div class="form-group">
+                  <label>Request Status</label>
+                  <input type="text" id="view_complaint_status" readonly>
+                </div>
+
+                <hr>
+
+                <!-- Evidence/Uploaded Files -->
+                <h3>Evidence Files</h3>
+                <div class="scrollable-table-container">
+                  <table class="styled-table" id="view_complaint_files_table">
+                    <thead>
+                      <tr>
+                        <th>Thumbnail</th>
+                        <th>File Type</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="view_complaint_filesContainer">
+                      <!-- Files will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </form>
+            </div>
+          </div> <!-- End of View Online Complaint Modal -->
 
 
 
-          <!-- blotter complaint panel -->
+
+
+          <!-- blotter reporting panel -->
           <div id="blotterComplaintPanel" class="panel-content">
-            <h1>Blotter/Complaint</h1>
+            <h1>Blotter Reporting</h1>
 
             <?php
             // Calculate statistics before displaying the form
@@ -3592,8 +3792,8 @@ function reloadItemRequestsPanel(message) {
                   <tr>
                     <th>NO</th>
                     <th>ID</th>
-                    <th>REPORTED BY</th>
-                    <th>DATE TIME</th>
+                    <th>COMPLAINANT</th>
+                    <th>DATE TIME OF INCIDENT</th>
                     <th>LOCATION</th>
                     <th>INCIDENT TYPE</th>
                     <th>STATUS</th>
@@ -3654,7 +3854,7 @@ function reloadItemRequestsPanel(message) {
             <td>" . $counter . "</td>
             <td>" . htmlspecialchars($row['blotter_id']) . "</td>
             <td>" . htmlspecialchars($row['reported_by']) . "</td>
-            <td>" . htmlspecialchars($row['datetime_of_incident']) . "</td>
+            <td>" . htmlspecialchars(date('F d, Y h:i A', strtotime($row['datetime_of_incident']))) . "</td>
             <td>" . htmlspecialchars($row['location_of_incident']) . "</td>
             <td>" . htmlspecialchars($row['incident_type']) . "</td>
             <td>" . htmlspecialchars($row['status']) . "</td>
@@ -3709,227 +3909,228 @@ function reloadItemRequestsPanel(message) {
                 transform: scale(1.1);
               }
             </style>
-            <!-- Blotter Report Modal fill up form -->
-            <div id="blotterModal" class="popup" style="display:none;">
-              <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
-                <span class="close-btn" onclick="closeBlotterModal()">&times;</span>
-                <div style="text-align: center;">
-                  <img src="/BarangaySystem/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
-                    style="width: 70%; max-width: 120px; border-radius: 50%;" />
-                </div>
-                <h1 style="text-align:center;">Create Blotter Report</h1>
-                <form id="blotterForm" method="POST" action="../Process/blotter/create_blotter.php" class="modal-form" enctype="multipart/form-data">
-                  <!-- Complainant Details -->
-                  <h3>Complainant Details</h3>
-                  <div id="complainantContainer">
-                    <div class="complainant-fields">
-                      <h6>Full name of the Complainant</h6>
-                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                        <div class="form-group">
-                          <label>Lastname</label>
-                          <input type="text" name="complainant_lastname[]" placeholder="Lastname" required>
-                        </div>
-                        <div class="form-group">
-                          <label>Firstname</label>
-                          <input type="text" name="complainant_firstname[]" placeholder="Firstname" required>
-                        </div>
-                        <div class="form-group">
-                          <label>Middlename</label>
-                          <input type="text" name="complainant_middlename[]" placeholder="Middlename">
-                        </div>
-                      </div>
-                      <div class="form-group">
-                        <label>Address</label>
-                        <input type="text" name="complainant_address[]" required>
-                      </div>
-                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                        <div class="form-group">
-                          <label>Age</label>
-                          <input type="number" name="complainant_age[]" maxlength="3" required>
-                        </div>
-                        <div class="form-group">
-                          <label>Contact No</label>
-                          <input type="number" min="0" name="complainant_contact_no[]" maxlength="11" required>
-                        </div>
-                        <div class="form-group">
-                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
-                          <input type="email" name="complainant_email[]">
-                        </div>
-                      </div>
-                      <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
-                      <hr>
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-success btn-sm" id="addComplainantBtn">+ Add Complainant</button>
-                  <br>
-                  <hr>
+          </div> <!--- end of modal blotter complaint panel -->
 
-                  <h3>Blotter Details</h3>
-
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label>Date and Time of Incident</label>
-                      <input type="datetime-local" name="incident_datetime" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Location of Incident</label>
-                      <input type="text" name="incident_location" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Type of Incident</label>
-                      <select name="incident_type" id="incident_type" required>
-                        <option value="" disabled selected>Select Incident Type</option>
-                        <option value="Theft">Theft</option>
-                        <option value="Assault">Assault</option>
-                        <option value="Vandalism">Vandalism</option>
-                        <option value="Domestic Dispute">Domestic Dispute</option>
-                        <option value="Noise Complaint">Noise Complaint</option>
-                        <option value="Traffic Violation">Traffic Violation</option>
-                        <option value="Grave Threat">Grave Threat</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <!-- Conditionally shown input for "Other" incident type -->
-                    <div class="form-group" id="otherIncidentGroup" style="display:none; grid-column: span 3;">
-                      <label>Please specify</label>
-                      <input type="text" name="incident_type_other" id="incident_type_other" placeholder="Specify incident type">
-                    </div>
-
-
-
-                    <div class="form-group" style="grid-column: span 3;">
-                      <label>Detailed Description of the Incident</label>
-                      <textarea name="incident_description" rows="5" required></textarea>
-                    </div>
-                  </div>
-
-                  <br>
-                  <hr>
-
-
-                  <!-- ...inside your blotterModal form... -->
-                  <h3>Respondent Details</h3>
-                  <div id="accusedContainer">
-                    <div class="accused-fields">
-                      <h6>Full name of the Respondent</h6>
-                      <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
-
-
-                        <div class="form-group">
-                          <label>Lastname</label>
-                          <input type="text" name="accused_lastname[]" placeholder="Lastname" required>
-                        </div>
-
-                        <div class="form-group">
-                          <label>Firstname</label>
-                          <input type="text" name="accused_firstname[]" placeholder="Firstname" required>
-                        </div>
-
-
-                        <div class="form-group">
-                          <label>Middlename</label>
-                          <input type="text" name="accused_middlename[]" placeholder="Middlename">
-                        </div>
-
-
-                        <div class="form-group">
-                          <label>Alias <span style="color: #888; font-style: italic;">(optional)</span></label>
-                          <input type="text" name="accused_alias[]" placeholder="Alias/Nickname">
-                        </div>
-
-                      </div>
-                      <div class="form-group">
-                        <label>Address</label>
-                        <input type="text" name="accused_address[]" required>
-                      </div>
-                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                        <div class="form-group">
-                          <label>Age</label>
-                          <input type="number" name="accused_age[]" maxlength="3" required>
-                        </div>
-                        <div class="form-group">
-                          <label>Contact No</label>
-                          <input type="number" min="0" maxlength="11" name="accused_contact_no[]">
-                        </div>
-                        <div class="form-group">
-                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
-                          <input type="email" name="accused_email[]">
-                        </div>
-                      </div>
-                      <button type="button" class="btn btn-danger btn-sm remove-accused-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
-                      <hr>
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-success btn-sm" id="addAccusedBtn">+ Add Respondent</button>
-
-
-                  <br>
-                  <hr>
-
-                  <h3>Witnesses Details</h3>
-                  <div id="witnessesContainer">
-                    <div class="witness-fields">
-                      <h6>Full name of the Witness</h6>
-                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-
-                        <div class="form-group">
-                          <label>Lastname</label>
-                          <input type="text" name="witness_lastname[]" placeholder="Lastname">
-                        </div>
-
-                        <div class="form-group">
-                          <label>Firstname</label>
-                          <input type="text" name="witness_firstname[]" placeholder="Firstname">
-                        </div>
-
-                        <div class="form-group">
-                          <label>Middlename</label>
-                          <input type="text" name="witness_middlename[]" placeholder="Middlename">
-                        </div>
-                      </div>
-                      <div class="form-group">
-                        <label>Address</label>
-                        <input type="text" name="witness_address[]">
-                      </div>
-                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                        <div class="form-group">
-                          <label>Age</label>
-                          <input type="number" name="witness_age[]">
-                        </div>
-                        <div class="form-group">
-                          <label>Contact No</label>
-                          <input type="number" min="0" maxlength="11" name="witness_contact_no[]">
-                        </div>
-                        <div class="form-group">
-                          <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
-                          <input type="email" name="witness_email[]">
-                        </div>
-                      </div>
-                      <button type="button" class="btn btn-danger btn-sm remove-witness-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
-                      <hr>
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-success btn-sm" id="addWitnessBtn">+ Add Witness</button>
-
-                  <!-- Image Upload -->
-                  <hr>
-                  <div class="form-group">
-                    <label>Upload Image(s) (.jpg, .jpeg, .png, .pdf, .doc, .docx - MAX 5MB) (Optional)</label>
-                    <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
-
-                    <input type="file" name="blotter_files[]" id="blotter_files" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
-                  </div>
-
-
-                  <div style="margin-top:20px; text-align:right;">
-                    <button type="submit" class="btn-save">Create</button>
-                    <button type="button" class="btn-cancel" onclick="closeBlotterModal()">Close</button>
-                  </div>
-                </form>
+          <!-- Blotter Report Modal fill up form -->
+          <div id="blotterModal" class="popup" style="display:none;">
+            <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
+              <span class="close-btn" onclick="closeBlotterModal()">&times;</span>
+              <div style="text-align: center;">
+                <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
+              <h1 style="text-align:center;">Create Blotter Report</h1>
+              <form id="blotterForm" method="POST" action="../Process/blotter/create_blotter.php" class="modal-form" enctype="multipart/form-data">
+                <!-- Complainant Details -->
+                <h3>Complainant Details</h3>
+                <div id="complainantContainer">
+                  <div class="complainant-fields">
+                    <h6>Full name of the Complainant</h6>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                      <div class="form-group">
+                        <label>Lastname</label>
+                        <input type="text" name="complainant_lastname[]" placeholder="Lastname" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Firstname</label>
+                        <input type="text" name="complainant_firstname[]" placeholder="Firstname" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Middlename</label>
+                        <input type="text" name="complainant_middlename[]" placeholder="Middlename">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Address</label>
+                      <input type="text" name="complainant_address[]" required>
+                    </div>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                      <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="complainant_age[]" maxlength="3" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Contact No</label>
+                        <input type="number" min="0" name="complainant_contact_no[]" maxlength="11" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
+                        <input type="email" name="complainant_email[]">
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
+                    <hr>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" id="addComplainantBtn">+ Add Complainant</button>
+                <br>
+                <hr>
 
+                <h3>Blotter Details</h3>
+
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Date and Time of Incident</label>
+                    <input type="datetime-local" name="incident_datetime" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Location of Incident</label>
+                    <input type="text" name="incident_location" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Type of Incident</label>
+                    <select name="incident_type" id="incident_type" required>
+                      <option value="" disabled selected>Select Incident Type</option>
+                      <option value="Theft">Theft</option>
+                      <option value="Assault">Assault</option>
+                      <option value="Vandalism">Vandalism</option>
+                      <option value="Domestic Dispute">Domestic Dispute</option>
+                      <option value="Noise Complaint">Noise Complaint</option>
+                      <option value="Traffic Violation">Traffic Violation</option>
+                      <option value="Grave Threat">Grave Threat</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <!-- Conditionally shown input for "Other" incident type -->
+                  <div class="form-group" id="otherIncidentGroup" style="display:none; grid-column: span 3;">
+                    <label>Please specify</label>
+                    <input type="text" name="incident_type_other" id="incident_type_other" placeholder="Specify incident type">
+                  </div>
+
+
+
+                  <div class="form-group" style="grid-column: span 3;">
+                    <label>Detailed Description of the Incident</label>
+                    <textarea name="incident_description" rows="5" required></textarea>
+                  </div>
+                </div>
+
+                <br>
+                <hr>
+
+
+                <!-- ...inside your blotterModal form... -->
+                <h3>Respondent Details</h3>
+                <div id="accusedContainer">
+                  <div class="accused-fields">
+                    <h6>Full name of the Respondent</h6>
+                    <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
+
+
+                      <div class="form-group">
+                        <label>Lastname</label>
+                        <input type="text" name="accused_lastname[]" placeholder="Lastname" required>
+                      </div>
+
+                      <div class="form-group">
+                        <label>Firstname</label>
+                        <input type="text" name="accused_firstname[]" placeholder="Firstname" required>
+                      </div>
+
+
+                      <div class="form-group">
+                        <label>Middlename</label>
+                        <input type="text" name="accused_middlename[]" placeholder="Middlename">
+                      </div>
+
+
+                      <div class="form-group">
+                        <label>Alias <span style="color: #888; font-style: italic;">(optional)</span></label>
+                        <input type="text" name="accused_alias[]" placeholder="Alias/Nickname">
+                      </div>
+
+                    </div>
+                    <div class="form-group">
+                      <label>Address</label>
+                      <input type="text" name="accused_address[]" required>
+                    </div>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                      <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="accused_age[]" maxlength="3" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Contact No</label>
+                        <input type="number" min="0" maxlength="11" name="accused_contact_no[]">
+                      </div>
+                      <div class="form-group">
+                        <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
+                        <input type="email" name="accused_email[]">
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm remove-accused-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
+                    <hr>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" id="addAccusedBtn">+ Add Respondent</button>
+
+
+                <br>
+                <hr>
+
+                <h3>Witnesses Details</h3>
+                <div id="witnessesContainer">
+                  <div class="witness-fields">
+                    <h6>Full name of the Witness</h6>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+
+                      <div class="form-group">
+                        <label>Lastname</label>
+                        <input type="text" name="witness_lastname[]" placeholder="Lastname">
+                      </div>
+
+                      <div class="form-group">
+                        <label>Firstname</label>
+                        <input type="text" name="witness_firstname[]" placeholder="Firstname">
+                      </div>
+
+                      <div class="form-group">
+                        <label>Middlename</label>
+                        <input type="text" name="witness_middlename[]" placeholder="Middlename">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Address</label>
+                      <input type="text" name="witness_address[]">
+                    </div>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                      <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="witness_age[]">
+                      </div>
+                      <div class="form-group">
+                        <label>Contact No</label>
+                        <input type="number" min="0" maxlength="11" name="witness_contact_no[]">
+                      </div>
+                      <div class="form-group">
+                        <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
+                        <input type="email" name="witness_email[]">
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm remove-witness-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
+                    <hr>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" id="addWitnessBtn">+ Add Witness</button>
+
+                <!-- Image Upload -->
+                <hr>
+                <div class="form-group">
+                  <label>Upload Image(s) (.jpg, .jpeg, .png, .pdf, .doc, .docx - MAX 5MB) (Optional)</label>
+                  <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
+
+                  <input type="file" name="blotter_files[]" id="blotter_files" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
+                </div>
+
+
+                <div style="margin-top:20px; text-align:right;">
+                  <button type="submit" class="btn-save">Create</button>
+                  <button type="button" class="btn-cancel" onclick="closeBlotterModal()">Close</button>
+                </div>
+              </form>
             </div>
-          </div> <!--- end of modal -->
+
+          </div> <!-- end of blotter modal -->
 
 
 
@@ -3939,7 +4140,7 @@ function reloadItemRequestsPanel(message) {
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
               <span class="close-btn" onclick="closeViewBlotterModal()">&times;</span>
               <div style="text-align: center;">
-                <img src="/BarangaySystem/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
                   style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
               <h1 style="text-align:center;">Blotter Report Details</h1>
@@ -6103,7 +6304,14 @@ function reloadItemRequestsPanel(message) {
                     showPanel("blotteredIndividualsPanel");
                     return;
                   }
-                } else if (urlParams.has("search_lastname")) {
+                } else if (urlParams.has("search_online_complainant")){
+                  const onlineComplaintsPanel = document.getElementById("onlineComplaintsPanel");
+                  if (onlineComplaintsPanel) {
+                    showPanel("onlineComplaintsPanel");
+                    return;
+                  }
+                }
+                else if (urlParams.has("search_lastname")) {
                   const governmentDocumentPanel = document.getElementById("governmentDocumentPanel");
                   if (governmentDocumentPanel) {
                     showPanel("governmentDocumentPanel");
@@ -7979,6 +8187,112 @@ function releaseNoBirthCertDocument(id) {
               function confirmLogout() {
                 window.location.href = "../Login/logout.php";
               }
+            </script>
+
+            
+            <!-- View Complaint Modal Script -->
+            <script>
+            function closeViewComplaintModal() {
+              document.getElementById('viewComplaintModal').style.display = 'none';
+            }
+
+            document.querySelectorAll('.view-complaint').forEach(btn => {
+              btn.addEventListener('click', function() {
+                const complaintId = this.getAttribute('data-id');
+                
+                fetch('../Process/online_complaints/view_online_complaints.php?id=' + encodeURIComponent(complaintId))
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.error) {
+                      alert(data.error);
+                      return;
+                    }
+
+                    const complaint = data.complaint;
+                    
+                    // Fill complaint basic info
+                    document.getElementById('view_complaint_id').textContent = complaint.CmpID;
+                    document.getElementById('view_complaint_refno').textContent = complaint.refno || 'N/A';
+                    
+                    // Fill complainant details
+                    document.getElementById('view_complaint_lastname').value = complaint.Lastname || '';
+                    document.getElementById('view_complaint_firstname').value = complaint.Firstname || '';
+                    document.getElementById('view_complaint_middlename').value = complaint.Middlename || '';
+                    document.getElementById('view_complaint_address').value = complaint.Address || '';
+                    document.getElementById('view_complaint_age').value = complaint.Age || '';
+                    document.getElementById('view_complaint_contact_no').value = complaint.ContactNo || '';
+                    document.getElementById('view_complaint_email').value = complaint.Email || '';
+                    
+                    // Fill complaint details
+                    document.getElementById('view_complaint_incident_datetime').value = complaint.DateTimeofIncident ? 
+                      new Date(complaint.DateTimeofIncident).toLocaleString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric', 
+                        hour: '2-digit', minute: '2-digit'
+                      }) : 'N/A';
+                    document.getElementById('view_complaint_location').value = complaint.LocationofIncident || 'N/A';
+                    document.getElementById('view_complaint_type').value = complaint.IncidentType || 'N/A';
+                    document.getElementById('view_complaint_description').value = complaint.Complain || '';
+                    document.getElementById('view_complaint_date_complained').textContent = complaint.DateComplained ? 
+                      new Date(complaint.DateComplained).toLocaleString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric', 
+                        hour: '2-digit', minute: '2-digit'
+                      }) : 'N/A';
+                    document.getElementById('view_complaint_status').value = complaint.RequestStatus || 'Pending';
+                    
+                    // Handle evidence files
+                    const filesContainer = document.getElementById('view_complaint_filesContainer');
+                    filesContainer.innerHTML = '';
+                    
+                    if (complaint.EvidencePic) {
+                      const imgSrc = 'data:image/jpeg;base64,' + complaint.EvidencePic;
+                      filesContainer.innerHTML = `
+                        <tr>
+                          <td style="text-align:center;">
+                            <img src="${imgSrc}" alt="evidence" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">
+                          </td>
+                          <td>Image Evidence</td>
+                          <td>
+                            <button type="button" data-src="${imgSrc}" class="btn btn-primary view-complaint-image" style="padding:5px 10px;">
+                              <i class="fas fa-eye"></i> View
+                            </button>
+                          </td>
+                        </tr>
+                      `;
+                    } else {
+                      filesContainer.innerHTML = `
+                        <tr>
+                          <td colspan="3" style="text-align:center;">No evidence files uploaded.</td>
+                        </tr>
+                      `;
+                    }
+                    
+                    // Show the modal
+                    document.getElementById('viewComplaintModal').style.display = 'flex';
+                  })
+                  .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to fetch complaint details.');
+                  });
+              });
+            });
+
+            function viewComplaintImage(src) {
+              document.getElementById('viewerImg').src = src;
+              document.getElementById('imageViewer').style.display = 'flex';
+            }
+
+            // Prevent form submit and show enlarged image (delegation)
+            document.getElementById('view_complaint_files_table')?.addEventListener('click', function (e) {
+              const btn = e.target.closest('.view-complaint-image');
+              if (!btn) return;
+              e.preventDefault(); // avoid any form submission
+              const src = btn.getAttribute('data-src');
+              if (src) viewComplaintImage(src);
+            });
+
+            function closeImageViewer() {
+              document.getElementById('imageViewer').style.display = 'none';
+            }
             </script>
 
 

@@ -3,6 +3,11 @@ require_once __DIR__ . '/../config/session_resident.php';
 require_once '../Process/db_connection.php';
 require_once '../Process/user_activity_logger.php';
 require_once './Terms&Conditions/Terms&Conditons.php';
+
+// Set timezone at the very beginning
+date_default_timezone_set('Asia/Manila');
+
+
 $conn = getDBConnection();
 
 // Check if user is logged in
@@ -15,23 +20,25 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $user_data = [];
 
-$user_sql = "SELECT Firstname, Lastname FROM userloginfo WHERE UserID = ?";
+$user_sql = "SELECT Firstname, Lastname, Middlename FROM userloginfo WHERE UserID = ?";
 $user_stmt = $conn->prepare($user_sql);
 if ($user_stmt) {
     $user_stmt->bind_param("i", $user_id);
     $user_stmt->execute();
     $user_result = $user_stmt->get_result();
-    
+
     if ($user_result->num_rows > 0) {
         $user_data = $user_result->fetch_assoc();
-        
+
         // Pre-populate form fields with user data
         $firstname = $user_data['Firstname'] ?? '';
         $lastname = $user_data['Lastname'] ?? '';
-        
+        $middlename = $user_data['Middlename'] ?? '';
+
         // Check for default values and replace them with empty strings
         if ($firstname === 'uncompleted') $firstname = '';
         if ($lastname === 'uncompleted') $lastname = '';
+        if ($middlename === 'uncompleted') $middlename = '';
     }
     $user_stmt->close();
 }
@@ -42,7 +49,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
     }
-    
+
     // Enable error reporting
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
@@ -54,13 +61,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
     // Validate required fields
     $required = [
         'firstname' => 'First Name',
-        'lastname' => 'Last Name', 
+        'lastname' => 'Last Name',
         'complain' => 'Complaint Details',
         'date_of_incident' => 'Date of Incident',
         'location_of_incident' => 'Location of Incident',
         'incident_type' => 'Incident Type'
     ];
-    
+
     foreach ($required as $field => $fieldName) {
         if (empty(trim($_POST[$field] ?? ''))) {
             $errors[] = "$fieldName is required!";
@@ -73,6 +80,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             $errors[] = "Please specify the incident type when selecting 'Other'!";
         }
     }
+
+    // Validate date of incident is not in the future
+    if (!empty($_POST['date_of_incident'])) {
+        $incidentDateTime = new DateTime($_POST['date_of_incident']);
+        // $currentDateTime = new DateTime();
+        $currentDateTime = new DateTime('now', new DateTimeZone('Asia/Manila'));
+
+        $currentDateTime->modify('+1 minute');
+
+
+        if ($incidentDateTime > $currentDateTime) {
+            $errors[] = "Date and Time of Incident cannot be in the future!";
+        }
+    }
+
+
 
     // Process file upload as MEDIUMBLOB
     $evidencePicData = null;
@@ -106,18 +129,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
         // Sanitize input data
         $firstname = mysqli_real_escape_string($conn, trim($_POST['firstname']));
         $lastname = mysqli_real_escape_string($conn, trim($_POST['lastname']));
+        $middlename = mysqli_real_escape_string($conn, trim($_POST['middlename']));
         $complain = mysqli_real_escape_string($conn, trim($_POST['complain']));
         $dateOfIncident = mysqli_real_escape_string($conn, trim($_POST['date_of_incident']));
         $locationOfIncident = mysqli_real_escape_string($conn, trim($_POST['location_of_incident']));
         $incidentType = mysqli_real_escape_string($conn, trim($_POST['incident_type']));
-        
+
         // Handle "Other" incident type
         if ($incidentType === 'Other') {
             $incidentType = mysqli_real_escape_string($conn, trim($_POST['other_incident_type']));
         }
 
         // Insert into database
-        $sql = "INSERT INTO complaintbl (Firstname, Lastname, Complain, Evidencepic, refno, Userid, DateTimeofIncident, LocationofIncident, IncidentType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO complaintbl (Firstname, Lastname, Middlename, Complain, Evidencepic, refno, Userid, DateTimeofIncident, LocationofIncident, IncidentType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
 
         if ($stmt === false) {
@@ -126,9 +150,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             // Bind parameters
             $null = null;
             if ($evidencePicData !== null) {
-                $stmt->bind_param("sssbiisss", 
+                $stmt->bind_param(
+                    "ssssbiisss",
                     $firstname,
                     $lastname,
+                    $middlename,
                     $complain,
                     $null,
                     $refno,
@@ -137,11 +163,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                     $locationOfIncident,
                     $incidentType
                 );
-                $stmt->send_long_data(3, $evidencePicData); // Parameter index 3 is Evidencepic
+                $stmt->send_long_data(4, $evidencePicData); // Parameter index 4 is Evidencepic
             } else {
-                $stmt->bind_param("ssssiisss", 
+                $stmt->bind_param(
+                    "sssssiisss",
                     $firstname,
                     $lastname,
+                    $middlename,
                     $complain,
                     $null,
                     $refno,
@@ -155,7 +183,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             if ($stmt->execute()) {
                 $success = true;
                 $success_ref_no = $refno;
-                
+
                 // Log request creation activity
                 logUserActivity(
                     'Complaint submitted',
@@ -165,7 +193,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                         'incident_type' => $incidentType
                     ]
                 );
-                
+
                 // Reset form but keep user data
                 $complain = '';
                 $_POST['date_of_incident'] = '';
@@ -183,6 +211,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -196,27 +225,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             padding: 20px;
             background-color: #f4f4f4;
         }
+
         .container {
             max-width: 800px;
             margin: 0 auto;
             background: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+
         h1 {
             color: #333;
             text-align: center;
             margin-bottom: 30px;
         }
+
         .form-group {
             margin-bottom: 20px;
         }
+
         label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
         }
+
         input[type="text"],
         input[type="date"],
         select,
@@ -227,16 +261,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             border-radius: 4px;
             box-sizing: border-box;
         }
+
         textarea {
             height: 150px;
             resize: vertical;
         }
+
         .file-input {
             margin-top: 5px;
         }
+
         .required {
             color: red;
         }
+
         .error {
             color: red;
             background-color: #ffe6e6;
@@ -244,6 +282,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             border-radius: 4px;
             margin-bottom: 20px;
         }
+
         .success {
             color: green;
             background-color: #e6ffe6;
@@ -251,6 +290,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             border-radius: 4px;
             margin-bottom: 20px;
         }
+
         .btn {
             background-color: #4CAF50;
             color: white;
@@ -260,33 +300,41 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             cursor: pointer;
             font-size: 16px;
         }
+
         .btn:hover {
             background-color: #45a049;
         }
+
         .btn:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
         }
+
         .btn-secondary {
             background-color: #6c757d !important;
         }
+
         .btn-secondary:hover {
             background-color: #5a6268 !important;
         }
+
         .form-section {
             margin-bottom: 30px;
             padding-bottom: 20px;
             border-bottom: 1px solid #eee;
         }
+
         .form-section h2 {
             color: #444;
             margin-bottom: 15px;
         }
+
         .file-info {
             margin-top: 5px;
             font-size: 12px;
             color: #666;
         }
+
         .user-info-note {
             background-color: #e6f7ff;
             border-left: 4px solid #1890ff;
@@ -294,6 +342,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             margin-bottom: 20px;
             border-radius: 4px;
         }
+
         .success-message {
             position: fixed;
             top: 50%;
@@ -308,17 +357,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             display: none;
             min-width: 300px;
         }
+
         .success-message.show {
             display: block;
         }
+
         .success-message h3 {
             color: #4CAF50;
             margin-top: 0;
         }
+
         .success-message p {
             color: #666;
             margin: 10px 0;
         }
+
         .success-message #closeSuccessMessage {
             background-color: #4CAF50;
             color: white;
@@ -329,9 +382,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             font-size: 16px;
             margin-top: 15px;
         }
+
         .success-message #closeSuccessMessage:hover {
             background-color: #45a049;
         }
+
         .overlay {
             position: fixed;
             top: 0;
@@ -342,9 +397,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             z-index: 9999;
             display: none;
         }
+
         .overlay.show {
             display: block;
         }
+
         .file-preview {
             max-width: 200px;
             max-height: 200px;
@@ -354,22 +411,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             border-radius: 4px;
             padding: 5px;
         }
+
         .complain-categories {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 10px;
             margin-top: 10px;
         }
+
         .category-item {
             display: flex;
             align-items: center;
             gap: 8px;
         }
+
         .category-item input[type="radio"] {
             margin: 0;
         }
     </style>
 </head>
+
 <body>
     <div class="overlay" id="overlay"></div>
     <div class="success-message" id="successMessage">
@@ -379,14 +440,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
         <p>Please keep this reference number for tracking your complaint.</p>
         <button id="closeSuccessMessage">OK</button>
     </div>
-    
+
     <div class="container">
         <h1>Complain</h1>
-        
+
         <div class="user-info-note">
             <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary.
         </div>
-        
+
         <?php if (!empty($errors)): ?>
             <div class="error">
                 <strong>Please fix the following errors:</strong>
@@ -397,37 +458,45 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                 </ul>
             </div>
         <?php endif; ?>
-        
+
         <form method="POST" action="" enctype="multipart/form-data" id="complaintForm">
             <input type="hidden" name="complaint_request" value="1">
-            
+            <input type="hidden" name="timezone_offset" id="timezone_offset">
+
             <div class="form-section">
                 <h2>Personal Information</h2>
-                
-                <div class="form-group">
-                    <label for="firstname">First Name <span class="required">*</span></label>
-                    <input type="text" id="firstname" name="firstname" value="<?php echo htmlspecialchars($firstname ?? ''); ?>" required>
-                </div>
-                
+
                 <div class="form-group">
                     <label for="lastname">Last Name <span class="required">*</span></label>
                     <input type="text" id="lastname" name="lastname" value="<?php echo htmlspecialchars($lastname ?? ''); ?>" required>
                 </div>
+
+                <div class="form-group">
+                    <label for="firstname">First Name <span class="required">*</span></label>
+                    <input type="text" id="firstname" name="firstname" value="<?php echo htmlspecialchars($firstname ?? ''); ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="middlename">Middle Name</label>
+                    <input type="text" id="middlename" name="middlename" value="<?php echo htmlspecialchars($middlename ?? ''); ?>">
+                </div>
+
             </div>
-            
+
             <div class="form-section">
                 <h2>Incident Information</h2>
-                
+
                 <div class="form-group">
-                    <label for="date_of_incident">Date of Incident <span class="required">*</span></label>
-                    <input type="date" id="date_of_incident" name="date_of_incident" value="<?php echo htmlspecialchars($_POST['date_of_incident'] ?? ''); ?>" required>
+                    <label for="date_of_incident">Date and Time of Incident <span class="required">*</span></label>
+                    <input type="datetime-local" id="date_of_incident" name="date_of_incident" value="<?php echo htmlspecialchars($_POST['date_of_incident'] ?? ''); ?>" required>
+                    <div id="dateError" class="error-message" style="color: red; display: none;">Date and Time of Incident cannot be in the future.</div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="location_of_incident">Location of Incident <span class="required">*</span></label>
                     <input type="text" id="location_of_incident" name="location_of_incident" value="<?php echo htmlspecialchars($_POST['location_of_incident'] ?? ''); ?>" placeholder="Please provide the exact location where the incident occurred" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="incident_type">Incident Type <span class="required">*</span></label>
                     <select id="incident_type" name="incident_type" required>
@@ -442,22 +511,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                         <option value="Other" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Other') ? 'selected' : ''; ?>>Other</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group" id="otherIncidentGroup" style="display: none;">
                     <label for="other_incident_type">Specify Other Incident Type <span class="required">*</span></label>
                     <input type="text" id="other_incident_type" name="other_incident_type" value="<?php echo htmlspecialchars($_POST['other_incident_type'] ?? ''); ?>" placeholder="Please specify the type of incident">
                 </div>
             </div>
-            
+
             <div class="form-section">
                 <h2>Complaint Details</h2>
-                
+
                 <div class="form-group">
                     <label for="complain">Complaint Details <span class="required">*</span></label>
                     <textarea id="complain" name="complain" placeholder="Please provide detailed information about your complaint..." required><?php echo htmlspecialchars($complain ?? ''); ?></textarea>
                     <div class="file-info">Be specific about the issue, include dates, times, and any relevant details</div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="evidence_image">Evidence (Optional)</label>
                     <input type="file" id="evidence_image" name="evidence_image" class="file-input" accept=".jpg,.jpeg,.png,.gif">
@@ -465,10 +534,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                     <img id="evidence_preview" class="file-preview" alt="Evidence preview">
                 </div>
             </div>
-            
+
             <!-- Terms and Conditions Section -->
             <?php echo displayTermsAndConditions('complainForm'); ?>
-            
+
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
                 <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
                     <i class="fas fa-arrow-left"></i> Back
@@ -490,6 +559,65 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             const incidentTypeSelect = document.getElementById('incident_type');
             const otherIncidentGroup = document.getElementById('otherIncidentGroup');
             const otherIncidentInput = document.getElementById('other_incident_type');
+            const dateOfIncidentInput = document.getElementById('date_of_incident');
+            const dateError = document.getElementById('dateError');
+
+            // Set max date and time to current date and time
+            function setMaxDateTime() {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+
+                const maxDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+                dateOfIncidentInput.setAttribute('max', maxDateTime);
+            }
+
+            // Validate date of incident with buffer
+            function validateDateOfIncident() {
+                if (!dateOfIncidentInput.value) {
+                    dateError.style.display = 'none';
+                    dateOfIncidentInput.setCustomValidity('');
+                    return true;
+                }
+
+                const selectedDateTime = new Date(dateOfIncidentInput.value);
+                const currentDateTime = new Date();
+
+                // Add 1 minute buffer (60000 milliseconds)
+                const bufferTime = 60000;
+
+                if (selectedDateTime.getTime() > (currentDateTime.getTime() + bufferTime)) {
+                    dateError.style.display = 'block';
+                    dateOfIncidentInput.setCustomValidity('Date and Time of Incident cannot be in the future.');
+                    return false;
+                } else {
+                    dateError.style.display = 'none';
+                    dateOfIncidentInput.setCustomValidity('');
+                    return true;
+                }
+            }
+
+            // Set max datetime on page load and update every minute
+            setMaxDateTime();
+            setInterval(setMaxDateTime, 60000); // Update every minute
+
+            // Add event listener for date input
+            dateOfIncidentInput.addEventListener('change', function() {
+                validateDateOfIncident();
+                validateForm();
+            });
+
+            dateOfIncidentInput.addEventListener('input', function() {
+                validateDateOfIncident();
+                validateForm();
+            });
+
+
+
+
 
             // Handle incident type selection
             function toggleOtherIncidentType() {
@@ -505,13 +633,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             }
 
             incidentTypeSelect.addEventListener('change', toggleOtherIncidentType);
-            
+
             // Initialize on page load
             toggleOtherIncidentType();
 
+
+
+            // Form validation
             function validateForm() {
                 let isValid = true;
-                
+
                 // Check required fields
                 const requiredFields = form.querySelectorAll('[required]');
                 requiredFields.forEach(field => {
@@ -519,12 +650,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                         isValid = false;
                     }
                 });
-                
+
                 // Special validation for other incident type
                 if (incidentTypeSelect.value === 'Other' && !otherIncidentInput.value.trim()) {
                     isValid = false;
                 }
-                
+
+                if (!validateDateOfIncident()) {
+                    isValid = false;
+                }
+
                 submitBtn.disabled = !isValid;
             }
 
@@ -547,6 +682,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                 }
             });
 
+
+            // Prevent form submission if validation fails
+            form.addEventListener('submit', function(e) {
+                if (!validateDateOfIncident()) {
+                    e.preventDefault();
+                    alert('Please ensure the Date and Time of Incident is not in the future.');
+                    return false;
+                }
+            });
+
+
+
+
+
             // Real-time form validation
             form.addEventListener('input', validateForm);
             form.addEventListener('change', validateForm);
@@ -560,10 +709,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                 successMessage.classList.add('show');
                 overlay.classList.add('show');
             <?php endif; ?>
-            
+
             // Close success message
             if (closeSuccessMessage) {
-                closeSuccessMessage.addEventListener('click', function () {
+                closeSuccessMessage.addEventListener('click', function() {
                     successMessage.classList.remove('show');
                     overlay.classList.remove('show');
                     window.location.href = '../Pages/landingpage.php';
@@ -572,4 +721,5 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
         });
     </script>
 </body>
+
 </html>

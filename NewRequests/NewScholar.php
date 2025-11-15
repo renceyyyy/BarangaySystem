@@ -1,4 +1,4 @@
-<?php 
+<?php
 require_once '../Process/db_connection.php';
 require_once './Terms&Conditions/Terms&Conditons.php';
 session_start();
@@ -6,6 +6,7 @@ $conn = getDBConnection();
 
 $firstname = $lastname = $email = $contact_no = $address = $reason = "";
 $reason_type = "text";
+$education_level = "";
 $errors = [];
 $success = false;
 $success_ref_id = "";
@@ -24,7 +25,7 @@ $pendingRequest = null;
 if (isset($_GET['update'])) {
     $updateRefNo = $_GET['update'];
     $isUpdateMode = true;
-    
+
     // Fetch pending request data
     $pendingCheckSql = "SELECT * FROM scholarship WHERE ID = ? AND UserID = ? AND RequestStatus = 'Pending'";
     $pendingStmt = $conn->prepare($pendingCheckSql);
@@ -32,7 +33,7 @@ if (isset($_GET['update'])) {
         $pendingStmt->bind_param("si", $updateRefNo, $_SESSION['user_id']);
         $pendingStmt->execute();
         $result = $pendingStmt->get_result();
-        
+
         if ($result->num_rows > 0) {
             $pendingRequest = $result->fetch_assoc();
         } else {
@@ -53,10 +54,10 @@ if ($user_stmt) {
     $user_stmt->bind_param("i", $user_id);
     $user_stmt->execute();
     $user_result = $user_stmt->get_result();
-    
+
     if ($user_result->num_rows > 0) {
         $user_data = $user_result->fetch_assoc();
-        
+
         // Use pending request data if in update mode, otherwise use profile data
         if ($isUpdateMode && $pendingRequest) {
             $firstname = $pendingRequest['Firstname'] ?? '';
@@ -65,6 +66,7 @@ if ($user_stmt) {
             $contact_no = $pendingRequest['ContactNo'] ?? '';
             $address = $pendingRequest['Address'] ?? '';
             $reason = $pendingRequest['Reason'] ?? '';
+            $education_level = $pendingRequest['EducationLevel'] ?? '';
             // Determine if reason is a file path or text
             $reason_type = (strpos($reason, '../uploads/scholarship/') === 0) ? 'file' : 'text';
         } else {
@@ -73,7 +75,7 @@ if ($user_stmt) {
             $email = $user_data['Email'] ?? '';
             $contact_no = $user_data['ContactNo'] ?? '';
             $address = $user_data['Address'] ?? '';
-            
+
             if ($firstname === 'uncompleted') $firstname = '';
             if ($lastname === 'uncompleted') $lastname = '';
             if ($email === 'uncompleted') $email = '';
@@ -93,7 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             $pendingStmt->bind_param("i", $user_id);
             $pendingStmt->execute();
             $pendingResult = $pendingStmt->get_result();
-            
+
             if ($pendingResult->num_rows > 0) {
                 $pendingData = $pendingResult->fetch_assoc();
                 $errors[] = "You have a pending Scholar Grant Application (Ref: " . htmlspecialchars($pendingData['ID']) . "). Please wait for approval or update your existing request before submitting a new one.";
@@ -101,26 +103,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             $pendingStmt->close();
         }
     }
-    
+
     if (!isset($_POST['agreeTerms']) || $_POST['agreeTerms'] !== '1') {
         $errors[] = "You must agree to the terms and conditions to proceed.";
     }
-    
+
     $firstname = trim($_POST['firstname'] ?? '');
     $lastname = trim($_POST['lastname'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $contact_no = trim($_POST['contact_no'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $reason_type = $_POST['reason_type'] ?? 'text';
+    $education_level = trim($_POST['education_level'] ?? '');
     $reason = "";
-    
+
     if (empty($firstname)) $errors[] = "First name is required";
     if (empty($lastname)) $errors[] = "Last name is required";
     if (empty($email)) $errors[] = "Email is required";
     elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Invalid email format";
     if (empty($contact_no)) $errors[] = "Contact number is required";
     if (empty($address)) $errors[] = "Address is required";
-    
+    if (empty($education_level)) $errors[] = "Education level is required";
+    elseif (!in_array($education_level, ['Junior High School', 'Senior High School', 'College'])) {
+        $errors[] = "Invalid education level selected";
+    }
+
     if ($reason_type === 'text') {
         $reason = trim($_POST['reason'] ?? '');
         if (empty($reason)) $errors[] = "Reason for applying is required when typing";
@@ -138,7 +145,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             }
         }
     }
-    
+
     $required_files = [
         'school_id' => 'School ID',
         'barangay_id' => 'Barangay ID',
@@ -146,7 +153,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
         'parents_id' => 'Parents ID',
         'birth_certificate' => 'Birth Certificate'
     ];
-    
+
     foreach ($required_files as $field => $label) {
         if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
             // Only require files for new submissions
@@ -166,15 +173,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             }
         }
     }
-    
+
     if (empty($errors)) {
         $upload_dir = '../uploads/scholarship/' . $user_id . '/';
         if (!file_exists($upload_dir)) {
             mkdir($upload_dir, 0777, true);
         }
-        
+
         $file_paths = [];
-        
+
         // Use existing file paths from pending request if in update mode
         if ($isUpdateMode && $pendingRequest) {
             $file_paths['school_id'] = $pendingRequest['SchoolID'];
@@ -183,15 +190,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             $file_paths['parents_id'] = $pendingRequest['ParentsID'];
             $file_paths['birth_certificate'] = $pendingRequest['BirthCertificate'];
         }
-        
+
         $all_files_valid = true;
-        
+
         // Upload new files if provided
         foreach ($required_files as $field => $label) {
             if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
                 $file_name = $field . '_' . time() . '_' . uniqid() . '.' . pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION);
                 $file_path = $upload_dir . $file_name;
-                
+
                 if (move_uploaded_file($_FILES[$field]['tmp_name'], $file_path)) {
                     $file_paths[$field] = $file_path;
                 } else {
@@ -200,12 +207,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                 }
             }
         }
-        
+
         if ($reason_type === 'file') {
             if (isset($_FILES['reason_file']) && $_FILES['reason_file']['error'] === UPLOAD_ERR_OK) {
                 $reason_file_name = 'reason_' . time() . '_' . uniqid() . '.' . pathinfo($_FILES['reason_file']['name'], PATHINFO_EXTENSION);
                 $reason_file_path = $upload_dir . $reason_file_name;
-                
+
                 if (move_uploaded_file($_FILES['reason_file']['tmp_name'], $reason_file_path)) {
                     $reason = $reason_file_path;
                 } else {
@@ -219,34 +226,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
         } else {
             $reason = mysqli_real_escape_string($conn, $reason);
         }
-        
+
         if ($all_files_valid && empty($errors)) {
             $firstname = mysqli_real_escape_string($conn, $firstname);
             $lastname = mysqli_real_escape_string($conn, $lastname);
             $email = mysqli_real_escape_string($conn, $email);
             $contact_no = mysqli_real_escape_string($conn, $contact_no);
             $address = mysqli_real_escape_string($conn, $address);
-            
+
             $conn->query("SET FOREIGN_KEY_CHECKS=0");
-            
+
             if ($isUpdateMode) {
                 // UPDATE existing pending request
-                $sql = "UPDATE scholarship SET 
-                        Firstname = ?, Lastname = ?, Email = ?, ContactNo = ?, 
-                        Address = ?, Reason = ?, SchoolID = ?, BaranggayID = ?, 
+                $sql = "UPDATE scholarship SET
+                        Firstname = ?, Lastname = ?, Email = ?, ContactNo = ?,
+                        Address = ?, Reason = ?, EducationLevel = ?, SchoolID = ?, BaranggayID = ?,
                         COR = ?, ParentsID = ?, BirthCertificate = ?
                         WHERE ID = ? AND UserID = ? AND RequestStatus = 'Pending'";
-                
+
                 $stmt = $conn->prepare($sql);
                 if ($stmt) {
                     $stmt->bind_param(
-                        "ssssssssssssi",
+                        "sssssssssssssi",
                         $firstname,
                         $lastname,
                         $email,
                         $contact_no,
                         $address,
                         $reason,
+                        $education_level,
                         $file_paths['school_id'],
                         $file_paths['barangay_id'],
                         $file_paths['cor'],
@@ -255,7 +263,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                         $updateRefNo,
                         $_SESSION['user_id']
                     );
-                    
+
                     if ($stmt->execute()) {
                         $success = true;
                         $success_ref_id = $updateRefNo;
@@ -269,16 +277,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                 }
             } else {
                 // INSERT new request
-                $sql = "INSERT INTO scholarship 
-                        (UserID, Firstname, Lastname, Email, ContactNo, Address, Reason,
-                         SchoolID, BaranggayID, COR, ParentsID, BirthCertificate, 
+                $sql = "INSERT INTO scholarship
+                        (UserID, Firstname, Lastname, Email, ContactNo, Address, Reason, EducationLevel,
+                         SchoolID, BaranggayID, COR, ParentsID, BirthCertificate,
                          RequestStatus, DateApplied)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
-                
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
+
                 $stmt = $conn->prepare($sql);
                 if ($stmt) {
                     $stmt->bind_param(
-                        "isssssssssss",
+                        "issssssssssss",
                         $_SESSION['user_id'],
                         $firstname,
                         $lastname,
@@ -286,13 +294,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                         $contact_no,
                         $address,
                         $reason,
+                        $education_level,
                         $file_paths['school_id'],
                         $file_paths['barangay_id'],
                         $file_paths['cor'],
                         $file_paths['parents_id'],
                         $file_paths['birth_certificate']
                     );
-                    
+
                     if ($stmt->execute()) {
                         $success = true;
                         $success_ref_id = $stmt->insert_id;
@@ -306,7 +315,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                     $errors[] = "Database error: " . $conn->error;
                 }
             }
-            
+
             $conn->query("SET FOREIGN_KEY_CHECKS=1");
         }
     }
@@ -314,6 +323,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -327,27 +337,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             padding: 20px;
             background: white;
         }
+
         .container {
             max-width: 800px;
             margin: 0 auto;
             background: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+
         h1 {
             color: #333;
             text-align: center;
             margin-bottom: 30px;
         }
+
         .form-group {
             margin-bottom: 20px;
         }
+
         label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
         }
+
         input[type="text"],
         input[type="email"],
         select,
@@ -358,16 +373,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             border-radius: 4px;
             box-sizing: border-box;
         }
+
         textarea {
             height: 100px;
             resize: vertical;
         }
+
         .file-input {
             margin-top: 5px;
         }
+
         .required {
             color: red;
         }
+
         .error {
             color: red;
             background-color: #ffe6e6;
@@ -375,6 +394,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             border-radius: 4px;
             margin-bottom: 20px;
         }
+
         .success {
             color: green;
             background-color: #e6ffe6;
@@ -382,11 +402,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             border-radius: 4px;
             margin-bottom: 20px;
         }
+
         .reason-options {
             display: flex;
             gap: 20px;
             margin-bottom: 10px;
         }
+
         .reason-option {
             flex: 1;
             padding: 10px;
@@ -395,19 +417,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             cursor: pointer;
             text-align: center;
         }
+
         .reason-option.selected {
             border-color: #4CAF50;
             background-color: #f0fff0;
         }
+
         .reason-option input[type="radio"] {
             display: none;
         }
-        .reason-textarea, .reason-file {
+
+        .reason-textarea,
+        .reason-file {
             display: none;
         }
-        .reason-textarea.active, .reason-file.active {
+
+        .reason-textarea.active,
+        .reason-file.active {
             display: block;
         }
+
         .btn {
             background-color: #4CAF50;
             color: white;
@@ -417,22 +446,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             cursor: pointer;
             font-size: 16px;
         }
+
         .btn:hover {
             background-color: #45a049;
         }
+
         .btn:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
         }
+
         .form-section {
             margin-bottom: 30px;
             padding-bottom: 20px;
             border-bottom: 1px solid #eee;
         }
+
         .form-section h2 {
             color: #444;
             margin-bottom: 15px;
         }
+
         .success-message {
             position: fixed;
             top: 50%;
@@ -447,17 +481,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             display: none;
             min-width: 300px;
         }
+
         .success-message.show {
             display: block;
         }
+
         .success-message h3 {
             color: #4CAF50;
             margin-top: 0;
         }
+
         .success-message p {
             color: #666;
             margin: 10px 0;
         }
+
         .success-message #closeSuccessMessage {
             background-color: #4CAF50;
             color: white;
@@ -468,9 +506,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             font-size: 16px;
             margin-top: 15px;
         }
+
         .success-message #closeSuccessMessage:hover {
             background-color: #45a049;
         }
+
         .overlay {
             position: fixed;
             top: 0;
@@ -481,20 +521,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             z-index: 9999;
             display: none;
         }
+
         .overlay.show {
             display: block;
         }
+
         .file-info {
             margin-top: 5px;
             font-size: 12px;
             color: #666;
         }
+
         .file-preview {
             max-width: 200px;
             max-height: 200px;
             margin-top: 10px;
             display: none;
         }
+
         .user-info-note {
             background-color: #e6f7ff;
             border-left: 4px solid #1890ff;
@@ -504,6 +548,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
         }
     </style>
 </head>
+
 <body>
     <div class="overlay" id="overlay"></div>
     <div class="success-message" id="successMessage">
@@ -513,10 +558,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
         <p>Please wait for confirmation via email.</p>
         <button id="closeSuccessMessage">OK</button>
     </div>
-    
+
     <div class="container">
         <h1><?php echo $isUpdateMode ? 'Update Scholarship Application' : 'Scholarship Application Form'; ?></h1>
-        
+
         <?php if ($isUpdateMode): ?>
             <div class="user-info-note" style="background-color: #e6f7ff; border-left-color: #1890ff;">
                 <strong>Update Mode:</strong> You are updating your pending application (Reference: <?php echo htmlspecialchars($updateRefNo); ?>). Modify the information below and submit to update your application.
@@ -526,7 +571,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                 <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary.
             </div>
         <?php endif; ?>
-        
+
         <?php if (!empty($errors)): ?>
             <div class="error">
                 <strong>Please fix the following errors:</strong>
@@ -537,42 +582,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                 </ul>
             </div>
         <?php endif; ?>
-        
+
         <form method="POST" action="" enctype="multipart/form-data" id="applicationForm">
             <input type="hidden" name="scholar_request" value="1">
-            
+
             <div class="form-section">
                 <h2>Personal Information</h2>
-                
+
                 <div class="form-group">
                     <label for="firstname">First Name <span class="required">*</span></label>
                     <input type="text" id="firstname" name="firstname" value="<?php echo htmlspecialchars($firstname); ?>" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="lastname">Last Name <span class="required">*</span></label>
                     <input type="text" id="lastname" name="lastname" value="<?php echo htmlspecialchars($lastname); ?>" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="email">Email <span class="required">*</span></label>
                     <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($email); ?>" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="contact_no">Contact Number <span class="required">*</span></label>
                     <input type="text" id="contact_no" name="contact_no" value="<?php echo htmlspecialchars($contact_no); ?>" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="address">Address <span class="required">*</span></label>
                     <textarea id="address" name="address" required><?php echo htmlspecialchars($address); ?></textarea>
                 </div>
             </div>
-            
+
             <div class="form-section">
                 <h2>Scholarship Details</h2>
-                
+
                 <div class="form-group">
                     <label>Reason for Applying <span class="required">*</span></label>
                     <div class="reason-options">
@@ -585,57 +630,67 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                             <label for="reason_type_file">Upload Handwritten Document</label>
                         </div>
                     </div>
-                    
+
                     <div id="reason_text_area" class="reason-textarea <?php echo $reason_type === 'text' ? 'active' : ''; ?>">
                         <textarea id="reason" name="reason" placeholder="Explain why you are applying for this scholarship..."><?php echo htmlspecialchars($reason); ?></textarea>
                         <div class="file-info">Type your reason for applying</div>
                     </div>
-                    
+
                     <div id="reason_file_area" class="reason-file <?php echo $reason_type === 'file' ? 'active' : ''; ?>">
                         <input type="file" id="reason_file" name="reason_file" class="file-input" accept=".jpg,.jpeg,.png,.gif,.pdf">
                         <div class="file-info">Upload a scanned copy or photo of your handwritten reason (JPG, PNG, GIF, PDF - Max: 5MB)</div>
                         <img id="reason_file_preview" class="file-preview" alt="File preview">
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label for="education_level">Education Level <span class="required">*</span></label>
+                    <select id="education_level" name="education_level" required>
+                        <option value="">Select Education Level</option>
+                        <option value="Junior High School" <?php echo (isset($education_level) && $education_level === 'Junior High School') ? 'selected' : ''; ?>>Junior High School</option>
+                        <option value="Senior High School" <?php echo (isset($education_level) && $education_level === 'Senior High School') ? 'selected' : ''; ?>>Senior High School</option>
+                        <option value="College" <?php echo (isset($education_level) && $education_level === 'College') ? 'selected' : ''; ?>>College</option>
+                    </select>
+                </div>
             </div>
-            
+
             <div class="form-section">
                 <h2>Required Documents</h2>
                 <p>Please upload the following documents (Max file size: 5MB each)<?php echo $isUpdateMode ? '. Leave empty to keep current documents.' : ''; ?>:</p>
-                
+
                 <div class="form-group">
                     <label for="school_id">School ID <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
                     <input type="file" id="school_id" name="school_id" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
                     <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="barangay_id">Barangay ID <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
+                    <label for="barangay_id">Valid ID <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
                     <input type="file" id="barangay_id" name="barangay_id" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
                     <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="cor">Certificate of Registration <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
                     <input type="file" id="cor" name="cor" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
                     <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="parents_id">Parents ID <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
                     <input type="file" id="parents_id" name="parents_id" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
                     <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="birth_certificate">Birth Certificate <?php echo $isUpdateMode ? '' : '<span class="required">*</span>'; ?></label>
                     <input type="file" id="birth_certificate" name="birth_certificate" class="file-input" <?php echo $isUpdateMode ? '' : 'required'; ?> accept=".jpg,.jpeg,.png,.gif,.pdf">
                     <div class="file-info">JPG, PNG, GIF, PDF<?php echo $isUpdateMode ? ' (optional - current file will be kept if not uploaded)' : ''; ?></div>
                 </div>
             </div>
-            
+
             <?php echo displayTermsAndConditions('scholarForm'); ?>
-            
+
             <div class="form-group">
                 <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Application' : 'Submit Application'; ?></button>
             </div>
@@ -679,21 +734,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
 
             function validateForm() {
                 let isValid = true;
-                
+
                 const requiredFields = form.querySelectorAll('[required]');
                 requiredFields.forEach(field => {
                     if (!field.value.trim() && field.offsetParent !== null) {
                         isValid = false;
                     }
                 });
-                
+
                 const fileInputs = form.querySelectorAll('input[type="file"][required]');
                 fileInputs.forEach(input => {
                     if (input.offsetParent !== null && (!input.files || input.files.length === 0)) {
                         isValid = false;
                     }
                 });
-                
+
                 submitBtn.disabled = !isValid;
             }
 
@@ -741,7 +796,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                 successMessage.classList.add('show');
                 overlay.classList.add('show');
             <?php endif; ?>
-            
+
             if (closeSuccessMessage) {
                 closeSuccessMessage.addEventListener('click', function() {
                     successMessage.classList.remove('show');
@@ -752,4 +807,5 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
         });
     </script>
 </body>
+
 </html>

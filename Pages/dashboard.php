@@ -5,8 +5,8 @@ $connection = new mysqli("localhost", "root", "", "barangaydb");
 // Get age distribution (10-20, 21-30, etc.)
 // Get age group distribution (only 10–60, exclude empty groups)
 $ageQuery = "
-    SELECT 
-        CASE 
+    SELECT
+        CASE
             WHEN age BETWEEN 10 AND 20 THEN '10-20'
             WHEN age BETWEEN 21 AND 30 THEN '21-30'
             WHEN age BETWEEN 31 AND 40 THEN '31-40'
@@ -34,8 +34,8 @@ while ($row = $ageResult->fetch_assoc()) {
 
 // Get civil status distribution (only Single, Married, Widowed, Divorced)
 $civilQuery = "
-    SELECT CivilStatus, COUNT(*) AS total 
-    FROM userloginfo 
+    SELECT CivilStatus, COUNT(*) AS total
+    FROM userloginfo
     WHERE CivilStatus IN ('Single', 'Married', 'Widowed', 'Divorced')
     GROUP BY CivilStatus
 ";
@@ -63,9 +63,9 @@ while ($row = $businessResult->fetch_assoc()) {
 
 // Get gender distribution
 $genderQuery = "
-    SELECT Gender, COUNT(*) AS total 
-    FROM userloginfo 
-    WHERE Gender IN ('Male', 'Female') 
+    SELECT Gender, COUNT(*) AS total
+    FROM userloginfo
+    WHERE Gender IN ('Male', 'Female')
     GROUP BY Gender
 ";
 $genderResult = $connection->query($genderQuery);
@@ -161,11 +161,11 @@ if ($resultBlotter && $row = $resultBlotter->fetch_assoc()) {
 
 // Get monthly scholarship applications data (for the chart)
 $monthlyQuery = "
-    SELECT 
+    SELECT
         MONTH(DateApplied) as month_num,
         MONTHNAME(DateApplied) as month_name,
         COUNT(*) as total
-    FROM scholarship 
+    FROM scholarship
     WHERE YEAR(DateApplied) = YEAR(CURDATE())
     GROUP BY MONTH(DateApplied), MONTHNAME(DateApplied)
     ORDER BY month_num
@@ -177,8 +177,18 @@ $monthlyCounts = [];
 
 // Initialize all months with zero
 $allMonths = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
 ];
 
 foreach ($allMonths as $month) {
@@ -195,13 +205,89 @@ if ($monthlyResult) {
         }
     }
 }
- // Get monthly payment data (for the chart) - Added for tblpayment
+
+// ===== NEW: Budget Allocation Data by Education Level =====
+// Get scholarship budget allocation grouped by education level (for approved scholarships)
+$budgetAllocationQuery = "
+    SELECT
+        CASE
+            WHEN EducationLevel LIKE '%Junior%' OR EducationLevel LIKE '%Grade 7%' OR
+                 EducationLevel LIKE '%Grade 8%' OR EducationLevel LIKE '%Grade 9%' OR
+                 EducationLevel LIKE '%Grade 10%' THEN 'Junior High School'
+            WHEN EducationLevel LIKE '%Senior%' OR EducationLevel LIKE '%Grade 11%' OR
+                 EducationLevel LIKE '%Grade 12%' THEN 'Senior High School'
+            WHEN EducationLevel LIKE '%College%' OR EducationLevel LIKE '%1st Year%' OR
+                 EducationLevel LIKE '%2nd Year%' OR EducationLevel LIKE '%3rd Year%' OR
+                 EducationLevel LIKE '%4th Year%' THEN 'College'
+            ELSE 'Other'
+        END as category,
+        COUNT(*) as student_count,
+        SUM(COALESCE(ScholarshipGrant, 0)) as total_budget
+    FROM scholarship
+    WHERE RequestStatus = 'Approved'
+    AND ScholarshipGrant IS NOT NULL
+    AND ScholarshipGrant > 0
+    GROUP BY category
+    ORDER BY total_budget DESC
+";
+
+$budgetResult = $connection->query($budgetAllocationQuery);
+$budgetCategories = [];
+$budgetAmounts = [];
+$budgetCounts = [];
+$totalBudget = 0;
+$totalApprovedStudents = 0;
+
+if ($budgetResult) {
+    while ($row = $budgetResult->fetch_assoc()) {
+        $budgetCategories[] = $row['category'];
+        $budgetAmounts[] = floatval($row['total_budget']);
+        $budgetCounts[] = intval($row['student_count']);
+        $totalBudget += floatval($row['total_budget']);
+        $totalApprovedStudents += intval($row['student_count']);
+    }
+}
+
+// Get monthly approved scholarship applications (for bar chart based on budget allocation)
+$budgetMonthlyQuery = "
+    SELECT
+        MONTH(DateApplied) as month_num,
+        COUNT(*) as total
+    FROM scholarship
+    WHERE YEAR(DateApplied) = YEAR(CURDATE())
+    AND RequestStatus = 'Approved'
+    GROUP BY MONTH(DateApplied)
+    ORDER BY month_num
+";
+$budgetMonthlyResult = $connection->query($budgetMonthlyQuery);
+
+$budgetMonthlyLabels = [];
+$budgetMonthlyCounts = [];
+
+// Initialize all months with zero
+foreach ($allMonths as $month) {
+    $budgetMonthlyLabels[] = substr($month, 0, 3);
+    $budgetMonthlyCounts[] = 0;
+}
+
+// Update with actual data
+if ($budgetMonthlyResult) {
+    while ($row = $budgetMonthlyResult->fetch_assoc()) {
+        $monthIndex = $row['month_num'] - 1;
+        if (isset($budgetMonthlyCounts[$monthIndex])) {
+            $budgetMonthlyCounts[$monthIndex] = $row['total'];
+        }
+    }
+}
+// ===== END: Budget Allocation Data =====
+
+// Get monthly payment data (for the chart) - Added for tblpayment
 $paymentMonthlyQuery = "
-    SELECT 
+    SELECT
         MONTH(date) as month_num,
         MONTHNAME(date) as month_name,
         COUNT(*) as total
-    FROM tblpayment 
+    FROM tblpayment
     WHERE YEAR(date) = YEAR(CURDATE())
     GROUP BY MONTH(date), MONTHNAME(date)
     ORDER BY month_num
@@ -223,5 +309,3 @@ if ($paymentMonthlyResult) {
         }
     }
 }
-
-?>

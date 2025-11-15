@@ -252,7 +252,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Cohabitation Form requests
-  $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status, ReleasedBy as released_by, DateRequested as released_date FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+  $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status, DateRequested as released_date FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);

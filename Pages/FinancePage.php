@@ -510,7 +510,7 @@ error_log("FinancePage.php — Role: " . ($_SESSION['role'] ?? 'NOT SET'));
             }
             if (isset($_GET['search_date']) && !empty($_GET['search_date']) && isset($_GET['date_search'])) {
               $searchDate = $connection->real_escape_string($_GET['search_date']);
-              $searchQuery .= " AND DATE(date) = '$searchDate'";
+              $searchQuery .= " AND DATE(PaymentDateReceived) = '$searchDate'";
             }
 
             $pendingSql = "SELECT CollectionID, name, type, refno, date, amount 
@@ -519,11 +519,11 @@ error_log("FinancePage.php — Role: " . ($_SESSION['role'] ?? 'NOT SET'));
                  ORDER BY date DESC";
             $pendingResult = $connection->query($pendingSql);
 
-           $approvedSql = "SELECT CollectionID, name, type, refno, date, amount, PaymentReceivedBy
-                  FROM tblpayment 
-                  WHERE RequestStatus = 'Paid' $searchQuery
-                  ORDER BY date DESC";
-$approvedResult = $connection->query($approvedSql);
+                  $approvedSql = "SELECT CollectionID, refno, name, type, amount, date, PaymentReceivedBy, PaymentDateReceived"
+                    . " FROM tblpayment"
+                    . " WHERE RequestStatus = 'Paid' $searchQuery"
+                    . " ORDER BY date DESC";
+            $approvedResult = $connection->query($approvedSql);
 
             ?>
 
@@ -542,29 +542,28 @@ $approvedResult = $connection->query($approvedSql);
     <th>NAME</th>
     <th>TYPE</th>
     <th>REFERENCE</th>
-    <th>DATE</th>
-     <th>PAYMENT RECEIVED BY</th> <!-- ✅ New column -->
+    <th>PAYMENT DATE RECEIVED</th>
+    <th>PAYMENT RECEIVED BY</th>
     <th>AMOUNT</th>
- 
   </tr>
 </thead>
 <tbody>
   <?php
   if ($approvedResult && $approvedResult->num_rows > 0) {
     while ($row = $approvedResult->fetch_assoc()) {
+      $paymentDateReceived = !empty($row['PaymentDateReceived']) ? date('Y-m-d', strtotime($row['PaymentDateReceived'])) : '-';
       echo "<tr>
               <td>{$row["CollectionID"]}</td>
               <td>" . strtoupper($row["name"]) . "</td>
               <td>" . strtoupper($row["type"]) . "</td>
               <td>{$row["refno"]}</td>
-              <td>{$row["date"]}</td>
+              <td>" . htmlspecialchars($paymentDateReceived) . "</td>
               <td>" . htmlspecialchars($row["PaymentReceivedBy"]) . "</td>
               <td>" . number_format($row["amount"], 2) . "</td>
-             
             </tr>";
     }
   } else {
-    echo "<tr><td colspan='7'>No approved requests found.</td></tr>";
+    echo "<tr><td colspan='8'>No approved requests found.</td></tr>";
   }
   ?>
 </tbody>
@@ -791,8 +790,12 @@ $approvedResult = $connection->query($approvedSql);
 
   // --- ➕ Add Total Row ---
   const totalRow = document.createElement("tr");
+  // Compute colspan dynamically: leave last column for the amount
+  const headerCells = clonedTable.querySelectorAll("thead th");
+  const remainingCols = headerCells.length;
+  const colspan = Math.max(1, remainingCols - 1);
   totalRow.innerHTML = `
-    <td colspan="4" style="text-align:right; font-weight:bold;">Total Collections:</td>
+    <td colspan="${colspan}" style="text-align:right; font-weight:bold;">Total Collections:</td>
     <td style="font-weight:bold;">₱ ${totalAmount.toFixed(2)}</td>
   `;
   clonedTable.querySelector("tbody").appendChild(totalRow);

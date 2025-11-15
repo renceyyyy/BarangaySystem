@@ -1,5 +1,11 @@
 <?php
-session_start();
+// Set staff session name BEFORE starting session
+session_name('BarangayStaffSession');
+
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     // Basic sanitization (optional, since prepared statements are used)

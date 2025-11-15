@@ -90,9 +90,9 @@ require_once '../Process/db_connection.php';
         <button class="sidebar-btn" type="button" onclick="showPanel('reportsPanel')">
           <i class="fas fa-file-alt"></i> Reports
         </button>
-        <button class="sidebar-btn" type="button" onclick="showPanel('auditTrailPanel')">
+        <!-- <button class="sidebar-btn" type="button" onclick="showPanel('auditTrailPanel')">
           <i class="fas fa-history"></i> Activity Logs
-        </button>
+        </button> -->
         <button class="sidebar-btn" type="button" onclick="showPanel('announcementPanel')">
           <i class="fas fa-newspaper"></i> Announcement
         </button>
@@ -804,28 +804,30 @@ function alertNotPaid() {
                     <label>Reference</label>
                     <input type="text" name="Reference">
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="position: relative;">
                     <label>Firstname</label>
-                    <input type="text" name="Firstname" required>
+                    <input type="text" id="documentFirstnameInput" name="Firstname" required autocomplete="off" placeholder="Type to search verified residents...">
+                    <div id="documentAutocompleteDropdown" class="autocomplete-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
                   </div>
                   <div class="form-group">
                     <label>Lastname</label>
-                    <input type="text" name="Lastname" required>
+                    <input type="text" id="documentLastname" name="Lastname" required>
                   </div>
                   <div class="form-group">
                     <label>Gender</label>
-                    <select name="Gender" required>
+                    <select id="documentGender" name="Gender" required>
+                      <option value="">Select</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
                   </div>
                   <div class="form-group">
                     <label>Contact No</label>
-                    <input type="text" name="ContactNo">
+                    <input type="text" id="documentContactNo" name="ContactNo">
                   </div>
                   <div class="form-group">
                     <label>Address</label>
-                    <input type="text" name="Address">
+                    <input type="text" id="documentAddress" name="Address">
                   </div>
                   <div class="form-group">
                     <label>Document Type</label>
@@ -1135,15 +1137,16 @@ elseif ($row["RequestStatus"] === "Pending") {
                 <div class="form-grid">
                   <div class="form-group">
                     <label>Business Name</label>
-                    <input type="text" name="BusinessName" required>
+                    <input type="text" id="businessNameInput" name="BusinessName" required>
                   </div>
                   <div class="form-group">
                     <label>Business Location</label>
-                    <input type="text" name="BusinessLoc" required>
+                    <input type="text" id="businessLocationInput" name="BusinessLoc" required>
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="position: relative;">
                     <label>Owner Name</label>
-                    <input type="text" name="OwnerName" required>
+                    <input type="text" id="businessOwnerNameInput" name="OwnerName" required autocomplete="off" placeholder="Type to search verified residents...">
+                    <div id="businessAutocompleteDropdown" class="autocomplete-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
                   </div>
                   <div class="form-group">
                     <label>Request Type</label>
@@ -1425,17 +1428,18 @@ elseif ($row["RequestStatus"] === "Printed") {
               <h2>Unemployment Request Form</h2>
               <form id="addUnemploymentForm" method="POST" action="" class="modal-form">
                 <div class="form-grid">
-                  <div class="form-group">
+                  <div class="form-group" style="position: relative;">
                     <label>Full Name</label>
-                    <input type="text" name="fullname" required>
+                    <input type="text" id="unemploymentFullnameInput" name="fullname" required autocomplete="off" placeholder="Type to search verified residents...">
+                    <div id="unemploymentAutocompleteDropdown" class="autocomplete-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
                   </div>
                   <div class="form-group">
                     <label>Age</label>
-                    <input type="number" name="age" required>
+                    <input type="number" id="unemploymentAge" name="age" required>
                   </div>
                   <div class="form-group">
                     <label>Address</label>
-                    <input type="text" name="address" required>
+                    <input type="text" id="unemploymentAddress" name="address" required>
                   </div>
                   <div class="form-group">
                     <label>Unemployed Since</label>
@@ -1726,7 +1730,7 @@ else {
           </div>
           <div id="addOpenGuardianship" class="guardianship-popup" style="display:none;">
             <div class="document-modal-box">
-              <span class="close-btn" onclick="closebirthcertificate()">&times;</span>
+              <span class="close-btn" onclick="document.getElementById('addOpenGuardianship').style.display='none';">&times;</span>
               <div style="text-align: center;">
  <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
@@ -1737,9 +1741,10 @@ else {
                     <label>Reference</label>
                     <input type="text" name="refno" readonly required>
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="position: relative;">
                     <label>Applicant Name</label>
-                    <input type="text" name="applicant_name" required>
+                    <input type="text" id="guardianshipApplicantNameInput" name="applicant_name" placeholder="Type to search verified residents..." required autocomplete="off">
+                    <div id="guardianshipAutocompleteDropdown" class="autocomplete-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
                   </div>
                   <div class="form-group">
                     <label>Request Type</label>
@@ -2976,8 +2981,297 @@ function selectResident(resident, fullName, hiddenNameInput, hiddenUserIdInput, 
   dropdown.classList.remove('show');
 }
 
+// Initialize autocomplete for Document Request Form
+function initializeDocumentFormAutocomplete() {
+  const firstnameInput = document.getElementById('documentFirstnameInput');
+  const dropdown = document.getElementById('documentAutocompleteDropdown');
+  
+  if (!firstnameInput) return;
+  
+  firstnameInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    
+    if (searchTerm.length === 0) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    const filtered = verifiedResidents.filter(resident => {
+      const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`.toLowerCase();
+      return fullName.includes(searchTerm) || resident.Firstname.toLowerCase().includes(searchTerm);
+    });
+
+    displayDocumentDropdown(filtered, dropdown);
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.form-group') || !e.target.closest('#documentFirstnameInput')) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function displayDocumentDropdown(residents, dropdown) {
+  dropdown.innerHTML = '';
+
+  if (residents.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  residents.forEach(resident => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px;';
+    item.onmouseover = function() { this.style.backgroundColor = '#f0f0f0'; };
+    item.onmouseout = function() { this.style.backgroundColor = 'white'; };
+    
+    const initials = `${resident.Firstname.charAt(0)}${resident.Lastname.charAt(0)}`;
+    const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+    
+    item.innerHTML = `
+      <div style="width: 35px; height: 35px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">${initials}</div>
+      <div>
+        <div style="font-weight: 600;">${fullName}</div>
+        <div style="font-size: 12px; color: #666;">${resident.Address || 'No address'}</div>
+      </div>
+    `;
+    
+    item.addEventListener('click', function() {
+      selectDocumentResident(resident);
+    });
+    
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function selectDocumentResident(resident) {
+  const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+  document.getElementById('documentFirstnameInput').value = resident.Firstname;
+  document.getElementById('documentLastname').value = resident.Lastname;
+  document.getElementById('documentGender').value = resident.Gender || '';
+  document.getElementById('documentContactNo').value = resident.ContactNo || '';
+  document.getElementById('documentAddress').value = resident.Address || '';
+  document.getElementById('documentAutocompleteDropdown').style.display = 'none';
+}
+
+// Initialize autocomplete for Unemployment Request Form
+function initializeUnemploymentFormAutocomplete() {
+  const fullnameInput = document.getElementById('unemploymentFullnameInput');
+  const dropdown = document.getElementById('unemploymentAutocompleteDropdown');
+  
+  if (!fullnameInput) return;
+  
+  fullnameInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    
+    if (searchTerm.length === 0) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    const filtered = verifiedResidents.filter(resident => {
+      const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`.toLowerCase();
+      return fullName.includes(searchTerm) || resident.Firstname.toLowerCase().includes(searchTerm);
+    });
+
+    displayUnemploymentDropdown(filtered, dropdown);
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.form-group') || !e.target.closest('#unemploymentFullnameInput')) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function displayUnemploymentDropdown(residents, dropdown) {
+  dropdown.innerHTML = '';
+
+  if (residents.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  residents.forEach(resident => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px;';
+    item.onmouseover = function() { this.style.backgroundColor = '#f0f0f0'; };
+    item.onmouseout = function() { this.style.backgroundColor = 'white'; };
+    
+    const initials = `${resident.Firstname.charAt(0)}${resident.Lastname.charAt(0)}`;
+    const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+    
+    item.innerHTML = `
+      <div style="width: 35px; height: 35px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">${initials}</div>
+      <div>
+        <div style="font-weight: 600;">${fullName}</div>
+        <div style="font-size: 12px; color: #666;">${resident.Address || 'No address'}</div>
+      </div>
+    `;
+    
+    item.addEventListener('click', function() {
+      selectUnemploymentResident(resident);
+    });
+    
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function selectUnemploymentResident(resident) {
+  const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+  document.getElementById('unemploymentFullnameInput').value = fullName;
+  // Calculate age from birthdate if available
+  if (resident.Birthdate) {
+    const birthDate = new Date(resident.Birthdate);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    document.getElementById('unemploymentAge').value = age;
+  }
+  document.getElementById('unemploymentAddress').value = resident.Address || '';
+  document.getElementById('unemploymentAutocompleteDropdown').style.display = 'none';
+}
+
+// Initialize autocomplete for Business Request Form
+function initializeBusinessFormAutocomplete() {
+  const ownerNameInput = document.getElementById('businessOwnerNameInput');
+  const dropdown = document.getElementById('businessAutocompleteDropdown');
+  
+  if (!ownerNameInput) return;
+  
+  ownerNameInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    
+    if (searchTerm.length === 0) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    const filtered = verifiedResidents.filter(resident => {
+      const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`.toLowerCase();
+      return fullName.includes(searchTerm) || resident.Firstname.toLowerCase().includes(searchTerm);
+    });
+
+    displayBusinessDropdown(filtered, dropdown);
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.form-group') || !e.target.closest('#businessOwnerNameInput')) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function displayBusinessDropdown(residents, dropdown) {
+  dropdown.innerHTML = '';
+
+  if (residents.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  residents.forEach(resident => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px;';
+    item.onmouseover = function() { this.style.backgroundColor = '#f0f0f0'; };
+    item.onmouseout = function() { this.style.backgroundColor = 'white'; };
+    
+    const initials = `${resident.Firstname.charAt(0)}${resident.Lastname.charAt(0)}`;
+    const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+    
+    item.innerHTML = `
+      <div style="width: 35px; height: 35px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">${initials}</div>
+      <div>
+        <div style="font-weight: 600;">${fullName}</div>
+        <div style="font-size: 12px; color: #666;">${resident.Address || 'No address'}</div>
+      </div>
+    `;
+    
+    item.addEventListener('click', function() {
+      selectBusinessResident(resident);
+    });
+    
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function selectBusinessResident(resident) {
+  const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+  document.getElementById('businessOwnerNameInput').value = fullName;
+  document.getElementById('businessAutocompleteDropdown').style.display = 'none';
+}
+
+// Initialize autocomplete for Guardianship Request Form
+function initializeGuardianshipFormAutocomplete() {
+  const applicantNameInput = document.getElementById('guardianshipApplicantNameInput');
+  const dropdown = document.getElementById('guardianshipAutocompleteDropdown');
+  
+  if (!applicantNameInput) return;
+  
+  applicantNameInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const filtered = verifiedResidents.filter(resident => 
+      `${resident.Firstname} ${resident.Lastname}`.toLowerCase().includes(searchTerm)
+    );
+    displayGuardianshipDropdown(filtered, dropdown);
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (e.target !== applicantNameInput) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function displayGuardianshipDropdown(residents, dropdown) {
+  dropdown.innerHTML = '';
+
+  if (residents.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  residents.forEach(resident => {
+    const fullName = `${resident.Firstname} ${resident.Lastname}`;
+    const item = document.createElement('div');
+    item.style.cssText = 'padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 14px;';
+    item.textContent = fullName;
+    item.onmouseover = () => item.style.backgroundColor = '#f5f5f5';
+    item.onmouseout = () => item.style.backgroundColor = 'white';
+    item.onclick = () => selectGuardianshipResident(resident);
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function selectGuardianshipResident(resident) {
+  const fullName = `${resident.Firstname} ${resident.Lastname}`;
+  document.getElementById('guardianshipApplicantNameInput').value = fullName;
+  document.getElementById('guardianshipAutocompleteDropdown').style.display = 'none';
+}
+
 // Initialize autocomplete after DOM is ready
-document.addEventListener('DOMContentLoaded', initializeAutocomplete);
+document.addEventListener('DOMContentLoaded', function() {
+  initializeAutocomplete();
+  initializeDocumentFormAutocomplete();
+  initializeUnemploymentFormAutocomplete();
+  initializeBusinessFormAutocomplete();
+  initializeGuardianshipFormAutocomplete();
+});
 
 // Add Quantity Modal - Calculate new total
 function initializeAddQuantityCalculation() {
@@ -4267,6 +4561,8 @@ function reloadItemRequestsPanel(message) {
                 echo "<div class='alert alert-success'>Announcement added successfully!</div>";
               } elseif ($_GET['message'] === 'updated') {
                 echo "<div class='alert alert-success'>Announcement updated successfully!</div>";
+              } elseif ($_GET['message'] === 'deleted') {
+                echo "<div class='alert alert-success'>Announcement deleted successfully!</div>";
               }
             }
             ?>
@@ -4275,8 +4571,8 @@ function reloadItemRequestsPanel(message) {
             <div class="announcement-form">
               <h3><?php echo isset($_GET['edit']) ? 'Edit Announcement' : 'Add New Announcement'; ?></h3>
               <?php
-              // Handle Form Submission for Add or Edit
-              if (isset($_POST['saveAnnouncement']) || isset($_POST['updateAnnouncement'])) {
+              // Handle Form Submission for Add, Edit or Delete
+              if (isset($_POST['saveAnnouncement']) || isset($_POST['updateAnnouncement']) || isset($_POST['deleteAnnouncement'])) {
                 // DEV: enable errors while debugging (remove in production)
                 ini_set('display_errors', 1);
                 ini_set('display_startup_errors', 1);
@@ -4286,6 +4582,44 @@ function reloadItemRequestsPanel(message) {
                 if ($conn->connect_error) {
                   echo "<div class='alert alert-danger'>DB connection failed.</div>";
                 } else {
+                  // Handle delete request first
+                  if (isset($_POST['deleteAnnouncement'])) {
+                    $announcementId = intval($_POST['announcementId'] ?? 0);
+                    if ($announcementId > 0) {
+                      // fetch image path to unlink
+                      $stmt = $conn->prepare("SELECT NewsImage FROM news WHERE id = ?");
+                      if ($stmt) {
+                        $stmt->bind_param("i", $announcementId);
+                        $stmt->execute();
+                        $stmt->bind_result($currentImage);
+                        $stmt->fetch();
+                        $stmt->close();
+
+                        // Delete DB row
+                        $dstmt = $conn->prepare("DELETE FROM news WHERE id = ?");
+                        if ($dstmt) {
+                          $dstmt->bind_param("i", $announcementId);
+                          if ($dstmt->execute()) {
+                            // Attempt to remove file if exists
+                            if (!empty($currentImage)) {
+                              $filePath = __DIR__ . '/../' . $currentImage;
+                              if (file_exists($filePath)) {
+                                @unlink($filePath);
+                              }
+                            }
+                            // Redirect with success message
+                            echo "<script>window.location.href = " . json_encode($_SERVER['PHP_SELF'] . '?panel=announcementPanel&message=deleted') . ";</script>";
+                            exit;
+                          } else {
+                            echo "<div class='alert alert-danger'>Failed to delete announcement: " . htmlspecialchars($dstmt->error) . "</div>";
+                          }
+                          $dstmt->close();
+                        } else {
+                          echo "<div class='alert alert-danger'>Failed to prepare delete statement.</div>";
+                        }
+                      }
+                    }
+                  }
                   $newsInfo = trim($_POST['NewsInfo'] ?? '');
                   $datedReported = date('Y-m-d H:i:s');
                   $isEdit = isset($_POST['updateAnnouncement']) && isset($_POST['announcementId']);
@@ -4450,6 +4784,12 @@ function reloadItemRequestsPanel(message) {
                       }
                       $img = htmlspecialchars($img);
                     }
+                    // Build delete form (POST) with confirmation via JS
+                    $deleteForm = "<form method='POST' onsubmit=\"return confirm('Delete this announcement? This will remove the announcement and its image.');\" style='display:inline-block; margin-left:6px;'>" .
+                                  "<input type='hidden' name='announcementId' value='" . intval($r['id']) . "'>" .
+                                  "<button type='submit' name='deleteAnnouncement' class='btn btn-sm btn-danger'>Delete</button>" .
+                                  "</form>";
+
                     echo "<div class='col-md-4 col-sm-6'>
                           <div class='announcement-card card'>
                             " . ($img ? "<img src='" . $img . "' alt='Announcement image' onerror=\"this.style.display='none';\" />" : "") . "
@@ -4458,6 +4798,7 @@ function reloadItemRequestsPanel(message) {
                               <div class='announcement-date'>" . htmlspecialchars($r['DatedReported']) . "</div>
                               <div class='mt-2'>
                                 <a href='" . $_SERVER['PHP_SELF'] . "?panel=announcementPanel&edit=" . $r['id'] . "' class='btn btn-sm btn-success'>Edit</a>
+                                " . $deleteForm . "
                               </div>
                             </div>
                           </div>

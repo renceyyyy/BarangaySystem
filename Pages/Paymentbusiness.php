@@ -1,6 +1,11 @@
 <?php
-session_start();
+// Set staff session name BEFORE starting session
+session_name('BarangayStaffSession');
 
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     // Basic sanitization (optional, since prepared statements are used)
     $refno    = trim($_POST['refno'] ?? '');
@@ -35,10 +40,13 @@ $connection = getDBConnection();
     }
 
     
+    // set payment received timestamp (when the record is created)
+    $paymentDateReceived = date('Y-m-d H:i:s');
+
     $stmt = $connection->prepare("
         INSERT INTO tblpayment 
-        (refno, name, type, date, amount, RequestStatus, PaymentReceivedBy)
-        VALUES (?, ?, ?, ?, ?, 'Paid', ?)
+        (refno, name, type, date, amount, PaymentDateReceived, RequestStatus, PaymentReceivedBy)
+        VALUES (?, ?, ?, ?, ?, ?, 'Paid', ?)
     ");
 
     if (!$stmt) {
@@ -48,7 +56,7 @@ $connection = getDBConnection();
         exit;
     }
 
-    $stmt->bind_param("ssssds", $refno, $ownername, $requesttype, $requesteddate, $amount, $paymentReceivedBy);
+    $stmt->bind_param("ssssdss", $refno, $ownername, $requesttype, $requesteddate, $amount, $paymentDateReceived, $paymentReceivedBy);
 
     if ($stmt->execute()) {
         echo "success";

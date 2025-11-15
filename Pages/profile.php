@@ -185,26 +185,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["update_profile"])) {
   // Calculate age from birthdate
   $calculated_age = calculateAge($birthdate);
 
-  // Handle Valid ID upload
+  // Handle Valid ID upload - Process AFTER validation
   $valid_id_path = $current_user['ValidID'] ?? NULL;
 
   if (isset($_FILES['valid_id']) && $_FILES['valid_id']['error'] == UPLOAD_ERR_OK) {
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
     $file_type = $_FILES['valid_id']['type'];
+    $file_size = $_FILES['valid_id']['size'];
 
-    if (in_array($file_type, $allowed_types) && $_FILES['valid_id']['size'] <= 5 * 1024 * 1024) {
-      $upload_dir = "../uploads/valid_ids/";
-      if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
+    // Validate file type and size
+    if (!in_array($file_type, $allowed_types)) {
+      $_SESSION['profile_message'] = "Valid ID file type not allowed. Please upload JPEG, PNG, GIF, or PDF.";
+      $_SESSION['profile_message_type'] = "error";
+      header("Location: ../Pages/profile.php");
+      exit();
+    }
+    
+    if ($file_size > 5 * 1024 * 1024) {
+      $_SESSION['profile_message'] = "Valid ID file size must not exceed 5MB.";
+      $_SESSION['profile_message_type'] = "error";
+      header("Location: ../Pages/profile.php");
+      exit();
+    }
+
+    $upload_dir = "../uploads/valid_ids/";
+    if (!file_exists($upload_dir)) {
+      if (!mkdir($upload_dir, 0777, true)) {
+        $_SESSION['profile_message'] = "Error creating upload directory. Please try again.";
+        $_SESSION['profile_message_type'] = "error";
+        header("Location: ../Pages/profile.php");
+        exit();
       }
+    }
 
-      $file_extension = pathinfo($_FILES['valid_id']['name'], PATHINFO_EXTENSION);
-      $file_name = "valid_id_" . $_SESSION['user_id'] . "_" . time() . "." . $file_extension;
-      $file_path = $upload_dir . $file_name;
+    $file_extension = pathinfo($_FILES['valid_id']['name'], PATHINFO_EXTENSION);
+    $file_name = "valid_id_" . $_SESSION['user_id'] . "_" . time() . "." . $file_extension;
+    $file_path = $upload_dir . $file_name;
 
-      if (move_uploaded_file($_FILES['valid_id']['tmp_name'], $file_path)) {
-        $valid_id_path = "uploads/valid_ids/" . $file_name;
-      }
+    if (move_uploaded_file($_FILES['valid_id']['tmp_name'], $file_path)) {
+      $valid_id_path = "uploads/valid_ids/" . $file_name;
+    } else {
+      $_SESSION['profile_message'] = "Error uploading Valid ID. Please try again.";
+      $_SESSION['profile_message_type'] = "error";
+      header("Location: ../Pages/profile.php");
+      exit();
     }
   }
 

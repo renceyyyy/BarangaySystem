@@ -33,7 +33,7 @@ session_start();
       justify-content: center;
       position: relative;
       overflow: hidden;
-      padding: 20px 0;
+      padding: 40px 0;
     }
 
     body::before {
@@ -63,7 +63,7 @@ session_start();
     .register-container {
       width: 90%;
       max-width: 500px;
-      padding: 2.5rem;
+      padding: 1.5rem 2.5rem;
       background: rgba(255, 255, 255, 0.75);
       backdrop-filter: blur(2px);
       border-radius: 0.5rem;
@@ -74,14 +74,14 @@ session_start();
 
     .register-header {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1.25rem;
       color: var(--text-dark);
     }
 
     .register-header h1 {
       font-size: 1.75rem;
       font-weight: 700;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.25rem;
     }
 
     .register-header p {
@@ -91,7 +91,17 @@ session_start();
     }
 
     .form-group {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .name-row {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .name-row .form-group {
+      flex: 1;
+      margin-bottom: 1rem;
     }
 
     .form-label {
@@ -245,10 +255,36 @@ session_start();
     <?php endif; ?>
 
     <form name="registerForm" action="Acc_Log_Process.php" method="POST" onsubmit="return validateForm()">
+      <div class="name-row">
+        <div class="form-group">
+          <label for="firstname" class="form-label">First Name *</label>
+          <div class="input-with-icon">
+            <i class="fas fa-user input-icon"></i>
+            <input type="text" class="form-control" id="firstname" name="firstname" placeholder="Enter first name" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="lastname" class="form-label">Last Name *</label>
+          <div class="input-with-icon">
+            <i class="fas fa-user input-icon"></i>
+            <input type="text" class="form-control" id="lastname" name="lastname" placeholder="Enter last name" required>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email" class="form-label">Email Address *</label>
+        <div class="input-with-icon">
+          <i class="fas fa-envelope input-icon"></i>
+          <input type="email" class="form-control" id="email" name="email" placeholder="Enter email address" required>
+        </div>
+      </div>
+
       <div class="form-group">
         <label for="username" class="form-label">Username *</label>
         <div class="input-with-icon">
-          <i class="fas fa-user input-icon"></i>
+          <i class="fas fa-user-circle input-icon"></i>
           <input type="text" class="form-control" id="username" name="username" placeholder="Enter username" required>
         </div>
       </div>
@@ -290,9 +326,29 @@ session_start();
 
   <script>
     function validateForm() {
+      const firstname = document.getElementById('firstname').value;
+      const lastname = document.getElementById('lastname').value;
+      const email = document.getElementById('email').value;
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
       const confirmPassword = document.getElementById('confirm_password').value;
+      
+      if (firstname.length < 2) {
+        alert('First name must be at least 2 characters long');
+        return false;
+      }
+      
+      if (lastname.length < 2) {
+        alert('Last name must be at least 2 characters long');
+        return false;
+      }
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        alert('Please enter a valid email address');
+        return false;
+      }
       
       if (username.length < 3) {
         alert('Username must be at least 3 characters long');

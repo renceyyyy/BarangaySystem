@@ -1,6 +1,16 @@
 <?php
-session_start();
+// Set resident session name BEFORE starting session
+session_name('BarangayResidentSession');
+
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once 'db_connection.php';
+
+// Set JSON header at the start
+header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_updates']) && isset($_SESSION['user_id'])) {
     $userId = $_SESSION['user_id'];
@@ -75,5 +85,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['check_updates']) && i
     }
     
     echo json_encode($response);
+} else {
+    // Return empty response if not valid request
+    echo json_encode([
+        'hasNewApprovals' => false,
+        'hasNewDeclines' => false
+    ]);
 }
-?>
+exit;

@@ -76,17 +76,21 @@ if (!$isUpdateMode) {
 }
 
 if (!$isUpdateMode) {
-    // Check for First Time Job Seeker requests (any status except declined) - one time only
-    $ftjs_check_sql = "SELECT DISTINCT DocuType FROM docsreqtbl WHERE Userid = ? AND DocuType = 'First Time Job Seeker' AND RequestStatus != 'Declined'";
-    $ftjs_stmt = $conn->prepare($ftjs_check_sql);
-    if ($ftjs_stmt) {
-        $ftjs_stmt->bind_param("i", $user_id);
-        $ftjs_stmt->execute();
-        $ftjs_result = $ftjs_stmt->get_result();
-        while ($ftjs_row = $ftjs_result->fetch_assoc()) {
-            $blocked_doc_types[] = $ftjs_row['DocuType'];
+    // Check for First Time Job Seeker requests that are already completed (Approved, Completed, Released, Printed) - one time only
+    // Note: Pending requests are handled separately in $pending_doc_types above
+    $first_time_job_seeker_check_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = 'First Time Job Seeker' AND RequestStatus IN ('Approved', 'Completed', 'Released', 'Printed')";
+    $first_time_job_seeker_stmt = $conn->prepare($first_time_job_seeker_check_sql);
+    if ($first_time_job_seeker_stmt) {
+        $first_time_job_seeker_stmt->bind_param("i", $user_id);
+        $first_time_job_seeker_stmt->execute();
+        $first_time_job_seeker_result = $first_time_job_seeker_stmt->get_result();
+        $first_time_job_seeker_row = $first_time_job_seeker_result->fetch_assoc();
+        
+        // Only block if user actually has a completed First Time Job Seeker request
+        if (isset($first_time_job_seeker_row['count']) && $first_time_job_seeker_row['count'] > 0) {
+            $blocked_doc_types[] = 'First Time Job Seeker';
         }
-        $ftjs_stmt->close();
+        $first_time_job_seeker_stmt->close();
     }
 }
 
@@ -94,18 +98,18 @@ if (!$isUpdateMode) {
 $update_blocked_doc_types = [];
 if ($isUpdateMode) {
     // Check if user has any approved/completed First Time Job Seeker requests (excluding the current pending one being updated)
-    $ftjs_update_check_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = 'First Time Job Seeker' AND RequestStatus IN ('Approved', 'Completed', 'Released') AND refno != ?";
-    $ftjs_update_stmt = $conn->prepare($ftjs_update_check_sql);
-    if ($ftjs_update_stmt) {
-        $ftjs_update_stmt->bind_param("is", $user_id, $updateRefNo);
-        $ftjs_update_stmt->execute();
-        $ftjs_update_result = $ftjs_update_stmt->get_result();
-        $ftjs_update_row = $ftjs_update_result->fetch_assoc();
+    $first_time_job_seeker_update_check_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = 'First Time Job Seeker' AND RequestStatus IN ('Approved', 'Completed', 'Released', 'Printed') AND refno != ?";
+    $first_time_job_seeker_update_stmt = $conn->prepare($first_time_job_seeker_update_check_sql);
+    if ($first_time_job_seeker_update_stmt) {
+        $first_time_job_seeker_update_stmt->bind_param("is", $user_id, $updateRefNo);
+        $first_time_job_seeker_update_stmt->execute();
+        $first_time_job_seeker_update_result = $first_time_job_seeker_update_stmt->get_result();
+        $first_time_job_seeker_update_row = $first_time_job_seeker_update_result->fetch_assoc();
 
-        if ($ftjs_update_row['count'] > 0) {
+        if (isset($first_time_job_seeker_update_row['count']) && $first_time_job_seeker_update_row['count'] > 0) {
             $update_blocked_doc_types[] = 'First Time Job Seeker';
         }
-        $ftjs_update_stmt->close();
+        $first_time_job_seeker_update_stmt->close();
     }
 }
 
@@ -479,9 +483,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                         // Generate new reference number for each new document type
                         $newRefNo = date('Ymd') . rand(1000, 9999);
 
-                        // Check if this is "First Time Job Seeker" and user already has one
+                        // Check if this is "First Time Job Seeker" and user already has a completed one
                         if ($newDocType === "First Time Job Seeker") {
-                            $check_dup_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = ?";
+                            $check_dup_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = ? AND RequestStatus IN ('Approved', 'Completed', 'Released', 'Printed')";
                             $check_dup_stmt = $conn->prepare($check_dup_sql);
                             if ($check_dup_stmt) {
                                 $check_dup_stmt->bind_param("is", $userId, $newDocType);
@@ -489,7 +493,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                                 $check_dup_result = $check_dup_stmt->get_result();
                                 $check_dup_row = $check_dup_result->fetch_assoc();
 
-                                if ($check_dup_row['count'] > 0) {
+                                if (isset($check_dup_row['count']) && $check_dup_row['count'] > 0) {
                                     throw new Exception("You've already requested a First Time Job Seeker certificate. This is a one-time request only.");
                                 }
                                 $check_dup_stmt->close();
@@ -587,9 +591,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                 foreach ($doctypes as $doctype) {
                     $doctype = trim($doctype);
 
-                    // Check if this is "First Time Job Seeker" and user already has one
+                    // Check if this is "First Time Job Seeker" and user already has a completed one
                     if ($doctype === "First Time Job Seeker") {
-                        $check_dup_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = ?";
+                        $check_dup_sql = "SELECT COUNT(*) as count FROM docsreqtbl WHERE Userid = ? AND DocuType = ? AND RequestStatus IN ('Approved', 'Completed', 'Released', 'Printed')";
                         $check_dup_stmt = $conn->prepare($check_dup_sql);
                         if ($check_dup_stmt) {
                             $check_dup_stmt->bind_param("is", $userId, $doctype);
@@ -597,8 +601,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                             $check_dup_result = $check_dup_stmt->get_result();
                             $check_dup_row = $check_dup_result->fetch_assoc();
 
-                            if ($check_dup_row['count'] > 0) {
-                                // User already has a First Time Job Seeker request
+                            if (isset($check_dup_row['count']) && $check_dup_row['count'] > 0) {
+                                // User already has a completed First Time Job Seeker request
                                 throw new Exception("You've already requested a First Time Job Seeker certificate. This is a one-time request only. For further information, please visit the barangay or contact us at Telephone: 86380301.");
                             }
                             $check_dup_stmt->close();
@@ -1184,199 +1188,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
             const certificateImageInput = document.getElementById('certificateImage');
             const imageRequired = document.getElementById('imageRequired');
 
-            // Validation functions
-            function validateName(fieldId) {
-                const field = document.getElementById(fieldId);
-                const value = field.value.trim();
-                const namePattern = /^[a-zA-Z\s\-.]+$/;
-                
-                if (value.length < 2) {
-                    field.setCustomValidity('Name must be at least 2 characters long');
-                    return false;
-                } else if (value.length > 50) {
-                    field.setCustomValidity('Name must not exceed 50 characters');
-                    return false;
-                } else if (!namePattern.test(value)) {
-                    field.setCustomValidity('Name can only contain letters, spaces, hyphens, and periods');
-                    return false;
-                } else {
-                    field.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateContactNumber() {
-                const contactNo = document.getElementById('contactNo');
-                const value = contactNo.value.trim();
-                
-                if (value.length < 10) {
-                    contactNo.setCustomValidity('Contact number must be at least 10 digits');
-                    return false;
-                } else if (value.length > 13) {
-                    contactNo.setCustomValidity('Contact number must not exceed 13 characters');
-                    return false;
-                } else if (!/^\+?[0-9]+$/.test(value)) {
-                    contactNo.setCustomValidity('Contact number can only contain numbers and optional + prefix');
-                    return false;
-                } else {
-                    contactNo.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateAddress() {
-                const address = document.getElementById('address');
-                const value = address.value.trim();
-                
-                if (value.length < 10) {
-                    address.setCustomValidity('Address must be at least 10 characters long');
-                    return false;
-                } else if (value.length > 200) {
-                    address.setCustomValidity('Address must not exceed 200 characters');
-                    return false;
-                } else {
-                    address.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateYearsOfResidency() {
-                const years = document.getElementById('yearsOfResidency');
-                const value = parseFloat(years.value);
-                
-                if (isNaN(value)) {
-                    years.setCustomValidity('Years of residency must be a valid number');
-                    return false;
-                } else if (value < 0) {
-                    years.setCustomValidity('Years of residency cannot be negative');
-                    return false;
-                } else if (value > 150) {
-                    years.setCustomValidity('Years of residency must be reasonable (max 150 years)');
-                    return false;
-                } else {
-                    years.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateBirthdate() {
-                const birthdateInput = document.getElementById('birthdate');
-                const noBirthCertSelected = document.getElementById('no_birth_certificate').checked && !document.getElementById('no_birth_certificate').disabled;
-                
-                if (!noBirthCertSelected) {
-                    birthdateInput.setCustomValidity('');
-                    return true;
-                }
-                
-                const value = birthdateInput.value;
-                
-                if (!value) {
-                    birthdateInput.setCustomValidity('Birthdate is required when requesting No Birth Certificate');
-                    return false;
-                }
-                
-                const birthdate = new Date(value);
-                const today = new Date();
-                const minDate = new Date();
-                minDate.setFullYear(today.getFullYear() - 150);
-                
-                if (birthdate > today) {
-                    birthdateInput.setCustomValidity('Birthdate cannot be in the future');
-                    return false;
-                } else if (birthdate < minDate) {
-                    birthdateInput.setCustomValidity('Birthdate must be within the last 150 years');
-                    return false;
-                } else {
-                    birthdateInput.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validatePurpose() {
-                const purpose = document.getElementById('reqPurpose');
-                const value = purpose.value.trim();
-                
-                if (value.length < 5) {
-                    purpose.setCustomValidity('Purpose must be at least 5 characters long');
-                    return false;
-                } else if (value.length > 300) {
-                    purpose.setCustomValidity('Purpose must not exceed 300 characters');
-                    return false;
-                } else {
-                    purpose.setCustomValidity('');
-                    return true;
-                }
-            }
-
-            function validateImageUpload() {
-                const imageInput = document.getElementById('certificateImage');
-                const isUpdateMode = <?php echo $isUpdateMode ? 'true' : 'false'; ?>;
-                
-                if (!imageInput.required && !imageInput.files.length) {
-                    imageInput.setCustomValidity('');
-                    return true;
-                }
-                
-                if (imageInput.required && !imageInput.files.length) {
-                    imageInput.setCustomValidity('Image of valid ID is required');
-                    return false;
-                }
-                
-                if (imageInput.files.length > 0) {
-                    const file = imageInput.files[0];
-                    const maxSize = 2 * 1024 * 1024; // 2MB
-                    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-                    
-                    if (!allowedTypes.includes(file.type)) {
-                        imageInput.setCustomValidity('Only JPG and PNG image files are allowed');
-                        return false;
-                    }
-                    
-                    if (file.size > maxSize) {
-                        imageInput.setCustomValidity('Image size must be less than 2MB');
-                        return false;
-                    }
-                    
-                    imageInput.setCustomValidity('');
-                }
-                return true;
-            }
-
-            // Add real-time validation
-            document.getElementById('firstname').addEventListener('input', function() { validateName('firstname'); validateForm(); });
-            document.getElementById('firstname').addEventListener('blur', function() { validateName('firstname'); });
-            
-            document.getElementById('lastname').addEventListener('input', function() { validateName('lastname'); validateForm(); });
-            document.getElementById('lastname').addEventListener('blur', function() { validateName('lastname'); });
-            
-            document.getElementById('contactNo').addEventListener('input', function() { validateContactNumber(); validateForm(); });
-            document.getElementById('contactNo').addEventListener('blur', validateContactNumber);
-            
-            document.getElementById('address').addEventListener('input', function() { validateAddress(); validateForm(); });
-            document.getElementById('address').addEventListener('blur', validateAddress);
-            
-            document.getElementById('yearsOfResidency').addEventListener('input', function() { validateYearsOfResidency(); validateForm(); });
-            document.getElementById('yearsOfResidency').addEventListener('blur', validateYearsOfResidency);
-            
-            document.getElementById('birthdate').addEventListener('change', function() { validateBirthdate(); validateForm(); });
-            
-            document.getElementById('reqPurpose').addEventListener('input', function() { validatePurpose(); validateForm(); });
-            document.getElementById('reqPurpose').addEventListener('blur', validatePurpose);
-            
-            document.getElementById('certificateImage').addEventListener('change', function() { validateImageUpload(); validateForm(); });
-
             function validateForm() {
                 let isValid = true;
-
-                // Run all validation functions
-                isValid = validateName('firstname') && isValid;
-                isValid = validateName('lastname') && isValid;
-                isValid = validateContactNumber() && isValid;
-                isValid = validateAddress() && isValid;
-                isValid = validateYearsOfResidency() && isValid;
-                isValid = validateBirthdate() && isValid;
-                isValid = validatePurpose() && isValid;
-                isValid = validateImageUpload() && isValid;
 
                 // Check required fields
                 const requiredFields = form.querySelectorAll('[required]');
@@ -1481,8 +1294,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
 
             // Form submission validation
             form.addEventListener('submit', function (e) {
-                // Run all validations before submit
-                if (!validateForm()) {
+                // Check if form is valid using browser's built-in validation
+                if (!form.checkValidity()) {
                     e.preventDefault();
                     alert('Please correct the errors in the form before submitting.');
                     return false;

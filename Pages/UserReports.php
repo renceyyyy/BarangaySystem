@@ -454,6 +454,207 @@ function getStatusBadgeClass($status)
         text-align: center;
       }
     }
+    /* View Release Button */
+    .btn-view-release {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-view-release:hover {
+      background: linear-gradient(135deg, #45a049, #3d8b40);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-view-release i {
+      font-size: 0.9rem;
+    }
+
+    /* Release Info Modal */
+    .release-info-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .release-info-modal.show {
+      opacity: 1;
+    }
+
+    .release-info-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .release-info-header {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+      padding: 20px 24px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .release-info-header h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .close-modal {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .close-modal:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: rotate(90deg);
+    }
+
+    .release-info-body {
+      padding: 24px;
+    }
+
+    .info-row {
+      display: flex;
+      padding: 14px 0;
+      border-bottom: 1px solid #f0f0f0;
+      gap: 16px;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #2c5f2d;
+      min-width: 180px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-label i {
+      width: 20px;
+      text-align: center;
+    }
+
+    .info-value {
+      flex: 1;
+      color: #333;
+      word-break: break-word;
+    }
+
+    .info-value.highlight {
+      background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      color: #2c5f2d;
+      border-left: 3px solid #4CAF50;
+    }
+
+    .release-status-badge {
+      margin-top: 20px;
+      padding: 16px;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2c5f2d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 2px solid #4CAF50;
+    }
+
+    .release-status-badge i {
+      font-size: 1.3rem;
+    }
+
+    .release-info-footer {
+      padding: 20px 24px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn-close {
+      background: #e0e0e0;
+      color: #333;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-close:hover {
+      background: #d0d0d0;
+    }
+
+    .col-action {
+      width: 130px;
+      text-align: center;
+    }
   </style>
 </head>
 
@@ -522,6 +723,7 @@ function getStatusBadgeClass($status)
             $pendingRequests[] = $request;
             break;
           case 'released':
+          case 'printed':
             $releasedRequests[] = $request;
             break;
           case 'approved':
@@ -740,6 +942,7 @@ function getStatusBadgeClass($status)
                   <th class="col-date">Date Requested</th>
                   <th class="col-released-by">Released By</th>
                   <th class="col-status">Status</th>
+                  <th class="col-action">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -759,11 +962,16 @@ function getStatusBadgeClass($status)
                         <?php echo ucfirst(htmlspecialchars($request['status'])); ?>
                       </span>
                     </td>
+                    <td class="col-action">
+                      <button class="btn-view-release" onclick="viewReleaseInfo('<?php echo htmlspecialchars($request['refno']); ?>', '<?php echo htmlspecialchars($request['type']); ?>', '<?php echo htmlspecialchars($request['description']); ?>', '<?php echo date('M d, Y', strtotime($request['date_requested'])); ?>', '<?php echo !empty($request['released_by']) ? htmlspecialchars($request['released_by']) : 'N/A'; ?>', '<?php echo !empty($request['released_date']) ? date('M d, Y', strtotime($request['released_date'])) : 'N/A'; ?>')">
+                        <i class="fas fa-info-circle"></i> View Info
+                      </button>
+                    </td>
                   </tr>
                 <?php endforeach; ?>
                 <?php if (empty($releasedRequests)): ?>
                   <tr>
-                    <td colspan="6" class="no-requests-row">
+                    <td colspan="7" class="no-requests-row">
                       <div class="no-requests-message">
                         <i class="fas fa-check-circle"></i>
                         <p>No released requests found.</p>
@@ -1165,13 +1373,12 @@ function getStatusBadgeClass($status)
         }
       });
       
-      console.log('✅ Real-time notification system active (User ID: ' + USER_ID + ')');
+      console.log('ℹ️ Notifications are handled by navbar.php - no duplicate system running');
       
-      // Initial check after a short delay
-      setTimeout(checkForStatusUpdates, 2000);
-      
-      // Set up regular interval checking (every 5 seconds)
-      notificationCheckInterval = setInterval(checkForStatusUpdates, 5000);
+      // DISABLED: Duplicate notification system
+      // The navbar.php already handles real-time notifications
+      // setTimeout(checkForStatusUpdates, 2000);
+      // notificationCheckInterval = setInterval(checkForStatusUpdates, 5000);
     });
 
     // Clean up interval when page unloads
@@ -1181,10 +1388,65 @@ function getStatusBadgeClass($status)
       }
     });
 
-    // Also check when window gains focus
-    window.addEventListener('focus', function() {
-      setTimeout(checkForStatusUpdates, 500);
-    });
+    // DISABLED: Also check when window gains focus
+    // window.addEventListener('focus', function() {
+    //   setTimeout(checkForStatusUpdates, 500);
+    // });
+    
+    // Function to view release information
+    function viewReleaseInfo(refno, type, description, dateRequested, releasedBy, releasedDate) {
+      // Create modal
+      const modal = document.createElement('div');
+      modal.className = 'release-info-modal';
+      modal.innerHTML = `
+        <div class="release-info-content">
+          <div class="release-info-header">
+            <h2><i class="fas fa-check-circle"></i> Release Information</h2>
+            <button class="close-modal" onclick="this.closest('.release-info-modal').remove()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="release-info-body">
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-file-alt"></i> Request Type:</span>
+              <span class="info-value">${type}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-info-circle"></i> Description:</span>
+              <span class="info-value">${description}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-hashtag"></i> Reference Number:</span>
+              <span class="info-value highlight">${refno}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-calendar-alt"></i> Date Requested:</span>
+              <span class="info-value">${dateRequested}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-calendar-check"></i> Date Released:</span>
+              <span class="info-value">${releasedDate}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-user-check"></i> Released By:</span>
+              <span class="info-value">${releasedBy}</span>
+            </div>
+            <div class="release-status-badge">
+              <i class="fas fa-check-double"></i> Successfully Released
+            </div>
+          </div>
+          <div class="release-info-footer">
+            <button class="btn-close" onclick="this.closest('.release-info-modal').remove()">
+              <i class="fas fa-times"></i> Close
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      // Add animation
+      setTimeout(() => modal.classList.add('show'), 10);
+    }
   </script>
 </body>
 

@@ -1,4 +1,5 @@
 <?php
+session_name('BarangayStaffSession');
 session_start();
 require_once '../db_connection.php';
 $conn = getDBConnection();
@@ -51,6 +52,30 @@ function generateParticipantId($conn, $blotter_id)
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    // -- Validate total upload size (server-side) --
+    $MAX_TOTAL_BYTES = 5 * 1024 * 1024; // 5MB
+    $totalBytes = 0;
+
+    if (isset($_FILES['blotter_files'])) {
+        $files = $_FILES['blotter_files'];
+        // Handle both single and multiple upload arrays
+        if (is_array($files['size'])) {
+            foreach ($files['size'] as $size) {
+                $totalBytes += (int)$size;
+            }
+        } else {
+            $totalBytes = (int)$files['size'];
+        }
+    }
+
+    if ($totalBytes > $MAX_TOTAL_BYTES) {
+        // Store an error and redirect back to the referring page (or admin page)
+        $_SESSION['error'] = 'Total uploaded files exceed 5MB. Please choose smaller files or fewer files.';
+        $redirectTo = $_SERVER['HTTP_REFERER'] ?? '../../Pages/Adminpage.php';
+        header("Location: " . $redirectTo);
+        exit;
+    }
+
     $blotter_id = $_POST['blotter_id'] ?? '';
     if (!$blotter_id) {
         echo "<script>alert('Missing blotter ID'); window.location.href = '../../Pages/Adminpage.php?panel=blotterComplaintPanel';</script>";
@@ -321,7 +346,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 
-    $conn->close();
+    // Singleton connection closed by PHP
     echo "<script>alert('Blotter report updated successfully.'); window.location.href = '../../Pages/Adminpage.php?panel=blotterComplaintPanel';</script>";
     exit;
 } else {

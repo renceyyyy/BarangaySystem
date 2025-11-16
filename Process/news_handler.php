@@ -57,7 +57,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_news'])) {
 
 // Fetch news items for display
 $conn = getDBConnection();
-$result = $conn->query("SELECT id, Newsinfo, Newsimage, DatedReported FROM news ORDER BY DatedReported DESC LIMIT 3");
+
+// Determine which page is calling this handler
+$currentPage = basename($_SERVER['PHP_SELF']);
+
+// Fetch news items based on the calling page
+if ($currentPage === 'Newspage.php') {
+    // Fetch all news for the news page
+    $result = $conn->query("SELECT id, Newsinfo, Newsimage, DatedReported FROM news ORDER BY DatedReported DESC");
+} else {
+    // Fetch only the latest 3 for landing page
+    $result = $conn->query("SELECT id, Newsinfo, Newsimage, DatedReported FROM news ORDER BY DatedReported DESC LIMIT 3");
+}
 
 $newsItems = [];
 

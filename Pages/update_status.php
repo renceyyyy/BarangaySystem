@@ -1,4 +1,6 @@
 <?php
+// Ensure we use the same session name as the admin pages so session values are available
+session_name('BarangayStaffSession');
 session_start();
 require_once '../Process/db_connection.php';
 

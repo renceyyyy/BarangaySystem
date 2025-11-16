@@ -1,8 +1,6 @@
 <?php
-// Start session to maintain user login state
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Initialize resident session
+require_once __DIR__ . '/../config/session_resident.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

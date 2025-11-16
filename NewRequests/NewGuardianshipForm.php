@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/../config/session_resident.php';
 require_once '../Process/db_connection.php';
+require_once '../Process/user_activity_logger.php';
 require_once './Terms&Conditions/Terms&Conditons.php';
-session_start();
 $conn = getDBConnection();
 
 // Initialize variables
@@ -113,7 +114,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
     }
     
     if (empty($childAge) || !is_numeric($childAge) || $childAge < 0 || $childAge > 18) {
-        $errors[] = "Valid child age (0-18) is required";
+        $errors[] = "Valid child age (0-21) is required";
     }
     
     if (empty($childAddress)) {
@@ -182,6 +183,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
                     $success = true;
                     $success_ref_no = $updateRefNo;
                     $isUpdateSuccess = true; // Flag to show update success message
+                    
+                    // Log user activity for update
+                    logUserActivity(
+                        'Guardianship request updated',
+                        'guardianship_request_update',
+                        [
+                            'request_type' => $requestType,
+                            'child_name' => $childName,
+                            'reference_no' => $updateRefNo,
+                            'action' => 'update'
+                        ]
+                    );
                 } else {
                     throw new Exception("Execute failed: " . $stmt->error);
                 }
@@ -249,6 +262,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
                 if ($stmt->execute()) {
                     $success = true;
                     $success_ref_no = $refno;
+                    
+                    // Log user activity
+                    logUserActivity(
+                        'Guardianship/Solo Parent request submitted',
+                        'guardianship_request',
+                        [
+                            'request_type' => $requestType,
+                            'child_name' => $childName,
+                            'reference_no' => $refno
+                        ]
+                    );
+                    
                     // Reset form
                     $requestType = $childName = $childAge = $childAddress = $purpose = $applicantName = $applicantRelationship = "";
                     $guardianshipSince = $soloParentSince = "";
@@ -528,8 +553,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
                 
                 <div class="form-group">
                     <label for="childAge">Child's Age <span class="required">*</span></label>
-                    <input type="number" id="childAge" name="childAge" value="<?php echo htmlspecialchars($childAge); ?>" min="0" max="18" placeholder="Enter age (0-18)">
-                    <div class="info-text">Age must be between 0 and 18 years</div>
+                    <input type="number" id="childAge" name="childAge" value="<?php echo htmlspecialchars($childAge); ?>" min="1" max="21" placeholder="Enter age (0-18)">
+                    <div class="info-text">Age must be between 1 and 21 years</div>
                 </div>
                 
                 <div class="form-group">
@@ -561,7 +586,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
             <!-- Terms and Conditions Section -->
             <?php echo displayTermsAndConditions('guardianshipForm'); ?>
             
-            <div class="form-group" style="text-align: center; margin-top: 30px;">
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
+                <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
                 <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Application' : 'Submit Application'; ?></button>
             </div>
         </form>
@@ -581,6 +609,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
             const submitBtn = document.getElementById('submitBtn');
             const form = document.getElementById('guardianshipForm');
 
+            // Toggle request type function
+
             function toggleRequestType() {
                 if (guardianshipRadio.checked) {
                     guardianshipOption.classList.add('selected');
@@ -598,43 +628,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
                     guardianshipSinceField.classList.remove('active');
                     soloParentSinceField.classList.remove('active');
                 }
-                validateForm();
-            }
-
-            function validateForm() {
-                let isValid = true;
-                
-                // Check required fields
-                const requiredFields = form.querySelectorAll('[required]');
-                requiredFields.forEach(field => {
-                    if (field.type === 'radio') {
-                        const radioGroup = form.querySelectorAll(`input[name="${field.name}"]`);
-                        const isChecked = Array.from(radioGroup).some(radio => radio.checked);
-                        if (!isChecked) {
-                            isValid = false;
-                        }
-                    } else {
-                        if (!field.value.trim()) {
-                            isValid = false;
-                        }
-                    }
-                });
-
-                // Additional validation for conditional fields
-                if (guardianshipRadio.checked && !document.getElementById('guardianshipSince').value) {
-                    isValid = false;
-                }
-                if (soloParentRadio.checked && !document.getElementById('soloParentSince').value) {
-                    isValid = false;
-                }
-
-                // Age validation
-                const childAge = document.getElementById('childAge').value;
-                if (childAge && (childAge < 0 || childAge > 18)) {
-                    isValid = false;
-                }
-
-                submitBtn.disabled = !isValid;
             }
 
             // Event listeners
@@ -651,13 +644,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
             guardianshipRadio.addEventListener('change', toggleRequestType);
             soloParentRadio.addEventListener('change', toggleRequestType);
 
-            // Real-time form validation
-            form.addEventListener('input', validateForm);
-            form.addEventListener('change', validateForm);
-
             // Initialize
             toggleRequestType();
-            validateForm();
 
             // Show success message if submission was successful
             <?php if ($success): ?>
@@ -686,3 +674,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
     </script>
 </body>
 </html>
+

@@ -1,7 +1,13 @@
 <?php
-session_start(); // ✅ Always first — before any HTML or includes
+// Set staff session name BEFORE starting session
+session_name('BarangayStaffSession');
 
-// Security check — only finance users allowed
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Security check — only admin users allowed
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../Login/login.php");
     exit();
@@ -40,56 +46,62 @@ require_once '../Process/db_connection.php';
       <div class="col-12 col-md-2 sidebar">
         <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
-        <button class="sidebar-btn" onclick="showPanel('dashboardPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
         </button>
-        <button class="sidebar-btn" onclick="showPanel('residencePanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('residencePanel')">
           <i class="fas fa-users"></i> Residence
         </button>
         <div class="dropdown w-100">
-          <button class="sidebar-btn w-100" onclick="toggleDropdown(event)">
+          <button class="sidebar-btn w-100" type="button" onclick="toggleDropdown(event); return false;">
             <i class="fas fa-book"></i> Document Request <i class="fas fa-caret-down ms-auto"></i>
           </button>
 
           <div id="dropdownMenu" class="dropdown-content-custom">
-            <a href="#" onclick="showPanel('governmentDocumentPanel')">Government Document</a>
-            <a href="#" onclick="showPanel('businessPermitPanel')">Business Permit</a>
-            <a href="#" onclick="showPanel('businessUnemploymentCertificatePanel')">Unemployment Certificate Request</a>
-            <a href="#" onclick="showPanel('guardianshipPanel')">Guardianship</a>
+            <a href="javascript:void(0);" onclick="showPanel('governmentDocumentPanel'); return false;">Government Document</a>
+            <a href="javascript:void(0);" onclick="showPanel('businessPermitPanel'); return false;">Business Permit</a>
+            <a href="javascript:void(0);" onclick="showPanel('businessUnemploymentCertificatePanel'); return false;">Unemployment Certificate Request</a>
+            <a href="javascript:void(0);" onclick="showPanel('guardianshipPanel'); return false;">Guardianship</a>
+            <!-- <a href="javascript:void(0);" onclick="showPanel('nobirthCertPanel'); return false;">No Birth Certificate</a> -->
       
           </div>
         </div>
 
-        <button class="sidebar-btn" onclick="showPanel('itemrequestsPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('itemrequestsPanel')">
           <i class="fas fa-box-open"></i> Item Request
         </button>
 
-        <!-- <button class="sidebar-btn" onclick="showPanel('blotterComplaintPanel')">
+
+        <button class="sidebar-btn" type="button" onclick="showPanel('onlineComplaintsPanel')">
+          <i class="fas fa-comments"></i> Online Complaints
+        </button>
+
+        <!-- <button class="sidebar-btn" type="button" onclick="showPanel('blotterComplaintPanel')">
           <i class="fas fa-exclamation-triangle"></i> Blotter/Complaint
         </button> -->
 
         <div class="dropdown w-100">
-          <button class="sidebar-btn w-100" onclick="toggleDropdown(event, 'blotterDropdownMenu')">
+          <button class="sidebar-btn w-100" type="button" onclick="toggleDropdown(event, 'blotterDropdownMenu'); return false;">
             <i class="fas fa-exclamation-triangle"></i> Blotter <i class="fas fa-caret-down ms-auto"></i>
           </button>
           <div id="blotterDropdownMenu" class="dropdown-content-custom">
-            <a href="#" onclick="showPanel('blotterComplaintPanel')">Blotter/Complaint</a>
-            <a href="#" onclick="showPanel('blotteredIndividualsPanel')">Blottered Individuals</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotterComplaintPanel'); return false;">Blotter Reporting</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotteredIndividualsPanel'); return false;">Blottered Individuals</a>
           </div>
         </div>
 
 
 
-        <button class="sidebar-btn" onclick="showPanel('reportsPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('reportsPanel')">
           <i class="fas fa-file-alt"></i> Reports
         </button>
-        <button class="sidebar-btn" onclick="showPanel('auditTrailPanel')">
+        <!-- <button class="sidebar-btn" type="button" onclick="showPanel('auditTrailPanel')">
           <i class="fas fa-history"></i> Activity Logs
-        </button>
-        <button class="sidebar-btn" onclick="showPanel('announcementPanel')">
+        </button> -->
+        <button class="sidebar-btn" type="button" onclick="showPanel('announcementPanel')">
           <i class="fas fa-newspaper"></i> Announcement
         </button>
-        <a href="#" class="logout-link mt-auto" onclick="openLogoutModal(event)">
+        <a href="javascript:void(0);" class="logout-link mt-auto" onclick="openLogoutModal(event); return false;">
           <i class="fas fa-sign-out-alt"></i> Logout
         </a>
 
@@ -98,8 +110,8 @@ require_once '../Process/db_connection.php';
           <div class="modal-box">
             <p>Are you sure you want to logout?</p>
             <div class="modal-actions">
-              <button class="btn-yes" onclick="confirmLogout()">Yes</button>
-              <button class="btn-no" onclick="closeLogoutModal()">No</button>
+              <button class="btn-yes" type="button" onclick="confirmLogout()">Yes</button>
+              <button class="btn-no" type="button" onclick="closeLogoutModal()">No</button>
             </div>
           </div>
         </div>
@@ -154,14 +166,6 @@ require_once '../Process/db_connection.php';
             </div>
 
             <div class="chart-container">
-              <div class="boxes">
-                <h4>Age Distribution</h4>
-                <canvas id="ageChart"></canvas>
-              </div>
-              <div class="genderbox">
-                <h4>Gender Distribution</h4>
-                <canvas id="genderChart"></canvas>
-              </div>
               <div class="business-box">
                 <h4>Business Permit Requests</h4>
                 <canvas id="businessChart"></canvas>
@@ -170,7 +174,10 @@ require_once '../Process/db_connection.php';
                 <h4>Government Document Requests</h4>
                 <canvas id="documentChart"></canvas>
               </div>
-              
+              <div class="guardianship-box">
+                <h4>Guardianship Requests</h4>
+                <canvas id="guardianshipChart"></canvas>
+              </div>
               <div class="unemployment-box">
                 <h4>Unemployment Certificate Requests</h4>
                 <canvas id="unemploymentChart"></canvas>
@@ -183,13 +190,13 @@ require_once '../Process/db_connection.php';
 
   <!-- Tab Navigation -->
   <div class="tabs-container">
-    <button class="tab-btn active" onclick="switchTab(event, 'unverified')">
+    <button class="tab-btn active" type="button" onclick="switchTab(event, 'unverified')">
       Unverified
     </button>
-    <button class="tab-btn" onclick="switchTab(event, 'pending')">
+    <button class="tab-btn" type="button" onclick="switchTab(event, 'pending')">
       Pending
     </button>
-    <button class="tab-btn" onclick="switchTab(event, 'verified')">
+    <button class="tab-btn" type="button" onclick="switchTab(event, 'verified')">
       Verified
     </button>
   </div>
@@ -478,6 +485,8 @@ function switchTab(event, tabName) {
                   <option value="all" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'all') ? 'selected' : ''; ?>>All Status</option>
                   <option value="Pending" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Printed" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Printed') ? 'selected' : ''; ?>>Printed</option>
+                  <option value="Released" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Released') ? 'selected' : ''; ?>>Released</option>
                   <!-- Declined option removed as per request -->
                 </select>
                 <button class="add-user" type="button" onclick="openDocumentModal()">
@@ -800,28 +809,30 @@ function alertNotPaid() {
                     <label>Reference</label>
                     <input type="text" name="Reference">
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="position: relative;">
                     <label>Firstname</label>
-                    <input type="text" name="Firstname" required>
+                    <input type="text" id="documentFirstnameInput" name="Firstname" required autocomplete="off" placeholder="Type to search verified residents...">
+                    <div id="documentAutocompleteDropdown" class="autocomplete-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
                   </div>
                   <div class="form-group">
                     <label>Lastname</label>
-                    <input type="text" name="Lastname" required>
+                    <input type="text" id="documentLastname" name="Lastname" required>
                   </div>
                   <div class="form-group">
                     <label>Gender</label>
-                    <select name="Gender" required>
+                    <select id="documentGender" name="Gender" required>
+                      <option value="">Select</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
                   </div>
                   <div class="form-group">
                     <label>Contact No</label>
-                    <input type="text" name="ContactNo">
+                    <input type="text" id="documentContactNo" name="ContactNo">
                   </div>
                   <div class="form-group">
                     <label>Address</label>
-                    <input type="text" name="Address">
+                    <input type="text" id="documentAddress" name="Address">
                   </div>
                   <div class="form-group">
                     <label>Document Type</label>
@@ -866,6 +877,8 @@ function alertNotPaid() {
                   <option value="all" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'all') ? 'selected' : ''; ?>>All Status</option>
                   <option value="Pending" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Printed" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Printed') ? 'selected' : ''; ?>>Printed</option>
+                  <option value="Released" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Released') ? 'selected' : ''; ?>>Released</option>
                   <!-- Declined option removed as per request -->
                 </select>
                 <button class="add-user" type="button" onclick="openBusinessModal()">
@@ -885,6 +898,7 @@ function alertNotPaid() {
                     <th>REFERENCE</th>
                     <th>DATE</th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -939,7 +953,7 @@ function alertNotPaid() {
                   }
 
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
-                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus 
+                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus, ReleasedBy 
                 FROM businesstbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -985,42 +999,77 @@ function alertNotPaid() {
             <td>" . htmlspecialchars($row["refno"]) . "</td>  <!-- Added htmlspecialchars -->
             <td>" . date("Y-m-d", strtotime($row["RequestedDate"])) . "</td>
             <td><span class='status-badge status-" . strtolower(htmlspecialchars($row['RequestStatus'])) . "'>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</span></td> <!-- Fixed: Removed invalid 'string:' syntax; Added badge styling -->
+             <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td> 
 
             <td>";
 
-                    // Data for print modal (escaped properly)
+                    // Data for print modal (escaped properly) - include BsnssID so client can reference the record
                     $printData = json_encode([
+                      "BsnssID" => $row['BsnssID'],
                       "refno" => $row['refno'],
                       "OwnerName" => $row['OwnerName'],
                       "RequestType" => $row['RequestType'],
                       "RequestedDate" => $row['RequestedDate'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                    if ($row["RequestStatus"] === "Approved") {
-                      echo "<button type='button' class='action-btn-2 print' onclick='openBusinessPrintModal(" . $printData . ")'>  <!-- Fixed: Removed extra ) -->
+                    if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseBusinessDocument(" . htmlspecialchars($row["BsnssID"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openBusinessPrintModal(" . $printData . ")'>  
               <i class='fas fa-print'></i>
             </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved (Declined rows won't reach here due to query)
+                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+
+      
+}
+
+
+// ✅ If Pending — show Approve + View + Decline
+elseif ($row["RequestStatus"] === "Pending") {
                       echo "<a href='approvebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
               class='action-btn-2 approve' 
               onclick=\"showCustomConfirm(event, this.href);\">
               <i class='fas fa-check'></i>
             </a>";
-                    }
 
-                    // Business-specific VIEW button (simplified; adjust data attributes to match business schema if needed)
-                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' class='action-btn-2 view'>  <!-- Fixed: Use business-specific view link and fields -->
+                    echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+                    class='action-btn-2 view'>  
             <i class='fas fa-eye'></i>
           </a>";
 
-                    // Show DECLINE button only if Pending (not Approved or Declined)
-                    if ($row["RequestStatus"] === "Pending") {  // Simplified logic since Declined is excluded
                       echo "<a href='declinebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
                class='action-btn-2 decline' 
                onclick=\"showCustomDeclineConfirm(event, this.href);\">
               <i class='fas fa-xmark'></i>
-            </a>";  // Fixed: Removed invalid semicolon after </a>
+            </a>"; 
+
+                    }
+                    else {
+                      echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
                     }
 
                     echo "</td></tr>";
@@ -1093,15 +1142,16 @@ function alertNotPaid() {
                 <div class="form-grid">
                   <div class="form-group">
                     <label>Business Name</label>
-                    <input type="text" name="BusinessName" required>
+                    <input type="text" id="businessNameInput" name="BusinessName" required>
                   </div>
                   <div class="form-group">
                     <label>Business Location</label>
-                    <input type="text" name="BusinessLoc" required>
+                    <input type="text" id="businessLocationInput" name="BusinessLoc" required>
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="position: relative;">
                     <label>Owner Name</label>
-                    <input type="text" name="OwnerName" required>
+                    <input type="text" id="businessOwnerNameInput" name="OwnerName" required autocomplete="off" placeholder="Type to search verified residents...">
+                    <div id="businessAutocompleteDropdown" class="autocomplete-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
                   </div>
                   <div class="form-group">
                     <label>Request Type</label>
@@ -1145,6 +1195,8 @@ function alertNotPaid() {
                   <option value="all" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'all') ? 'selected' : ''; ?>>All Status</option>
                   <option value="Pending" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Printed" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Printed') ? 'selected' : ''; ?>>Printed</option>
+                  <option value="Released" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Released') ? 'selected' : ''; ?>>Released</option>
                   <!-- Declined option removed as per request -->
                 </select>
                 <button class="add-user" type="button" onclick="openUnemploymentModal()">
@@ -1163,6 +1215,7 @@ function alertNotPaid() {
                     <th>REFERENCE</th>
                     <th>DATE</th>
                     <th>STATUS</th> <!-- Added STATUS column -->
+                    <th>RELEASED BY</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -1202,7 +1255,7 @@ function alertNotPaid() {
                     $insertStmt->close();
                   }
 
-                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus 
+                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus, ReleasedBy 
                         FROM unemploymenttbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -1241,42 +1294,76 @@ function alertNotPaid() {
                         <td>" . htmlspecialchars($row["refno"]) . "</td>
                         <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
                         <td>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</td> <!-- Status Column -->
-
+                        <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
                         <td>";
 
                     $docData = json_encode([
+                      "id" => $row['id'], // Add ID for status update
                       "refno" => $row['refno'],
                       "fullname" => $row['fullname'],
                       "certificate_type" => $row['certificate_type'],
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                    if ($row["RequestStatus"] === "Approved") {
-                      echo "<button type='button' class='action-btn-2 print' onclick='openUnemploymentPrintModal(JSON.parse(`$docData`))'>    
+                    // ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release'
+          onclick='releaseUnemploymentDocument(" . htmlspecialchars($row["id"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
+}
+
+                      // ✅ If Approved — show Print + View
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openUnemploymentPrintModal(JSON.parse(`$docData`))'>    
                             <i class='fas fa-print'></i>
                         </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved
-                      if ($row["RequestStatus"] !== "Declined") {
-                        echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
-                                class='action-btn-2 approve'
-                                onclick=\"showCustomConfirm(event, this.href);\">
-                                <i class='fas fa-check'></i>
-                            </a> ";
-                      }
-                    }
-                    echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
-                        <i class='fas fa-eye'></i></a>";
+                          echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
+                    } 
+
+                    // ✅ If Pending — show Approve + View + Decline
+                    elseif ($row["RequestStatus"] === "Pending") {
+                      echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
+                              class='action-btn-2 approve'
+                              onclick=\"showCustomConfirm(event, this.href);\">
+                              <i class='fas fa-check'></i>
+                          </a> ";
+
+                      echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+                          class='action-btn-2 view'>  
+                  <i class='fas fa-eye'></i>
+                </a>";
                       echo "<a href='decline.php?id=" . htmlspecialchars($row["id"]) . "' 
                             class='action-btn-2 decline' 
                             onclick=\"showCustomDeclineConfirm(event, this.href);\">
                             <i class='fas fa-xmark'></i>
                         </a>";
                     }
-
+                    // ✅ If Declined or unknown — show View only
+                    else {
+                      echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
+          class='action-btn-2 view'>  
+      <i class='fas fa-eye'></i>
+    </a>";
+                    }
                     echo "</td></tr>";
                   }
                   if (!$hasRows) {
@@ -1346,17 +1433,18 @@ function alertNotPaid() {
               <h2>Unemployment Request Form</h2>
               <form id="addUnemploymentForm" method="POST" action="" class="modal-form">
                 <div class="form-grid">
-                  <div class="form-group">
+                  <div class="form-group" style="position: relative;">
                     <label>Full Name</label>
-                    <input type="text" name="fullname" required>
+                    <input type="text" id="unemploymentFullnameInput" name="fullname" required autocomplete="off" placeholder="Type to search verified residents...">
+                    <div id="unemploymentAutocompleteDropdown" class="autocomplete-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
                   </div>
                   <div class="form-group">
                     <label>Age</label>
-                    <input type="number" name="age" required>
+                    <input type="number" id="unemploymentAge" name="age" required>
                   </div>
                   <div class="form-group">
                     <label>Address</label>
-                    <input type="text" name="address" required>
+                    <input type="text" id="unemploymentAddress" name="address" required>
                   </div>
                   <div class="form-group">
                     <label>Unemployed Since</label>
@@ -1402,6 +1490,8 @@ function alertNotPaid() {
                   <option value="all" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'all') ? 'selected' : ''; ?>>All Status</option>
                   <option value="Pending" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Printed" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Printed') ? 'selected' : ''; ?>>Printed</option>
+                  <option value="Released" <?php echo (isset($_GET['status_filter']) && $_GET['status_filter'] === 'Released') ? 'selected' : ''; ?>>Released</option>
                   <!-- Declined option removed as per request -->
                 </select>
 
@@ -1422,6 +1512,7 @@ function alertNotPaid() {
                   <th>REFERENCE</th>
                   <th>DATE</th>
                   <th>STATUS</th> <!-- Added STATUS column -->
+                  <th>RELEASED BY</th>
                   <th>ACTION</th>
                 </tr>
                 </thead>
@@ -1475,7 +1566,7 @@ function alertNotPaid() {
                     $
                       $insertstmt->close();
                   }
-                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus 
+                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus, ReleasedBy 
                           FROM guardianshiptbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   $params = [];
                   $types = "";
@@ -1508,51 +1599,81 @@ function alertNotPaid() {
                     echo "<tr>
             <td>" . $row["id"] . "</td>
             <td>" . strtoupper($row["applicant_name"]) . "</td>
-            <td>" . strtoupper($row["request_type"]) . "</td>
-            
+            <td>" . strtoupper($row["request_type"]) . "</td>      
             <td>" . $row["refno"] . "</td>
             <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
             <td>" . strtoupper($row['RequestStatus']) . "</td> <!-- Status Column -->
+            <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
              <td>";
+
                     $docData = json_encode([
+                      "id" => $row['id'], // Add ID for status update
                       "refno" => $row['refno'],
                       "applicant_name" => $row['applicant_name'],
                       "request_type" => $row['request_type'],
-                     
                       "request_date" => $row['request_date'],
                     ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-                    if ($row["RequestStatus"] === "Approved") {
 
-                      echo "<button type='button' class='action-btn-2 print' onclick='openGuardianshipPrintModal(" . htmlspecialchars(json_encode([
-                        "refno" => $row['refno'],
-                        "applicant_name" => $row['applicant_name'],
-                        "request_type" => $row['request_type'],
-                        
-                        "request_date" => $row['request_date'],
-                      ]), ENT_QUOTES, 'UTF-8') . ")'>
+                    // ✅ If Released — show only the View button
+if ($row["RequestStatus"] === "Released") {
+  echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Printed — show Release + View
+elseif ($row["RequestStatus"] === "Printed") {
+  echo "<button type='button' class='action-btn-2 release' 
+          onclick='releaseGuardianshipDocument(" . htmlspecialchars($row["id"]) . ")'>
+          <i class='fas fa-share'></i> Release
+        </button>";
+
+  echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+}
+
+// ✅ If Approved — show Print + View
+                    elseif ($row["RequestStatus"] === "Approved") {
+                      // Use the pre-built $docData (includes id) so the client has the record id for status update
+                      echo "<button type='button' class='action-btn-2 print' 
+                      onclick='openGuardianshipPrintModal(" . $docData . ")'>
     <i class='fas fa-print'></i>
   </button>";
-                    } else {
-                      // Show APPROVE button if not yet approved
+
+    echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
+          class='action-btn-2 view'>
+          <i class='fas fa-eye'></i>
+        </a>";
+                    }
+// ✅ If Pending — show Approve + View + Decline
+        elseif ($row["RequestStatus"] === "Pending") {
+                      // Show APPROVE button
                       echo "<a href='approveguardianship.php?id=" . $row["id"] . "'
     class='action-btn-2 approve'
     onclick=\"showCustomConfirm(event, this.href);\">
     <i class='fas fa-check'></i></a>
   ";
-                    }
-
-
-
                     echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
                     <i class='fas fa-eye'></i></a>";
 
-                    // Show DECLINE button only if not already Declined/Approved (Declined rows won't reach here)
-                    if ($row["RequestStatus"] !== "Declined" && $row["RequestStatus"] !== "Approved") {
+
                       echo "<a href='declineguardianship.php?id=" . htmlspecialchars($row["id"]) . "'
     class='action-btn-2 decline'
     onclick=\"showCustomDeclineConfirm(event, this.href);\">
     <i class='fas fa-xmark'></i>
   </a>";
+        
+        }               
+
+
+else {
+                    echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' class='action-btn-2 view'>
+                    <i class='fas fa-eye'></i></a>";
+
+                  
                     }
 
                     echo "</td></tr>";
@@ -1614,7 +1735,7 @@ function alertNotPaid() {
           </div>
           <div id="addOpenGuardianship" class="guardianship-popup" style="display:none;">
             <div class="document-modal-box">
-              <span class="close-btn" onclick="closebirthcertificate()">&times;</span>
+              <span class="close-btn" onclick="document.getElementById('addOpenGuardianship').style.display='none';">&times;</span>
               <div style="text-align: center;">
  <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
@@ -1625,9 +1746,10 @@ function alertNotPaid() {
                     <label>Reference</label>
                     <input type="text" name="refno" readonly required>
                   </div>
-                  <div class="form-group">
+                  <div class="form-group" style="position: relative;">
                     <label>Applicant Name</label>
-                    <input type="text" name="applicant_name" required>
+                    <input type="text" id="guardianshipApplicantNameInput" name="applicant_name" placeholder="Type to search verified residents..." required autocomplete="off">
+                    <div id="guardianshipAutocompleteDropdown" class="autocomplete-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
                   </div>
                   <div class="form-group">
                     <label>Request Type</label>
@@ -1661,12 +1783,13 @@ function alertNotPaid() {
             </div>
           </div>
 
+         
 
           
-          
+
           
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div id="itemrequestsPanel" class="panel-content">
   <div class="item-requests-header">
@@ -1780,18 +1903,26 @@ function alertNotPaid() {
   }
 
   .inventory-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
+    display: flex;
+  flex-wrap: wrap;
+  gap: .9rem;
+  justify-content: flex-start;
   }
 
   .inventory-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-    transition: all 0.3s ease;
-    border-left: 4px solid;
-    overflow: hidden;
+     display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex: 0 0 372px;
+  padding: 1rem;
+  /* NEW look */
+  background-color: #d9f2dc;       /* light green fill */
+  border: 2px solid #2d7a3e;       /* darker green border line */
+  border-radius: 6px;
+  color: #2d7a3e;                  /* dark green text */
+  box-shadow: none;                /* remove heavy shadow for clean look */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .inventory-card:hover {
@@ -1808,23 +1939,23 @@ function alertNotPaid() {
     justify-content: space-between;
     align-items: center;
     padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: #d9f2dc;
     border-bottom: 1px solid #e2e8f0;
   }
 
   .item-name {
     font-size: 1.125rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #2d7a3e;
     margin: 0;
   }
 
   .availability-badge {
-    background: #1e293b;
-    color: white;
+    background: #d9f2dc;
+    color: #2d7a3e;
     padding: 0.375rem 0.875rem;
     border-radius: 20px;
-    font-size: 0.875rem;
+    font-size: 1.125rem;
     font-weight: 600;
   }
 
@@ -1847,7 +1978,7 @@ function alertNotPaid() {
   .stat-label {
     display: block;
     font-size: 0.75rem;
-    color: #64748b;
+    color: #2d7a3e;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.375rem;
@@ -1858,7 +1989,7 @@ function alertNotPaid() {
     display: block;
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1e293b;
+    color: #2d7a3e;
   }
 
   .progress-bar {
@@ -2675,7 +2806,7 @@ function alertNotPaid() {
         } else {
           echo "<tr><td colspan='7'>No item requests found.</td></tr>";
         }
-        $conn->close();
+        // Singleton connection closed by PHP
 
         function actionBtn($id, $action, $label) {
           $icons = [
@@ -2855,8 +2986,297 @@ function selectResident(resident, fullName, hiddenNameInput, hiddenUserIdInput, 
   dropdown.classList.remove('show');
 }
 
+// Initialize autocomplete for Document Request Form
+function initializeDocumentFormAutocomplete() {
+  const firstnameInput = document.getElementById('documentFirstnameInput');
+  const dropdown = document.getElementById('documentAutocompleteDropdown');
+  
+  if (!firstnameInput) return;
+  
+  firstnameInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    
+    if (searchTerm.length === 0) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    const filtered = verifiedResidents.filter(resident => {
+      const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`.toLowerCase();
+      return fullName.includes(searchTerm) || resident.Firstname.toLowerCase().includes(searchTerm);
+    });
+
+    displayDocumentDropdown(filtered, dropdown);
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.form-group') || !e.target.closest('#documentFirstnameInput')) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function displayDocumentDropdown(residents, dropdown) {
+  dropdown.innerHTML = '';
+
+  if (residents.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  residents.forEach(resident => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px;';
+    item.onmouseover = function() { this.style.backgroundColor = '#f0f0f0'; };
+    item.onmouseout = function() { this.style.backgroundColor = 'white'; };
+    
+    const initials = `${resident.Firstname.charAt(0)}${resident.Lastname.charAt(0)}`;
+    const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+    
+    item.innerHTML = `
+      <div style="width: 35px; height: 35px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">${initials}</div>
+      <div>
+        <div style="font-weight: 600;">${fullName}</div>
+        <div style="font-size: 12px; color: #666;">${resident.Address || 'No address'}</div>
+      </div>
+    `;
+    
+    item.addEventListener('click', function() {
+      selectDocumentResident(resident);
+    });
+    
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function selectDocumentResident(resident) {
+  const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+  document.getElementById('documentFirstnameInput').value = resident.Firstname;
+  document.getElementById('documentLastname').value = resident.Lastname;
+  document.getElementById('documentGender').value = resident.Gender || '';
+  document.getElementById('documentContactNo').value = resident.ContactNo || '';
+  document.getElementById('documentAddress').value = resident.Address || '';
+  document.getElementById('documentAutocompleteDropdown').style.display = 'none';
+}
+
+// Initialize autocomplete for Unemployment Request Form
+function initializeUnemploymentFormAutocomplete() {
+  const fullnameInput = document.getElementById('unemploymentFullnameInput');
+  const dropdown = document.getElementById('unemploymentAutocompleteDropdown');
+  
+  if (!fullnameInput) return;
+  
+  fullnameInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    
+    if (searchTerm.length === 0) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    const filtered = verifiedResidents.filter(resident => {
+      const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`.toLowerCase();
+      return fullName.includes(searchTerm) || resident.Firstname.toLowerCase().includes(searchTerm);
+    });
+
+    displayUnemploymentDropdown(filtered, dropdown);
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.form-group') || !e.target.closest('#unemploymentFullnameInput')) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function displayUnemploymentDropdown(residents, dropdown) {
+  dropdown.innerHTML = '';
+
+  if (residents.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  residents.forEach(resident => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px;';
+    item.onmouseover = function() { this.style.backgroundColor = '#f0f0f0'; };
+    item.onmouseout = function() { this.style.backgroundColor = 'white'; };
+    
+    const initials = `${resident.Firstname.charAt(0)}${resident.Lastname.charAt(0)}`;
+    const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+    
+    item.innerHTML = `
+      <div style="width: 35px; height: 35px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">${initials}</div>
+      <div>
+        <div style="font-weight: 600;">${fullName}</div>
+        <div style="font-size: 12px; color: #666;">${resident.Address || 'No address'}</div>
+      </div>
+    `;
+    
+    item.addEventListener('click', function() {
+      selectUnemploymentResident(resident);
+    });
+    
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function selectUnemploymentResident(resident) {
+  const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+  document.getElementById('unemploymentFullnameInput').value = fullName;
+  // Calculate age from birthdate if available
+  if (resident.Birthdate) {
+    const birthDate = new Date(resident.Birthdate);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    document.getElementById('unemploymentAge').value = age;
+  }
+  document.getElementById('unemploymentAddress').value = resident.Address || '';
+  document.getElementById('unemploymentAutocompleteDropdown').style.display = 'none';
+}
+
+// Initialize autocomplete for Business Request Form
+function initializeBusinessFormAutocomplete() {
+  const ownerNameInput = document.getElementById('businessOwnerNameInput');
+  const dropdown = document.getElementById('businessAutocompleteDropdown');
+  
+  if (!ownerNameInput) return;
+  
+  ownerNameInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase().trim();
+    
+    if (searchTerm.length === 0) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    const filtered = verifiedResidents.filter(resident => {
+      const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`.toLowerCase();
+      return fullName.includes(searchTerm) || resident.Firstname.toLowerCase().includes(searchTerm);
+    });
+
+    displayBusinessDropdown(filtered, dropdown);
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.form-group') || !e.target.closest('#businessOwnerNameInput')) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function displayBusinessDropdown(residents, dropdown) {
+  dropdown.innerHTML = '';
+
+  if (residents.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  residents.forEach(resident => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px;';
+    item.onmouseover = function() { this.style.backgroundColor = '#f0f0f0'; };
+    item.onmouseout = function() { this.style.backgroundColor = 'white'; };
+    
+    const initials = `${resident.Firstname.charAt(0)}${resident.Lastname.charAt(0)}`;
+    const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+    
+    item.innerHTML = `
+      <div style="width: 35px; height: 35px; border-radius: 50%; background: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">${initials}</div>
+      <div>
+        <div style="font-weight: 600;">${fullName}</div>
+        <div style="font-size: 12px; color: #666;">${resident.Address || 'No address'}</div>
+      </div>
+    `;
+    
+    item.addEventListener('click', function() {
+      selectBusinessResident(resident);
+    });
+    
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function selectBusinessResident(resident) {
+  const fullName = `${resident.Firstname} ${resident.Middlename} ${resident.Lastname}`;
+  document.getElementById('businessOwnerNameInput').value = fullName;
+  document.getElementById('businessAutocompleteDropdown').style.display = 'none';
+}
+
+// Initialize autocomplete for Guardianship Request Form
+function initializeGuardianshipFormAutocomplete() {
+  const applicantNameInput = document.getElementById('guardianshipApplicantNameInput');
+  const dropdown = document.getElementById('guardianshipAutocompleteDropdown');
+  
+  if (!applicantNameInput) return;
+  
+  applicantNameInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const filtered = verifiedResidents.filter(resident => 
+      `${resident.Firstname} ${resident.Lastname}`.toLowerCase().includes(searchTerm)
+    );
+    displayGuardianshipDropdown(filtered, dropdown);
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (e.target !== applicantNameInput) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function displayGuardianshipDropdown(residents, dropdown) {
+  dropdown.innerHTML = '';
+
+  if (residents.length === 0) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  residents.forEach(resident => {
+    const fullName = `${resident.Firstname} ${resident.Lastname}`;
+    const item = document.createElement('div');
+    item.style.cssText = 'padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 14px;';
+    item.textContent = fullName;
+    item.onmouseover = () => item.style.backgroundColor = '#f5f5f5';
+    item.onmouseout = () => item.style.backgroundColor = 'white';
+    item.onclick = () => selectGuardianshipResident(resident);
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = 'block';
+}
+
+function selectGuardianshipResident(resident) {
+  const fullName = `${resident.Firstname} ${resident.Lastname}`;
+  document.getElementById('guardianshipApplicantNameInput').value = fullName;
+  document.getElementById('guardianshipAutocompleteDropdown').style.display = 'none';
+}
+
 // Initialize autocomplete after DOM is ready
-document.addEventListener('DOMContentLoaded', initializeAutocomplete);
+document.addEventListener('DOMContentLoaded', function() {
+  initializeAutocomplete();
+  initializeDocumentFormAutocomplete();
+  initializeUnemploymentFormAutocomplete();
+  initializeBusinessFormAutocomplete();
+  initializeGuardianshipFormAutocomplete();
+});
 
 // Add Quantity Modal - Calculate new total
 function initializeAddQuantityCalculation() {
@@ -3018,12 +3438,399 @@ function reloadItemRequestsPanel(message) {
 </script>
 
 
+          <!-- NEW: Online Complaints Panel -->
+          <div id="onlineComplaintsPanel" class="panel-content">
+            <h1>Online Complaints</h1>
+
+            <!-- Search Form -->
+            <form method="GET" action="" class="govdoc-search-form">
+              <div class="govdoc-search-group">
+                <input type="text" name="search_online_complainant" class="govdoc-search-input" 
+                placeholder="Search by Complainant Name" 
+                value="<?php echo htmlspecialchars($_GET['search_online_complainant'] ?? ''); ?>">
+                <button type="submit" class="govdoc-search-button">Search</button>
+
+                <?php $selectedFilter = $_GET['online_status_filter'] ?? 'Pending'; // default Pending ?>
+
+                <!-- Added: status filter for online complaints -->
+                <select name="online_status_filter" class="govdoc-status-filter" onchange="this.form.submit()" style="margin-left:10px; padding:8px 10px;">
+                  <option value="all" <?php echo ($selectedFilter === 'all') ? 'selected' : ''; ?>>All</option>
+                  <option value="Pending" <?php echo ($selectedFilter === 'Pending') ? 'selected' : ''; ?>>Pending</option>
+                  <option value="Approved" <?php echo ($selectedFilter === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                </select>
+  
+              </div>
+            </form>
+
+            <div class="scrollable-table-container">
+              <table class="styled-table">
+                <thead>
+                  <tr>
+                    <th>CmpID</th>
+                    <th>REFERENCE NO</th>
+                    <th>COMPLAINANT</th>
+                    <th>DATE TIME OF INCIDENT</th>
+                    <th>LOCATION</th>
+                    <th>INCIDENT TYPE</th>
+                    <th>DATE COMPLAINED</th>
+                    <th>STATUS</th>
+                    <th>ACTION</th>
+                  </tr>
+                </thead>
+                <tbody id="onlineComplaintsBody">
+                  <?php
+                  // Use existing DB helper
+                  $conn = new mysqli($servername, $username, $password, $database);
+                  if ($conn->connect_error) {
+                    echo "<div class='alert alert-danger'>DB connection failed.</div>";
+                  } else {
+                    // Get and sanitize search term
+                    $search = isset($_GET['search_online_complainant']) ? trim($_GET['search_online_complainant']) : '';
+                    
+                    // Build SQL query
+                    $sql = "SELECT CmpID, Firstname, Lastname, Middlename, refno, DateTimeofIncident, LocationofIncident, IncidentType, DateComplained, RequestStatus FROM complaintbl";
+
+                    // Add WHERE clauses using an array so we can combine search + status safely
+                    $whereClauses = [];
+
+                    // Get and sanitize search term
+                    if ($search !== '') {
+                      $searchEscaped = $conn->real_escape_string($search);
+                      $whereClauses[] = "CONCAT(Lastname, ', ', Firstname, ' ', COALESCE(Middlename, '')) LIKE '%$searchEscaped%'";
+                    }
+
+                    // Status filter
+                    $statusFilter = isset($_GET['online_status_filter']) ? $conn->real_escape_string($_GET['online_status_filter']) : 'Pending';
+                    if ($statusFilter !== 'all') {
+                      // Only allow expected values to avoid injection
+                      if (in_array($statusFilter, ['Pending', 'Approved'], true)) {
+                        $whereClauses[] = "RequestStatus = '$statusFilter'";
+                      }
+                    }
+
+                    if (!empty($whereClauses)) {
+                      $sql .= " WHERE " . implode(" AND ", $whereClauses);
+                    }
+
+                    $sql .= " ORDER BY DateComplained DESC";
+                    
+                    $res = $conn->query($sql);
+                    if ($res && $res->num_rows > 0) {
+                      while ($row = $res->fetch_assoc()) {
+                        $refno = htmlspecialchars($row['refno'] ?? 'N/A');
+                        $fullname = htmlspecialchars(trim($row['Lastname'] . ', ' . $row['Firstname'] . ' ' . ($row['Middlename'] ?? '')));
+                        $incidentDt = $row['DateTimeofIncident'] ? htmlspecialchars(date('F d, Y h:i A', strtotime($row['DateTimeofIncident']))) : 'N/A';
+                        $location = htmlspecialchars($row['LocationofIncident'] ?? 'N/A');
+                        $type = htmlspecialchars($row['IncidentType'] ?? 'N/A');
+                        $dateComplained = $row['DateComplained'] ? htmlspecialchars(date('F d, Y h:i A', strtotime($row['DateComplained']))) : 'N/A';
+                        $status = htmlspecialchars($row['RequestStatus'] ?? 'N/A');
+                        echo "<tr>
+                          <td>" . htmlspecialchars($row['CmpID']) . "</td>
+                          <td>$refno</td>
+                          <td>$fullname</td>
+                          <td>$incidentDt</td>
+                          <td>$location</td>
+                          <td>$type</td>
+                          <td>$dateComplained</td>
+                          <td>$status</td>
+                          <td>
+                            <button class='action-btn-2 view-complaint' data-id='" . htmlspecialchars($row['CmpID']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
+                              <i class='fas fa-eye'></i>
+                            </button>
+                          </td>
+                        </tr>";
+                      }
+                    } else {
+                      echo "<tr><td colspan='9' style='text-align:center;'>No online complaints found.</td></tr>";
+                    }
+                    
+                    $conn->close();
+                  }
+                  ?>
+                </tbody>
+              </table>
+            </div>       
+          </div> <!-- end of online complaints panel -->
+
+          <!-- View Online Complaint Modal -->
+          <div id="viewComplaintModal" class="popup" style="display:none;">
+            <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
+              <span class="close-btn" onclick="closeViewComplaintModal()">&times;</span>
+              <div style="text-align: center;">
+                <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+              </div>
+              <h1 style="text-align:center;">Online Complaint Details</h1>
+              <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
+                Complaint ID: <span id="view_complaint_id"></span>
+              </div>
+              <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
+                Reference No: <span id="view_complaint_refno"></span>
+              </div>
+
+              <div style="font-size:16px; font-weight:bold;">
+                Date Complained:
+              </div>
+              <span id="view_complaint_date_complained" style="font-size:16px;"></span>  
+              <br><br>
+
+              <form class="modal-form">
+                <!-- Complainant Details -->
+                <h3>Complainant Details</h3>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="view_complaint_lastname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="view_complaint_firstname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" id="view_complaint_middlename" readonly>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" id="view_complaint_address" readonly>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="text" id="view_complaint_age" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" id="view_complaint_contact_no" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="text" id="view_complaint_email" readonly>
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- Complaint Details -->
+                <h3>Complaint Details</h3>
+                <div class="form-grid" style="grid-template-columns:1.1fr 1.2fr .7fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Date and Time of Incident</label>
+                    <input type="text" id="view_complaint_incident_datetime" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Location of Incident</label>
+                    <input type="text" id="view_complaint_location" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Type of Incident</label>
+                    <input type="text" id="view_complaint_type" readonly>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Detailed Description of the Complaint</label>
+                  <textarea id="view_complaint_description" rows="7" readonly></textarea>
+                </div>
+                
+                <div class="form-group">
+                  <label>Request Status</label>
+                  <input type="text" id="view_complaint_status" readonly>
+                </div>
+
+                <hr>
+
+                <!-- Evidence/Uploaded Files -->
+                <h3>Evidence Files</h3>
+                <div class="scrollable-table-container">
+                  <table class="styled-table" id="view_complaint_files_table">
+                    <thead>
+                      <tr>
+                        <th>Thumbnail</th>
+                        <th>File Type</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="view_complaint_filesContainer">
+                      <!-- Files will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Convert to Blotter Button -->
+                <div style="margin-top: 20px; text-align: center;">
+                  <button type="button" id="convertToBlotterBtn" class="btn btn-success" style="padding: 12px 30px; font-size: 16px;">
+                    <i class="fas fa-exchange-alt"></i> Convert to Blotter Report
+                  </button>
+                </div>
+
+                <!-- Convert Form (Hidden by default) -->
+                <div id="convertFormSection" style="display:none; margin-top: 30px; border-top: 2px solid #ddd; padding-top: 20px;">
+                  <h2 style="text-align:center; color: #059629ff;">Convert to Blotter Report</h2>
+                  <p style="text-align:center; color: #666; margin-bottom: 20px;">
+                    Please add respondent(s) and witness(es) details to complete the blotter report.
+                  </p>
+
+                  <!-- Accused/Respondent Section -->
+                  <h3>Respondent Details</h3>
+                  <div id="convert_accusedContainer">
+                    <!-- Accused rows will be added here -->
+                  </div>
+                  <button type="button" class="btn btn-success btn-sm" id="convertAddAccusedBtn" style="margin-bottom: 20px;">+ Add Respondent</button>
+                  
+                  <hr>
+
+                  <!-- Witnesses Section -->
+                  <h3>Witnesses Details (Optional)</h3>
+                  <div id="convert_witnessesContainer">
+                    <!-- Witness rows will be added here -->
+                  </div>
+                  <button type="button" class="btn btn-success btn-sm" id="convertAddWitnessBtn" style="margin-bottom: 20px;">+ Add Witness</button>
+                  
+                  <hr>
+
+                  <!-- Submit Button -->
+                  <div style="text-align: center; margin-top: 20px;">
+                    <button type="button" id="saveBlotterConversionBtn" class="btn btn-primary" style="padding: 12px 40px; font-size: 16px;">
+                      <i class="fas fa-save"></i> Save as Blotter Report
+                    </button>
+                    <button type="button" id="cancelConversionBtn" class="btn btn-secondary" style="padding: 12px 40px; font-size: 16px; margin-left: 10px;">
+                      <i class="fas fa-times"></i> Cancel
+                    </button>
+                  </div>
+                </div>
+
+              </form>
+            </div>
+          </div> <!-- End of View Online Complaint Modal -->
 
 
 
-          <!-- blotter complaint panel -->
+
+
+          <!-- blotter reporting panel -->
           <div id="blotterComplaintPanel" class="panel-content">
-            <h1>Blotter/Complaint</h1>
+            <h1>Blotter Reporting</h1>
+
+            <?php
+            // Calculate statistics before displaying the form
+            $stats_conn = new mysqli($servername, $username, $password, $database);
+            if ($stats_conn->connect_error) {
+              die("Connection failed: " . $stats_conn->connect_error);
+            }
+
+            // Build WHERE clause for stats (same as main query)
+            $stats_where_clauses = [];
+            if (isset($_GET['search_complainant']) && !empty(trim($_GET['search_complainant']))) {
+              $stats_search = $stats_conn->real_escape_string($_GET['search_complainant']);
+              $stats_where_clauses[] = "reported_by LIKE '%$stats_search%'";
+            } else {
+              $stats_date_filter = isset($_GET['date_filter']) ? $_GET['date_filter'] : 'today';
+              switch ($stats_date_filter) {
+                case 'today':
+                  $stats_where_clauses[] = "DATE(created_at) = CURDATE()";
+                  break;
+                case 'this_week':
+                  $stats_where_clauses[] = "YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)";
+                  break;
+                case 'this_month':
+                  $stats_where_clauses[] = "YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())";
+                  break;
+                case 'this_year':
+                  $stats_where_clauses[] = "YEAR(created_at) = YEAR(CURDATE())";
+                  break;
+                case 'all_time':
+                default:
+                  break;
+              }
+            }
+
+            // Build stats SQL query
+            $stats_sql = "SELECT 
+                COUNT(*) as total_records,
+                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+                SUM(CASE WHEN status = 'hearing_scheduled' THEN 1 ELSE 0 END) as hearing_scheduled_count,
+                SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count,
+                SUM(CASE WHEN status = 'closed_resolved' THEN 1 ELSE 0 END) as closed_resolved_count,
+                SUM(CASE WHEN status = 'closed_unresolved' THEN 1 ELSE 0 END) as closed_unresolved_count
+              FROM blottertbl";
+            
+            if (!empty($stats_where_clauses)) {
+              $stats_sql .= " WHERE " . implode(" AND ", $stats_where_clauses);
+            }
+
+            $stats_result = $stats_conn->query($stats_sql);
+            $stats = $stats_result->fetch_assoc();
+            
+            $total_records = $stats['total_records'] ?? 0;
+            $active_count = $stats['active_count'] ?? 0;
+            $hearing_scheduled_count = $stats['hearing_scheduled_count'] ?? 0;
+            $open_total = $active_count + $hearing_scheduled_count;
+            $closed_count = $stats['closed_count'] ?? 0;
+            $closed_resolved_count = $stats['closed_resolved_count'] ?? 0;
+            $closed_unresolved_count = $stats['closed_unresolved_count'] ?? 0;
+            $closed_total = $closed_count + $closed_resolved_count + $closed_unresolved_count;
+            
+            $stats_conn->close();
+            ?>
+
+            <!-- Statistics Cards -->
+            <div class="stat-card-container mb-3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px;">
+              <!-- Card 1: Total Records -->
+              <div class="stat-card scholarship-card" >
+                <div class="stat-left">
+                  <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
+                  <p>Total Records Displayed</p>
+                </div>
+                <h4><?php echo $total_records; ?></h4>
+              </div>
+
+              <!-- Card 2: Open Cases -->
+              <div class="stat-card scholarship-card">
+                <div class="stat-left">
+                  <div class="stat-icon"><i class="fa-solid fa-folder-open"></i></div>
+                  <p>Open Cases</p>
+                </div>
+                <h4><?php echo $open_total; ?></h4>
+                <div style="font-size: 18px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 5px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Active:</span>
+                    <span style="font-weight: 600;"><?php echo $active_count; ?></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>Hearing Scheduled: </span>
+                    <span style="font-weight: 600;"><?php echo $hearing_scheduled_count; ?></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 3: Closed Cases -->
+              <div class="stat-card scholarship-card">
+                <div class="stat-left">
+                  <div class="stat-icon"><i class="fa-solid fa-folder-closed"></i></div>
+                  <p>Closed Cases</p>
+                </div>
+
+                <!-- tight spacing: zero bottom margin on h4 so breakdown moves up -->
+                <h4 style="margin: 0 0 1px 0;"><?php echo $closed_total; ?></h4>
+
+                <!-- much closer: remove extra top padding, keep a thin divider -->
+                <div style="font-size:18px; border-top:1px solid rgba(255,255,255,0.18); padding-top:4px; margin-top:0;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>Closed:</span>
+                    <span style="font-weight:600;"><?php echo $closed_count; ?></span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>Closed Unresolved:</span>
+                    <span style="font-weight:600;"><?php echo $closed_unresolved_count; ?></span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between;">
+                    <span>Closed Resolved:</span>
+                    <span style="font-weight:600;"><?php echo $closed_resolved_count; ?></span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
 
             <form method="GET" action="" class="govdoc-search-form">
@@ -3035,6 +3842,16 @@ function reloadItemRequestsPanel(message) {
                   <i class="fas fa-search"></i> Search
                 </button>
 
+                <!-- NEW: Date Filter Dropdown -->
+                <select name="date_filter" class="govdoc-status-filter" onchange="this.form.submit();">
+                  <option value="today" <?php echo (!isset($_GET['date_filter']) || $_GET['date_filter'] === 'today') ? 'selected' : ''; ?>>Today</option>
+                  <option value="this_week" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_week') ? 'selected' : ''; ?>>This Week</option>
+                  <option value="this_month" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_month') ? 'selected' : ''; ?>>This Month</option>
+                  <option value="this_year" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_year') ? 'selected' : ''; ?>>This Year</option>
+                  <option value="all_time" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'all_time') ? 'selected' : ''; ?>>All Time</option>
+                </select>
+
+
                 <button class="add-user" type="button" onclick="openBlotterModal()">
                   <i class="fa-regular fa-user"></i> Add Blotter
                 </button>
@@ -3045,9 +3862,10 @@ function reloadItemRequestsPanel(message) {
               <table class="styled-table">
                 <thead>
                   <tr>
+                    <th>NO</th>
                     <th>ID</th>
-                    <th>REPORTED BY</th>
-                    <th>DATE TIME</th>
+                    <th>COMPLAINANT</th>
+                    <th>DATE TIME OF INCIDENT</th>
                     <th>LOCATION</th>
                     <th>INCIDENT TYPE</th>
                     <th>STATUS</th>
@@ -3065,40 +3883,71 @@ function reloadItemRequestsPanel(message) {
                     die("Connection failed: " . $conn->connect_error);
                   }
 
-                  $search = "";
+                 // Build WHERE clause
+                  $where_clauses = [];
+                  // Search by complainant
                   if (isset($_GET['search_complainant']) && !empty(trim($_GET['search_complainant']))) {
                     $search = $conn->real_escape_string($_GET['search_complainant']);
-                    $sql = "SELECT * FROM blottertbl WHERE reported_by LIKE '%$search%' ORDER BY created_at DESC";
+                    $where_clauses[] = "reported_by LIKE '%$search%'";
                   } else {
-                    $sql = "SELECT * FROM blottertbl ORDER BY created_at DESC";
+                    // Only apply date filter if no search is performed
+                    $date_filter = isset($_GET['date_filter']) ? $_GET['date_filter'] : 'today';
+                    switch ($date_filter) {
+                      case 'today':
+                        $where_clauses[] = "DATE(created_at) = CURDATE()";
+                        break;
+                      case 'this_week':
+                        $where_clauses[] = "YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)";
+                        break;
+                      case 'this_month':
+                        $where_clauses[] = "YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())";
+                        break;
+                      case 'this_year':
+                        $where_clauses[] = "YEAR(created_at) = YEAR(CURDATE())";
+                        break;
+                      case 'all_time':
+                      default:
+                        // No date filter
+                        break;
+                    }
                   }
+                  // Build final SQL query
+                  $sql = "SELECT * FROM blottertbl";
+                  if (!empty($where_clauses)) {
+                    $sql .= " WHERE " . implode(" AND ", $where_clauses);
+                  }
+                  $sql .= " ORDER BY created_at DESC";
 
                   $result = $conn->query($sql);
                   if ($result && $result->num_rows > 0) {
+                    $counter = 1;
                     while ($row = $result->fetch_assoc()) {
                       echo "<tr>
+            <td>" . $counter . "</td>
             <td>" . htmlspecialchars($row['blotter_id']) . "</td>
             <td>" . htmlspecialchars($row['reported_by']) . "</td>
-            <td>" . htmlspecialchars($row['datetime_of_incident']) . "</td>
+            <td>" . htmlspecialchars(date('F d, Y h:i A', strtotime($row['datetime_of_incident']))) . "</td>
             <td>" . htmlspecialchars($row['location_of_incident']) . "</td>
             <td>" . htmlspecialchars($row['incident_type']) . "</td>
             <td>" . htmlspecialchars($row['status']) . "</td>
-            <td>" . htmlspecialchars($row['created_at']) . "</td>
-            <td>" . htmlspecialchars($row['closed_at']) . "</td>
-            <td>
-                <button class='action-btn-2 view-blotter' data-id='" . $row['blotter_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
+            <td>" . htmlspecialchars(date('F d, Y h:i A', strtotime($row['created_at']))) . "</td>
+            <td>" . ($row['closed_at'] ? htmlspecialchars(date('F d, Y h:i A', strtotime($row['closed_at']))) : 'N/A') . "</td>
+            <td>";
+                      echo "<button class='action-btn-2 view-blotter' data-id='" . htmlspecialchars($row['blotter_id']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                     <i class='fas fa-eye'></i>
-                </button>
-                <button class='action-btn-2 update-blotter' data-id='" . $row['blotter_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
+                </button> ";
+                      if (!in_array($row['status'], ['closed', 'closed_resolved', 'closed_unresolved'], true)) {
+                        echo "<button class='action-btn-2 update-blotter' data-id='" . htmlspecialchars($row['blotter_id']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                     <i class='fas fa-edit'></i>
-                </button>
-            </td>
-        </tr>";
+                </button>";
+                      }
+                      echo "</td></tr>";
+                      $counter++;
                     }
                   } else {
-                    echo "<tr><td colspan='9'>No blotter records found.</td></tr>";
+                    echo "<tr><td colspan='10'>No blotter records found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
 
 
@@ -3132,223 +3981,230 @@ function reloadItemRequestsPanel(message) {
                 transform: scale(1.1);
               }
             </style>
-            <!-- Blotter Report Modal fill up form -->
-            <div id="blotterModal" class="popup" style="display:none;">
-              <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
-                <span class="close-btn" onclick="closeBlotterModal()">&times;</span>
-                <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                    style="width: 70%; max-width: 120px; border-radius: 50%;" />
-                </div>
-                <h1 style="text-align:center;">Create Blotter Report</h1>
-                <form id="blotterForm" method="POST" action="../Process/blotter/create_blotter.php" class="modal-form" enctype="multipart/form-data">
-                  <label style="font-weight:bold;">Full Name of Complainant</label>
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+          </div> <!--- end of modal blotter complaint panel -->
 
-                    <div class="form-group">
-                      <label for="complainant_lastname">Lastname</label>
-                      <input type="text" name="complainant_lastname" placeholder="Lastname" required>
-                    </div>
-
-                    <div class="form-group">
-                      <label for="complainant_firstname">Firstname</label>
-                      <input type="text" name="complainant_firstname" placeholder="Firstname" required>
-                    </div>
-
-
-                    <div class="form-group">
-                      <label for="complainant_middlename">Middlename</label>
-                      <input type="text" name="complainant_middlename" placeholder="Middlename">
-                    </div>
-
-
-                  </div>
-                  <div class="form-group">
-                    <label>Address</label>
-                    <input type="text" name="complainant_address" required>
-                  </div>
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label>Age</label>
-                      <input type="number" name="complainant_age" maxlength="3" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Contact No</label>
-                      <input type="number" min="0" name="complainant_contact_no" maxlength="11" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Email</label>
-                      <input type="email" name="complainant_email">
-                    </div>
-                  </div>
-                  <br>
-                  <hr>
-
-                  <h3>Blotter Details</h3>
-
-                  <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                    <div class="form-group">
-                      <label>Date and Time of Incident</label>
-                      <input type="datetime-local" name="incident_datetime" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Location of Incident</label>
-                      <input type="text" name="incident_location" required>
-                    </div>
-                    <div class="form-group">
-                      <label>Type of Incident</label>
-                      <select name="incident_type" id="incident_type">
-                        <option value="" disabled selected>Select Incident Type</option>
-                        <option value="Theft">Theft</option>
-                        <option value="Assault">Assault</option>
-                        <option value="Vandalism">Vandalism</option>
-                        <option value="Domestic Dispute">Domestic Dispute</option>
-                        <option value="Noise Complaint">Noise Complaint</option>
-                        <option value="Traffic Violation">Traffic Violation</option>
-                        <option value="Grave Threat">Grave Threat</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <!-- Conditionally shown input for "Other" incident type -->
-                    <div class="form-group" id="otherIncidentGroup" style="display:none; grid-column: span 3;">
-                      <label>Please specify</label>
-                      <input type="text" name="incident_type_other" id="incident_type_other" placeholder="Specify incident type">
-                    </div>
-
-
-
-                    <div class="form-group" style="grid-column: span 3;">
-                      <label>Detailed Description of the Incident</label>
-                      <textarea name="incident_description" rows="5" required></textarea>
-                    </div>
-                  </div>
-
-                  <br>
-                  <hr>
-
-
-                  <!-- ...inside your blotterModal form... -->
-                  <h3>Respondent Details</h3>
-                  <div id="accusedContainer">
-                    <div class="accused-fields">
-                      <h6>Full name of the Respondent</h6>
-                      <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
-
-
-                        <div class="form-group">
-                          <label>Lastname</label>
-                          <input type="text" name="accused_lastname[]" placeholder="Lastname" required>
-                        </div>
-
-                        <div class="form-group">
-                          <label>Firstname</label>
-                          <input type="text" name="accused_firstname[]" placeholder="Firstname" required>
-                        </div>
-
-
-                        <div class="form-group">
-                          <label>Middlename</label>
-                          <input type="text" name="accused_middlename[]" placeholder="Middlename">
-                        </div>
-
-
-                        <div class="form-group">
-                          <label>Alias</label>
-                          <input type="text" name="accused_alias[]" placeholder="Alias/Nickname">
-                        </div>
-
-                      </div>
-                      <div class="form-group">
-                        <label>Address</label>
-                        <input type="text" name="accused_address[]">
-                      </div>
-                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                        <div class="form-group">
-                          <label>Age</label>
-                          <input type="number" name="accused_age[]">
-                        </div>
-                        <div class="form-group">
-                          <label>Contact No</label>
-                          <input type="number" min="0" maxlength="11" name="accused_contact_no[]">
-                        </div>
-                        <div class="form-group">
-                          <label>Email</label>
-                          <input type="email" name="accused_email[]">
-                        </div>
-                      </div>
-                      <button type="button" class="btn btn-danger btn-sm remove-accused-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
-                      <hr>
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-success btn-sm" id="addAccusedBtn">+ Add Accused</button>
-
-
-                  <br>
-                  <hr>
-
-                  <h3>Witnesses Details</h3>
-                  <div id="witnessesContainer">
-                    <div class="witness-fields">
-                      <h6>Full name of the Witness</h6>
-                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-
-                        <div class="form-group">
-                          <label>Lastname</label>
-                          <input type="text" name="witness_lastname[]" placeholder="Lastname">
-                        </div>
-
-                        <div class="form-group">
-                          <label>Firstname</label>
-                          <input type="text" name="witness_firstname[]" placeholder="Firstname">
-                        </div>
-
-                        <div class="form-group">
-                          <label>Middlename</label>
-                          <input type="text" name="witness_middlename[]" placeholder="Middlename">
-                        </div>
-                      </div>
-                      <div class="form-group">
-                        <label>Address</label>
-                        <input type="text" name="witness_address[]">
-                      </div>
-                      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                        <div class="form-group">
-                          <label>Age</label>
-                          <input type="number" name="witness_age[]">
-                        </div>
-                        <div class="form-group">
-                          <label>Contact No</label>
-                          <input type="number" min="0" maxlength="11" name="witness_contact_no[]">
-                        </div>
-                        <div class="form-group">
-                          <label>Email</label>
-                          <input type="email" name="witness_email[]">
-                        </div>
-                      </div>
-                      <button type="button" class="btn btn-danger btn-sm remove-witness-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
-                      <hr>
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-success btn-sm" id="addWitnessBtn">+ Add Witness</button>
-
-                  <!-- Image Upload -->
-                  <hr>
-                  <div class="form-group">
-                    <label>Upload Image(s) (jpg, jpeg, png, gif only) (Optional)</label>
-                    <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
-
-                    <input type="file" name="blotter_files[]" id="blotter_files" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
-                  </div>
-
-
-                  <div style="margin-top:20px; text-align:right;">
-                    <button type="submit" class="btn-save">Create</button>
-                    <button type="button" class="btn-cancel" onclick="closeBlotterModal()">Close</button>
-                  </div>
-                </form>
+          <!-- Blotter Report Modal fill up form -->
+          <div id="blotterModal" class="popup" style="display:none;">
+            <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
+              <span class="close-btn" onclick="closeBlotterModal()">&times;</span>
+              <div style="text-align: center;">
+                <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
+              <h1 style="text-align:center;">Create Blotter Report</h1>
+              <form id="blotterForm" method="POST" action="../Process/blotter/create_blotter.php" class="modal-form" enctype="multipart/form-data">
+                <!-- Complainant Details -->
+                <h3>Complainant Details</h3>
+                <div id="complainantContainer">
+                  <div class="complainant-fields">
+                    <h6>Full name of the Complainant</h6>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                      <div class="form-group">
+                        <label>Lastname</label>
+                        <input type="text" name="complainant_lastname[]" placeholder="Lastname" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Firstname</label>
+                        <input type="text" name="complainant_firstname[]" placeholder="Firstname" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Middlename</label>
+                        <input type="text" name="complainant_middlename[]" placeholder="Middlename">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Address</label>
+                      <input type="text" name="complainant_address[]" required>
+                    </div>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                      <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="complainant_age[]" maxlength="3" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Contact No</label>
+                        <input type="number" min="0" name="complainant_contact_no[]" maxlength="11" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
+                        <input type="email" name="complainant_email[]">
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
+                    <hr>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" id="addComplainantBtn">+ Add Complainant</button>
+                <br>
+                <hr>
 
+                <h3>Blotter Details</h3>
+
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Date and Time of Incident</label>
+                    <input type="datetime-local" name="incident_datetime" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Location of Incident</label>
+                    <input type="text" name="incident_location" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Type of Incident</label>
+                    <select name="incident_type" id="incident_type" required>
+                      <option value="" disabled selected>Select Incident Type</option>
+                      <option value="Theft">Theft</option>
+                      <option value="Assault">Assault</option>
+                      <option value="Vandalism">Vandalism</option>
+                      <option value="Domestic Dispute">Domestic Dispute</option>
+                      <option value="Noise Complaint">Noise Complaint</option>
+                      <option value="Traffic Violation">Traffic Violation</option>
+                      <option value="Grave Threat">Grave Threat</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <!-- Conditionally shown input for "Other" incident type -->
+                  <div class="form-group" id="otherIncidentGroup" style="display:none; grid-column: span 3;">
+                    <label>Please specify</label>
+                    <input type="text" name="incident_type_other" id="incident_type_other" placeholder="Specify incident type">
+                  </div>
+
+
+
+                  <div class="form-group" style="grid-column: span 3;">
+                    <label>Detailed Description of the Incident</label>
+                    <textarea name="incident_description" rows="5" required></textarea>
+                  </div>
+                </div>
+
+                <br>
+                <hr>
+
+
+                <!-- ...inside your blotterModal form... -->
+                <h3>Respondent Details</h3>
+                <div id="accusedContainer">
+                  <div class="accused-fields">
+                    <h6>Full name of the Respondent</h6>
+                    <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
+
+
+                      <div class="form-group">
+                        <label>Lastname</label>
+                        <input type="text" name="accused_lastname[]" placeholder="Lastname" required>
+                      </div>
+
+                      <div class="form-group">
+                        <label>Firstname</label>
+                        <input type="text" name="accused_firstname[]" placeholder="Firstname" required>
+                      </div>
+
+
+                      <div class="form-group">
+                        <label>Middlename</label>
+                        <input type="text" name="accused_middlename[]" placeholder="Middlename">
+                      </div>
+
+
+                      <div class="form-group">
+                        <label>Alias <span style="color: #888; font-style: italic;">(optional)</span></label>
+                        <input type="text" name="accused_alias[]" placeholder="Alias/Nickname">
+                      </div>
+
+                    </div>
+                    <div class="form-group">
+                      <label>Address</label>
+                      <input type="text" name="accused_address[]" required>
+                    </div>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                      <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="accused_age[]" maxlength="3" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Contact No</label>
+                        <input type="number" min="0" maxlength="11" name="accused_contact_no[]">
+                      </div>
+                      <div class="form-group">
+                        <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
+                        <input type="email" name="accused_email[]">
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm remove-accused-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
+                    <hr>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" id="addAccusedBtn">+ Add Respondent</button>
+
+
+                <br>
+                <hr>
+
+                <h3>Witnesses Details</h3>
+                <div id="witnessesContainer">
+                  <div class="witness-fields">
+                    <h6>Full name of the Witness</h6>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+
+                      <div class="form-group">
+                        <label>Lastname</label>
+                        <input type="text" name="witness_lastname[]" placeholder="Lastname">
+                      </div>
+
+                      <div class="form-group">
+                        <label>Firstname</label>
+                        <input type="text" name="witness_firstname[]" placeholder="Firstname">
+                      </div>
+
+                      <div class="form-group">
+                        <label>Middlename</label>
+                        <input type="text" name="witness_middlename[]" placeholder="Middlename">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Address</label>
+                      <input type="text" name="witness_address[]">
+                    </div>
+                    <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                      <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" name="witness_age[]">
+                      </div>
+                      <div class="form-group">
+                        <label>Contact No</label>
+                        <input type="number" min="0" maxlength="11" name="witness_contact_no[]">
+                      </div>
+                      <div class="form-group">
+                        <label>Email <span style="color: #888; font-style: italic;">(optional)</span></label>
+                        <input type="email" name="witness_email[]">
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm remove-witness-btn" style="margin-bottom:10px; display:none; margin-top: 10px;">Remove</button>
+                    <hr>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-success btn-sm" id="addWitnessBtn">+ Add Witness</button>
+
+                <!-- Image Upload -->
+                <hr>
+                <div class="form-group">
+                  <label>Upload Image(s) (.jpg, .jpeg, .png, .pdf, .doc, .docx - MAX 5MB) (Optional)</label>
+                  <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
+
+                  <input type="file" name="blotter_files[]" id="blotter_files" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" multiple>
+                </div>
+
+
+                <div style="margin-top:20px; text-align:right;">
+                  <button type="submit" class="btn-save">Create</button>
+                  <button type="button" class="btn-cancel" onclick="closeBlotterModal()">Close</button>
+                </div>
+              </form>
             </div>
-          </div> <!--- end of modal -->
+
+          </div> <!-- end of blotter modal -->
+
+
 
 
           <!-- View Blotter Modal -->
@@ -3356,50 +4212,25 @@ function reloadItemRequestsPanel(message) {
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
               <span class="close-btn" onclick="closeViewBlotterModal()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+                <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
               <h1 style="text-align:center;">Blotter Report Details</h1>
               <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
                 Blotter ID: <span id="view_blotter_id"></span>
               </div>
+              <div style="font-size:16px; font-weight:bold; margin-bottom:15px;">
+                Officer on Duty: <span id="view_officer_on_duty"></span>
+              </div>
+
 
               <form class="modal-form">
                 <!-- Complainant -->
-                <label style="font-weight:bold;">Full Name of Complainant</label>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Last Name</label>
-                    <input type="text" id="view_complainant_lastname" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>First Name</label>
-                    <input type="text" id="view_complainant_firstname" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Middle Name</label>
-                    <input type="text" id="view_complainant_middlename" readonly>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Address</label>
-                  <input type="text" id="view_complainant_address" readonly>
-                </div>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Age</label>
-                    <input type="number" id="view_complainant_age" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Contact No</label>
-                    <input type="text" id="view_complainant_contact_no" readonly>
-                  </div>
-                  <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="view_complainant_email" readonly>
-                  </div>
-                </div>
+                <h3>Complainant Details</h3>
+                <div id="view_complainantContainer"></div>
+
                 <br>
-                <hr>
+
                 <!-- Blotter Details -->
                 <h3>Blotter Details</h3>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
@@ -3422,7 +4253,7 @@ function reloadItemRequestsPanel(message) {
                 </div>
 
                 <hr>
-                <!-- Accused Details -->
+                <!-- Respondent Details -->
                 <h3>Respondent Details</h3>
                 <div id="view_accusedContainer"></div>
 
@@ -3441,6 +4272,7 @@ function reloadItemRequestsPanel(message) {
 
 
                 <!-- Hearing Details Section -->
+
                 <h3 id="hearingDetailsHeader" style="display:none;">Hearing Details</h3>
                 <div id="hearingDetailsSection" style="display:none;">
                   <label id="hearingNoLabel"></label>
@@ -3469,7 +4301,8 @@ function reloadItemRequestsPanel(message) {
                     <div class="form-group" style="margin-top:8px;">
                       <label for="hearing_files" style="font-weight:600;">Upload Files (Optional)</label>
                       <input type="file" id="hearing_files" class="form-control" multiple accept=".jpg,.jpeg,.png,.pdf,.doc,.docx" />
-                      <small style="color: #666;">Allowed: .jpg, .jpeg, .png, .pdf, .doc, .docx (multiple files supported)</small>
+                      <small style="color: #666;">Allowed: .jpg, .jpeg, .png, .pdf, .doc, .docx - MAX 5MB (multiple files supported)</small>
+                      <div id="hearingFilesError" style="color:#b00020; display:none; margin-top:6px; font-size:13px;"></div>
                     </div>
                     <div style="text-align:right; margin-top:10px;">
                       <button id="saveHearingBtn" type="button" class="btn btn-success">Save Hearing</button>
@@ -3548,6 +4381,21 @@ function reloadItemRequestsPanel(message) {
               </div>
             </div>
 
+            <!-- Post-Hearing Outcome Modal -->
+            <div id="postHearingModal" class="custom-confirm-overlay" style="display:none;">
+              <div class="custom-confirm-box">
+                <p>The hearing outcome is 'No Agreement'. What would you like to do?</p>
+                <div class="custom-confirm-actions">
+                  <button id="postHearingCloseBlotter" class="custom-confirm-btn yes">Close Blotter</button>
+                  <button id="postHearingScheduleHearing" class="custom-confirm-btn no">Schedule Hearing</button>
+                </div>
+              </div>
+            </div>
+
+
+
+
+
 
 
 
@@ -3616,6 +4464,31 @@ function reloadItemRequestsPanel(message) {
                 btn.style.display = 'none';
               });
 
+              // NEW: Add event listener for adding complainants
+              document.getElementById('addComplainantBtn').addEventListener('click', function() {
+                const container = document.getElementById('complainantContainer');
+                const complainantFields = container.querySelector('.complainant-fields');
+                const newFields = complainantFields.cloneNode(true);
+
+                // Clear input values
+                newFields.querySelectorAll('input').forEach(input => input.value = '');
+
+                // Show remove button
+                newFields.querySelector('.remove-complainant-btn').style.display = 'inline-block';
+
+                // Add event to remove button
+                newFields.querySelector('.remove-complainant-btn').onclick = function() {
+                  newFields.remove();
+                };
+
+                container.appendChild(newFields);
+              });
+
+              // Hide remove button for the first complainant
+              document.querySelectorAll('.remove-complainant-btn').forEach(btn => {
+                btn.style.display = 'none';
+              });
+
 
               // Show/hide "Please specify" field based on incident type selection
               document.getElementById('incident_type').addEventListener('change', function() {
@@ -3628,11 +4501,44 @@ function reloadItemRequestsPanel(message) {
                   document.getElementById('incident_type_other').required = false;
                 }
               });
+
+
+              // NEW: Add form submission validation
+              document.getElementById('blotterForm').addEventListener('submit', function(e) {
+                const incidentType = document.getElementById('incident_type').value;
+
+                // Check if incident_type is selected
+                if (!incidentType) {
+                  alert('Please select a type of incident.');
+                  e.preventDefault(); // Prevent form submission
+                  return;
+                }
+
+                // If "Other" is selected, ensure incident_type_other is filled
+                if (incidentType === 'Other') {
+                  const otherValue = document.getElementById('incident_type_other').value.trim();
+                  if (!otherValue) {
+                    alert('Please specify the incident type.');
+                    e.preventDefault(); // Prevent form submission
+                    return;
+                  }
+                }
+              });
             </script>
 
 
 
           </div> <!-- end of blotter complaint panel-->
+
+          <!-- Image Viewer Modal -->
+          <div id="imageViewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
+            <img id="viewerImg" style="max-width:90%; max-height:90%;" />
+            <span onclick="closeImageViewer()" style="position:absolute; top:10px; right:10px; color:white; font-size:30px; cursor:pointer;">&times;</span>
+          </div>
+
+
+
+
 
 
           <!-- Update Blotter Modal -->
@@ -3640,7 +4546,8 @@ function reloadItemRequestsPanel(message) {
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
               <span class="close-btn" onclick="closeUpdateBlotterModal()">&times;</span>
               <div style="text-align: center;">
- <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4">              </div>
+                <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4">
+              </div>
               <h1 style="text-align:center;">Update Blotter Report</h1>
               <form id="updateBlotterForm" method="POST" action="../Process/blotter/update_blotter.php" class="modal-form" enctype="multipart/form-data">
                 <!-- Fields will be filled by JS -->
@@ -3669,33 +4576,49 @@ function reloadItemRequestsPanel(message) {
             </div>
           </div>
 
+
+
+
+
+
           <!-- blottered individuals panel -->
           <div id="blotteredIndividualsPanel" class="panel-content">
             <h1>Blottered Individuals</h1>
 
             <form method="GET" action="" class="govdoc-search-form" style="display:flex;gap:10px;align-items:center;">
               <div class="govdoc-search-group">
-                <input type="text" name="search_blottered" class="govdoc-search-input" placeholder="Search by Name"
+                <input type="text" name="search_blottered" class="govdoc-search-input"
+                  placeholder="Search by Name"
                   value="<?php echo isset($_GET['search_blottered']) ? htmlspecialchars($_GET['search_blottered']) : ''; ?>" />
                 <button type="submit" class="govdoc-search-button">
                   <i class="fas fa-search"></i> Search
                 </button>
               </div>
+              <!-- NEW: Date Filter Dropdown -->
+              <select name="date_filter" class="govdoc-status-filter" onchange="this.form.submit();">
+                <option value="today" <?php echo (!isset($_GET['date_filter']) || $_GET['date_filter'] === 'today') ? 'selected' : ''; ?>>Today</option>
+                <option value="this_week" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_week') ? 'selected' : ''; ?>>This Week</option>
+                <option value="this_month" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_month') ? 'selected' : ''; ?>>This Month</option>
+                <option value="this_year" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_year') ? 'selected' : ''; ?>>This Year</option>
+                <option value="all_time" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'all_time') ? 'selected' : ''; ?>>All Time</option>
+              </select>
               <label for="blotter_status" style="margin-left:10px;">Case Status:</label>
-              <select name="blotter_status" id="blotter_status" onchange="this.form.submit()">
-                <option value="both" <?php if (!isset($_GET['blotter_status']) || $_GET['blotter_status'] == 'both')
-                  echo 'selected'; ?>>Both</option>
-                <option value="active" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'active')
-                  echo 'selected'; ?>>Active</option>
-                <option value="closed" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed')
-                  echo 'selected'; ?>>Closed</option>
+              <select name="blotter_status" class="govdoc-status-filter" id="blotter_status" onchange="this.form.submit()">
+                <option value="active" <?php if (!isset($_GET['blotter_status']) || $_GET['blotter_status'] == 'active') echo 'selected'; ?>>Active</option>
+                <option value="hearing_scheduled" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'hearing_scheduled') echo 'selected'; ?>>Hearing Scheduled</option>
+                <option value="closed" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed') echo 'selected'; ?>>Closed</option>
+                <option value="closed_resolved" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed_resolved') echo 'selected'; ?>>Closed Resolved</option>
+                <option value="closed_unresolved" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'closed_unresolved') echo 'selected'; ?>>Closed Unresolved</option>
+                <option value="all" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'all') echo 'selected'; ?>>All</option>
               </select>
             </form>
             <div class="scrollable-table-container">
               <table class="styled-table">
                 <thead>
                   <tr>
+                    <th>NO</th>
                     <th>ID</th>
+                    <th>BLOTTER ID</th>
                     <th>LAST NAME</th>
                     <th>FIRST NAME</th>
                     <th>MIDDLE NAME</th>
@@ -3703,7 +4626,8 @@ function reloadItemRequestsPanel(message) {
                     <th>ADDRESS</th>
                     <th>CONTACT NO</th>
                     <th>EMAIL</th>
-                    <th>BLOTTER ID</th>
+                    <th>DATE CREATED</th>
+                    <th>STATUS</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -3712,71 +4636,190 @@ function reloadItemRequestsPanel(message) {
 
 
                   $conn = new mysqli($servername, $username, $password, $database);
-                  if ($conn->connect_error)
-                    die("Connection failed: " . $conn->connect_error);
+                  if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
+
+                  // Build WHERE clauses
+                  $where_clauses = ["bp.participant_type = 'accused'"];
 
                   // Search by name
-                  $search_sql = "";
                   if (isset($_GET['search_blottered']) && !empty(trim($_GET['search_blottered']))) {
                     $search = $conn->real_escape_string($_GET['search_blottered']);
-                    $search_sql = "AND (bp.lastname LIKE '%$search%' OR bp.firstname LIKE '%$search%')";
+                    $where_clauses[] = "(bp.lastname LIKE '%$search%' OR bp.firstname LIKE '%$search%')";
+                  } else {
+                    // Only apply date filter if no search is performed
+                    $date_filter = isset($_GET['date_filter']) ? $_GET['date_filter'] : 'today';
+                    switch ($date_filter) {
+                      case 'today':
+                        $where_clauses[] = "DATE(b.created_at) = CURDATE()";
+                        break;
+                      case 'this_week':
+                        $where_clauses[] = "YEARWEEK(b.created_at, 1) = YEARWEEK(CURDATE(), 1)";
+                        break;
+                      case 'this_month':
+                        $where_clauses[] = "YEAR(b.created_at) = YEAR(CURDATE()) AND MONTH(b.created_at) = MONTH(CURDATE())";
+                        break;
+                      case 'this_year':
+                        $where_clauses[] = "YEAR(b.created_at) = YEAR(CURDATE())";
+                        break;
+                      case 'all_time':
+                      default:
+                        // No date filter
+                        break;
+                    }
+
+                    // Filter by status
+                    $selected_status = isset($_GET['blotter_status']) ? $_GET['blotter_status'] : 'active';
+                    switch ($selected_status) {
+                      case 'all':
+                        // No filter
+                        break;
+                      case 'active':
+                        $where_clauses[] = "(b.status = 'active' OR b.status = 'hearing_scheduled')";
+                        break;
+                      case 'hearing_scheduled':
+                        $where_clauses[] = "b.status = 'hearing_scheduled'";
+                        break;
+                      case 'closed':
+                        $where_clauses[] = "(b.status = 'closed' OR b.status = 'closed_resolved' OR b.status = 'closed_unresolved')";
+                        break;
+                      case 'closed_resolved':
+                        $where_clauses[] = "b.status = 'closed_resolved'";
+                        break;
+                      case 'closed_unresolved':
+                        $where_clauses[] = "b.status = 'closed_unresolved'";
+                        break;
+                      default:
+                        $where_clauses[] = "(b.status = 'active' OR b.status = 'hearing_scheduled')";
+                    }
+
                   }
 
-                  // Filter by status
-                  $status_filter = "";
-                  if (isset($_GET['blotter_status']) && $_GET['blotter_status'] !== 'both') {
-                    $status = $_GET['blotter_status'] === 'closed' ? 'closed' : 'active';
-                    $status_filter = "AND b.status = '$status'";
-                  }
+                  
 
                   $sql = "
-          SELECT 
-            bp.blotter_participant_id,
-            bp.lastname,
-            bp.firstname,
-            bp.middlename,
-            bp.age,
-            bp.address,
-            bp.contact_no,
-            bp.email,
-            bp.blotter_id
-          FROM blotter_participantstbl bp
-          JOIN blottertbl b ON bp.blotter_id = b.blotter_id
-          WHERE bp.participant_type = 'accused'
-            $status_filter
-            $search_sql
-          ORDER BY bp.blotter_participant_id DESC
-        ";
+                    SELECT 
+                      bp.blotter_participant_id,
+                      bp.lastname,
+                      bp.firstname,
+                      bp.middlename,
+                      bp.age,
+                      bp.address,
+                      bp.contact_no,
+                      bp.email,
+                      bp.blotter_id,
+                      b.created_at,
+                      b.status
+                    FROM blotter_participantstbl bp
+                    JOIN blottertbl b ON bp.blotter_id = b.blotter_id
+                    WHERE " . implode(" AND ", $where_clauses) . "
+                    ORDER BY bp.blotter_participant_id DESC
+                    ";
 
                   $result = $conn->query($sql);
                   if ($result && $result->num_rows > 0) {
+                    $counter = 1;
                     while ($row = $result->fetch_assoc()) {
                       echo "<tr>
-              <td>" . htmlspecialchars($row['blotter_participant_id']) . "</td>
-              <td>" . htmlspecialchars($row['lastname']) . "</td>
-              <td>" . htmlspecialchars($row['firstname']) . "</td>
-              <td>" . htmlspecialchars($row['middlename']) . "</td>
-              <td>" . htmlspecialchars($row['age']) . "</td>
-              <td>" . htmlspecialchars($row['address']) . "</td>
-              <td>" . htmlspecialchars($row['contact_no']) . "</td>
-              <td>" . htmlspecialchars($row['email']) . "</td>
-              <td>" . htmlspecialchars($row['blotter_id']) . "</td>
-              <td>
-                <button class='action-btn-2 view' data-id='" . $row['blotter_participant_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
-                  <i class='fas fa-eye'></i>
-                </button>
-              </td>
-            </tr>";
+                      <td>" . $counter . "</td>
+                      <td>" . htmlspecialchars($row['blotter_participant_id']) . "</td>
+                      <td>" . htmlspecialchars($row['blotter_id']) . "</td>
+                      <td>" . htmlspecialchars($row['lastname']) . "</td>
+                      <td>" . htmlspecialchars($row['firstname']) . "</td>
+                      <td>" . htmlspecialchars($row['middlename']) . "</td>
+                      <td>" . htmlspecialchars($row['age']) . "</td>
+                      <td>" . htmlspecialchars($row['address']) . "</td>
+                      <td>" . htmlspecialchars($row['contact_no']) . "</td>
+                      <td>" . htmlspecialchars($row['email']) . "</td>
+                      <td>" . htmlspecialchars(date('F d, Y h:i A', strtotime($row['created_at']))) . "</td>
+                      <td>" . htmlspecialchars($row['status']) . "</td>
+                      <td>
+                        <button class='action-btn-2 view-blottered-info' data-id='" . $row['blotter_participant_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
+                          <i class='fas fa-eye'></i>
+                        </button>
+                      </td>
+                      </tr>";
+                      $counter++;
                     }
                   } else {
-                    echo "<tr><td colspan='10'>No blottered individuals found.</td></tr>";
+                    echo "<tr><td colspan='13'>No blottered individuals found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
                 </tbody>
               </table>
             </div>
           </div> <!-- end of blottered individuals panel-->
+
+          <!-- Blottered Individual Modal -->
+          <div id="viewBlotteredModal" class="popup" style="display:none;">
+            <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
+              <span class="close-btn" onclick="closeViewBlotteredModal()">&times;</span>
+              <div style="text-align: center;">
+                <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+              </div>
+              <h1 style="text-align:center;">Blottered Individual Details</h1>
+              <br>
+              <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
+                Blotter ID: <span id="blottered_blotter_id"></span>
+                <br>
+                ID: <span id="blottered_participant_id"></span>
+              </div>
+              <form class="modal-form">
+                <h3>Respondent Details</h3>
+                <label style="font-weight:bold;">Full Name of Respondent</label>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="blottered_lastname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="blottered_firstname" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" id="blottered_middlename" readonly>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" id="blottered_address" readonly>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" id="blottered_age" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" id="blottered_contact_no" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="blottered_email" readonly>
+                  </div>
+                </div>
+                <hr>
+                <!-- Uploaded Files Section -->
+                <h3>Uploaded Files</h3>
+                <div class="scrollable-table-container">
+                  <table class="styled-table" id="blottered_files_table">
+                    <thead>
+                      <tr>
+                        <th>Thumbnail</th>
+                        <th>File Name</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="blottered_filesContainer">
+                      <!-- Files will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </form>
+            </div>
+          </div>
 
 
 
@@ -3791,6 +4834,8 @@ function reloadItemRequestsPanel(message) {
                 echo "<div class='alert alert-success'>Announcement added successfully!</div>";
               } elseif ($_GET['message'] === 'updated') {
                 echo "<div class='alert alert-success'>Announcement updated successfully!</div>";
+              } elseif ($_GET['message'] === 'deleted') {
+                echo "<div class='alert alert-success'>Announcement deleted successfully!</div>";
               }
             }
             ?>
@@ -3799,8 +4844,8 @@ function reloadItemRequestsPanel(message) {
             <div class="announcement-form">
               <h3><?php echo isset($_GET['edit']) ? 'Edit Announcement' : 'Add New Announcement'; ?></h3>
               <?php
-              // Handle Form Submission for Add or Edit
-              if (isset($_POST['saveAnnouncement']) || isset($_POST['updateAnnouncement'])) {
+              // Handle Form Submission for Add, Edit or Delete
+              if (isset($_POST['saveAnnouncement']) || isset($_POST['updateAnnouncement']) || isset($_POST['deleteAnnouncement'])) {
                 // DEV: enable errors while debugging (remove in production)
                 ini_set('display_errors', 1);
                 ini_set('display_startup_errors', 1);
@@ -3810,6 +4855,44 @@ function reloadItemRequestsPanel(message) {
                 if ($conn->connect_error) {
                   echo "<div class='alert alert-danger'>DB connection failed.</div>";
                 } else {
+                  // Handle delete request first
+                  if (isset($_POST['deleteAnnouncement'])) {
+                    $announcementId = intval($_POST['announcementId'] ?? 0);
+                    if ($announcementId > 0) {
+                      // fetch image path to unlink
+                      $stmt = $conn->prepare("SELECT NewsImage FROM news WHERE id = ?");
+                      if ($stmt) {
+                        $stmt->bind_param("i", $announcementId);
+                        $stmt->execute();
+                        $stmt->bind_result($currentImage);
+                        $stmt->fetch();
+                        $stmt->close();
+
+                        // Delete DB row
+                        $dstmt = $conn->prepare("DELETE FROM news WHERE id = ?");
+                        if ($dstmt) {
+                          $dstmt->bind_param("i", $announcementId);
+                          if ($dstmt->execute()) {
+                            // Attempt to remove file if exists
+                            if (!empty($currentImage)) {
+                              $filePath = __DIR__ . '/../' . $currentImage;
+                              if (file_exists($filePath)) {
+                                @unlink($filePath);
+                              }
+                            }
+                            // Redirect with success message
+                            echo "<script>window.location.href = " . json_encode($_SERVER['PHP_SELF'] . '?panel=announcementPanel&message=deleted') . ";</script>";
+                            exit;
+                          } else {
+                            echo "<div class='alert alert-danger'>Failed to delete announcement: " . htmlspecialchars($dstmt->error) . "</div>";
+                          }
+                          $dstmt->close();
+                        } else {
+                          echo "<div class='alert alert-danger'>Failed to prepare delete statement.</div>";
+                        }
+                      }
+                    }
+                  }
                   $newsInfo = trim($_POST['NewsInfo'] ?? '');
                   $datedReported = date('Y-m-d H:i:s');
                   $isEdit = isset($_POST['updateAnnouncement']) && isset($_POST['announcementId']);
@@ -3892,7 +4975,7 @@ function reloadItemRequestsPanel(message) {
                       }
                     }
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                 }
               }
 
@@ -3910,7 +4993,7 @@ function reloadItemRequestsPanel(message) {
                     $editData = ['id' => $editId, 'NewsInfo' => $editNewsInfo, 'NewsImage' => $editNewsImage];
                   }
                   $stmt->close();
-                  $conn->close();
+                  // Singleton connection closed by PHP
                 }
               }
               ?>
@@ -3927,7 +5010,13 @@ function reloadItemRequestsPanel(message) {
                   <?php if ($editData && $editData['NewsImage']): ?>
                     <div class="mt-2">
                       <small>Current Image:</small><br>
-                      <img src="<?php echo htmlspecialchars('/Capstone/' . $editData['NewsImage']); ?>" alt="Current" style="max-width: 100px;">
+                      <?php 
+                        $currentImgPath = $editData['NewsImage'];
+                        if (strpos($currentImgPath, 'Assets/') === 0) {
+                          $currentImgPath = '../' . $currentImgPath;
+                        }
+                      ?>
+                      <img src="<?php echo htmlspecialchars($currentImgPath); ?>" alt="Current" style="max-width: 100px;" onerror="this.style.display='none';">
                     </div>
                   <?php endif; ?>
                 </div>
@@ -3955,15 +5044,34 @@ function reloadItemRequestsPanel(message) {
                 if ($res && $res->num_rows) {
                   echo "<div class='row g-4 mt-2'>";
                   while ($r = $res->fetch_assoc()) {
-                    $img = $r['NewsImage'] ? htmlspecialchars('/Capstone/' . $r['NewsImage']) : null;
+                    // Fix image path - database stores: Assets/announcements/filename.jpg
+                    // We need the path with ../ prefix for display from Pages folder
+                    $img = null;
+                    if ($r['NewsImage']) {
+                      $imagePath = $r['NewsImage'];
+                      // If path starts with Assets/, prepend ../
+                      if (strpos($imagePath, 'Assets/') === 0) {
+                        $img = '../' . $imagePath;
+                      } else {
+                        $img = $imagePath;
+                      }
+                      $img = htmlspecialchars($img);
+                    }
+                    // Build delete form (POST) with confirmation via JS
+                    $deleteForm = "<form method='POST' onsubmit=\"return confirm('Delete this announcement? This will remove the announcement and its image.');\" style='display:inline-block; margin-left:6px;'>" .
+                                  "<input type='hidden' name='announcementId' value='" . intval($r['id']) . "'>" .
+                                  "<button type='submit' name='deleteAnnouncement' class='btn btn-sm btn-danger'>Delete</button>" .
+                                  "</form>";
+
                     echo "<div class='col-md-4 col-sm-6'>
                           <div class='announcement-card card'>
-                            " . ($img ? "<img src='" . $img . "' alt='Announcement image' />" : "") . "
+                            " . ($img ? "<img src='" . $img . "' alt='Announcement image' onerror=\"this.style.display='none';\" />" : "") . "
                             <div class='card-body'>
                               <div class='announcement-text'>" . nl2br(htmlspecialchars($r['NewsInfo'])) . "</div>
                               <div class='announcement-date'>" . htmlspecialchars($r['DatedReported']) . "</div>
                               <div class='mt-2'>
                                 <a href='" . $_SERVER['PHP_SELF'] . "?panel=announcementPanel&edit=" . $r['id'] . "' class='btn btn-sm btn-success'>Edit</a>
+                                " . $deleteForm . "
                               </div>
                             </div>
                           </div>
@@ -3973,7 +5081,7 @@ function reloadItemRequestsPanel(message) {
                 } else {
                   echo "<div class='alert alert-info mt-3'>No announcements yet.</div>";
                 }
-                $conn->close();
+                // Singleton connection closed by PHP
               }
               ?>
             </div>
@@ -4006,8 +5114,10 @@ function reloadItemRequestsPanel(message) {
                       'unemployment' => 'Unemployment Certificates',
                       'guardianship' => 'Guardianship Documents',
                       'items' => 'Item Requests',
-                      'blotters' => 'Blotter/Complaints',
-                      'collections' => 'Financial Collections'
+                        'blotters' => 'Blotter/Complaints',
+                        'collections' => 'Financial Collections',
+                        'activity logs' => 'User Activity Logs',
+                        'resident logs' => 'Resident Activity Logs'
 
                     ];
                     $selected = $_GET['report_type'] ?? '';
@@ -4122,8 +5232,8 @@ function reloadItemRequestsPanel(message) {
                     }
                     echo '</div>';
 
-                    $stmt = $connection->prepare("SELECT ReqID, CONCAT(Firstname, ' ', Lastname) AS Name, DocuType, ReqPurpose, 
-                                                 Address, DateRequested, RequestStatus 
+                    $stmt = $connection->prepare("SELECT ReqID, CONCAT(Firstname, ' ', Lastname) AS Name, DocuType, 
+                                                 Address, DateRequested, RequestStatus, ReleasedBy
                                           FROM docsreqtbl 
                                           WHERE DateRequested BETWEEN ? AND ? 
                                           ORDER BY DateRequested DESC");
@@ -4136,12 +5246,12 @@ function reloadItemRequestsPanel(message) {
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Name</th>
+                                <th>Resident Name</th>
                                 <th>Document Type</th>
-                                <th>Purpose</th>
-                                <th>Address</th>
+                                <th>Resident Address</th>
                                 <th>Date Requested</th>
-                                <th>Status</th>
+                                <th>Request Status</th>
+                                <th>Released By</th>
                             </tr>
                         </thead>
                         <tbody>';
@@ -4150,10 +5260,10 @@ function reloadItemRequestsPanel(message) {
                         <td>' . htmlspecialchars($r['ReqID']) . '</td>
                         <td>' . htmlspecialchars($r['Name']) . '</td>
                         <td>' . htmlspecialchars($r['DocuType']) . '</td>
-                        <td>' . htmlspecialchars($r['ReqPurpose']) . '</td>
                         <td>' . htmlspecialchars($r['Address']) . '</td>
                         <td>' . htmlspecialchars($r['DateRequested']) . '</td>
                         <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                        <td>' . htmlspecialchars($r['ReleasedBy']) . '</td>
                       </tr>';
                     }
                     echo '</tbody></table></div>';
@@ -4187,7 +5297,7 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     $stmt = $connection->prepare("SELECT BsnssID, BusinessName, OwnerName, RequestType, 
-                                                 BusinessLoc, RequestedDate, RequestStatus 
+                                                 BusinessLoc, RequestedDate, RequestStatus, ReleasedBy 
                                           FROM businesstbl 
                                           WHERE RequestedDate BETWEEN ? AND ? 
                                           ORDER BY RequestedDate DESC");
@@ -4201,11 +5311,12 @@ function reloadItemRequestsPanel(message) {
                             <tr>
                                 <th>Business ID</th>
                                 <th>Business Name</th>
-                                <th>Owner</th>
-                                <th>Type</th>
-                                <th>Address</th>
+                                <th>Business owner</th>
+                                <th>Document Type</th>
+                                <th>Business Address</th>
                                 <th>Date Applied</th>
-                                <th>Status</th>
+                                <th>Request Status</th>
+                                <th>Released By</th>
                             </tr>
                         </thead>
                         <tbody>';
@@ -4218,6 +5329,7 @@ function reloadItemRequestsPanel(message) {
                         <td>' . htmlspecialchars($r['BusinessLoc']) . '</td>
                         <td>' . htmlspecialchars($r['RequestedDate']) . '</td>
                         <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                        <td>' . htmlspecialchars($r['ReleasedBy']) . '</td>
                       </tr>';
                     }
                     echo '</tbody></table></div>';
@@ -4251,7 +5363,7 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     $stmt = $connection->prepare("SELECT id, refno, fullname, age, purpose, 
-                                                 request_date, RequestStatus
+                                                 request_date, RequestStatus, ReleasedBy
                                           FROM unemploymenttbl 
                                           WHERE request_date BETWEEN ? AND ? 
                                           ORDER BY request_date DESC");
@@ -4270,7 +5382,8 @@ function reloadItemRequestsPanel(message) {
                             
                                 <th>Purpose</th>
                                 <th>Request Date</th>
-                                <th>Status</th>
+                                <th>Request Status</th>
+                                <th>Released By</th>
                           
                             </tr>
                         </thead>
@@ -4285,6 +5398,7 @@ function reloadItemRequestsPanel(message) {
                         <td>' . htmlspecialchars($r['purpose']) . '</td>
                         <td>' . htmlspecialchars($r['request_date']) . '</td>
                         <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                        <td>' . htmlspecialchars($r['ReleasedBy']) . '</td>
                         
                       </tr>';
                     }
@@ -4317,7 +5431,7 @@ function reloadItemRequestsPanel(message) {
 
                     // Full details table
                     $stmt = $connection->prepare("SELECT id, refno, request_type, child_name, child_age,  applicant_name, 
-                                           request_date, RequestStatus
+                                           request_date, RequestStatus, ReleasedBy
                                       FROM guardianshiptbl 
                                       WHERE request_date BETWEEN ? AND ? 
                                       ORDER BY request_date DESC");
@@ -4333,13 +5447,10 @@ function reloadItemRequestsPanel(message) {
                             <th>Reference No.</th>
                             <th>Request Type</th>
                             <th>Child Name</th>
-                    
-                       
-                        
                             <th>Applicant Name</th>
-           
                             <th>Request Date</th>
-                            <th>Status</th>
+                            <th>Request Status</th>
+                            <th>Released By</th>
                      
                         </tr>
                     </thead>
@@ -4349,15 +5460,11 @@ function reloadItemRequestsPanel(message) {
                     <td>' . htmlspecialchars($r['id']) . '</td>
                     <td>' . htmlspecialchars($r['refno']) . '</td>
                     <td>' . htmlspecialchars($r['request_type']) . '</td>
-                    <td>' . htmlspecialchars($r['child_name']) . '</td>
-                
-                  
-                   
-               
+                    <td>' . htmlspecialchars($r['child_name']) . '</td>              
                     <td>' . htmlspecialchars($r['applicant_name']) . '</td>
-                
                     <td>' . htmlspecialchars($r['request_date']) . '</td>
                     <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+                    <td>' . htmlspecialchars($r['ReleasedBy']) . '</td>
              
                   </tr>';
                     }
@@ -4405,14 +5512,13 @@ function reloadItemRequestsPanel(message) {
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Requester Name</th>
-                            <th>Item</th>
-
-                            <th>Quantity</th>
+                            <th>Resident Name</th>
+                            <th>Item Request</th>
+                            <th>Item Quantity</th>
                             <th>Event Date/Time</th>
                             <th>Date Requested</th>
-                            <th>Condition</th>
-                            <th>Status</th>
+                            <th>Request Status</th>
+                            <th>Item condition</th>
                             
                  
                         </tr>
@@ -4435,6 +5541,82 @@ function reloadItemRequestsPanel(message) {
                   } else {
                     echo '<div class="alert alert-warning">No item requests found for this date range.</div>';
                   }
+                  break;
+
+                case 'resident logs':
+                  echo '<h3>Resident Activity Logs</h3>';
+
+                  // Query user_activity_logs between selected dates
+                  $stmt = $connection->prepare("SELECT activity, category, details, ip_address, `timestamp` 
+                                      FROM user_activity_logs 
+                                      WHERE `timestamp` BETWEEN ? AND ? 
+                                      ORDER BY `timestamp` DESC");
+                  $stmt->bind_param("ss", $startDate, $endDate);
+                  $stmt->execute();
+                  $details = $stmt->get_result();
+
+                  if ($details && $details->num_rows > 0) {
+                    echo '<div class="scrollable-table-container">'
+                      . '<table class="styled-table">'
+                      . '<thead>
+                      <tr>
+                      <th>Action</th>
+                      <th>Category</th>
+                      <th>Details</th>
+                      <th>IP</th>
+                      <th>Timestamp</th>
+                      </tr>
+                      </thead>
+                      <tbody>';
+
+                    while ($r = $details->fetch_assoc()) {
+                      echo '<tr>'
+                        . '<td>' . htmlspecialchars($r['activity']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['category']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['details']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['ip_address']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['timestamp']) . '</td>'
+                        . '</tr>';
+                    }
+
+                    echo '</tbody></table></div>';
+                  } else {
+                    echo '<div class="alert alert-warning">No resident activity logs found for this date range.</div>';
+                  }
+                  $stmt->close();
+                  break;
+
+                case 'activity logs':
+                  echo '<h3>User Activity Logs</h3>';
+
+                  // Query audittrail between selected dates
+                  $stmt = $connection->prepare("SELECT AuditID, username, TimeIn, TimeOut 
+                                      FROM audittrail 
+                                      WHERE TimeIn BETWEEN ? AND ? 
+                                      ORDER BY TimeIn DESC");
+                  $stmt->bind_param("ss", $startDate, $endDate);
+                  $stmt->execute();
+                  $details = $stmt->get_result();
+
+                  if ($details && $details->num_rows > 0) {
+                    echo '<div class="scrollable-table-container">'
+                      . '<table class="styled-table">'
+                      . '<thead><tr><th>ID</th><th>USERNAME</th><th>TIME IN</th><th>TIME OUT</th></tr></thead><tbody>';
+
+                    while ($r = $details->fetch_assoc()) {
+                      echo '<tr>'
+                        . '<td>' . htmlspecialchars($r['AuditID']) . '</td>'
+                        . '<td>' . htmlspecialchars(strtoupper($r['username'])) . '</td>'
+                        . '<td>' . htmlspecialchars($r['TimeIn']) . '</td>'
+                        . '<td>' . htmlspecialchars($r['TimeOut']) . '</td>'
+                        . '</tr>';
+                    }
+
+                    echo '</tbody></table></div>';
+                  } else {
+                    echo '<div class="alert alert-warning">No activity logs found for this date range.</div>';
+                  }
+                  $stmt->close();
                   break;
 
                    case 'blotters':
@@ -4586,6 +5768,8 @@ function reloadItemRequestsPanel(message) {
                     echo '<div class="alert alert-warning">No collection/payment records found for this date range.</div>';
                   }
                   break;
+
+                  
 
                 default:
                   echo '<div class="alert alert-warning">This report type is not implemented yet.</div>';
@@ -4780,159 +5964,14 @@ function reloadItemRequestsPanel(message) {
 
 
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
             <script>
-              const ageLabels = <?php echo json_encode($ageLabels); ?>;
-              const ageCounts = <?php echo json_encode($ageCounts); ?>;
-
-              const civilLabels = <?php echo json_encode($civilLabels); ?>;
-              const civilCounts = <?php echo json_encode($civilCounts); ?>;
+              
 
               const DocutypeLabels = <?php echo json_encode($DocutypeLabels); ?>;
               const DocutypeCounts = <?php echo json_encode($DocutypeCounts); ?>;
 
-              const ctx = document.getElementById('ageChart').getContext('2d');
-
-              new Chart(ctx, {
-                type: 'bar',
-                data: {
-                  labels: ageLabels,
-                  datasets: [{
-                    label: 'Residents',
-                    data: ageCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: 'rgba(66, 209, 73, 0.2)', // soft green fill
-                    pointBackgroundColor: '#42d149',
-                    pointBorderColor: '#1c552b',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  plugins: {
-                    title: {
-                      display: true,
-                      font: {
-                        size: 18,
-                        weight: 'bold'
-                      }
-                    },
-                    legend: {
-                      display: true,
-                      position: 'top'
-                    },
-                    tooltip: {
-                      backgroundColor: '#1c552b',
-                      titleColor: '#fff',
-                      bodyColor: '#fff',
-                      borderColor: '#42d149',
-                      borderWidth: 1
-                    }
-                  },
-                  scales: {
-                    x: {
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
-                      grid: {
-                        color: '#e0e0e0'
-                      }
-                    },
-                    y: {
-                      beginAtZero: true,
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
-                      grid: {
-                        color: '#f0f0f0'
-                      }
-                    }
-                  }
-                }
-              });
-              new Chart(document.getElementById('civilChart'), {
-                type: 'bar',
-                data: {
-                  labels: civilLabels,
-                  datasets: [{
-                    label: 'Residents',
-                    data: civilCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: 'rgba(66, 209, 73, 0.2)', // soft green fill
-                    pointBackgroundColor: '#42d149',
-                    pointBorderColor: '#1c552b',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  plugins: {
-                    title: {
-                      display: true,
-                      font: {
-                        size: 18,
-                        weight: 'bold'
-                      }
-                    },
-                    legend: {
-                      display: true,
-                      position: 'top'
-                    },
-                    tooltip: {
-                      backgroundColor: '#1c552b',
-                      titleColor: '#fff',
-                      bodyColor: '#fff',
-                      borderColor: '#42d149',
-                      borderWidth: 1
-                    }
-                  },
-                  scales: {
-                    x: {
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
-                      grid: {
-                        color: '#e0e0e0'
-                      }
-                    },
-                    y: {
-                      beginAtZero: true,
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
-                      grid: {
-                        color: '#f0f0f0'
-                      }
-                    }
-                  }
-                }
-              });
               new Chart(document.getElementById('documentChart'), {
                 type: 'bar',
                 data: {
@@ -5002,53 +6041,7 @@ function reloadItemRequestsPanel(message) {
                   }
                 }
               });
-              const genderLabels = <?php echo json_encode($genderLabels); ?>;
-              const genderCounts = <?php echo json_encode($genderCounts); ?>;
-
-
-              new Chart(document.getElementById('genderChart'), {
-                type: 'pie',
-                data: {
-                  labels: genderLabels,
-                  datasets: [{
-                    label: 'Residents',
-                    data: genderCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: [
-                      '#6acf6fff', // green
-                      '#22843afb', // dark green
-                    ],
-                    pointBackgroundColor: '#1fff2b4f',
-                    pointBorderColor: '#177f33ff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  plugins: {
-                    legend: {
-                      position: 'bottom'
-                    },
-                    datalabels: {
-                      formatter: (value, context) => {
-                        const data = context.chart.data.datasets[0].data;
-                        const total = data.reduce((acc, val) => acc + val, 0);
-                        const percentage = ((value / total) * 100).toFixed(1);
-                        return percentage + '%';
-                      },
-                      color: '#fff',
-                      font: {
-                        weight: 'bold'
-                      }
-                    }
-                  }
-                },
-                plugins: [ChartDataLabels]
-              });
+              
 
               const unemploymentLabels = <?php echo json_encode($unemploymentLabels); ?>;
               const unemploymentCounts = <?php echo json_encode($unemploymentCounts); ?>;
@@ -5097,6 +6090,80 @@ function reloadItemRequestsPanel(message) {
                 },
                 plugins: [ChartDataLabels]
               });
+
+              // guardianship data (note: dashboard.php uses $guadianshipLabels/$guadianshipCounts)
+              const guardianshipLabels = <?php echo json_encode($guadianshipLabels ?? []); ?>;
+              const guardianshipCounts = <?php echo json_encode($guadianshipCounts ?? []); ?>;
+              new Chart(document.getElementById('guardianshipChart'), {
+                type: 'bar',
+                data: {
+                  labels: guardianshipLabels,
+                  datasets: [{
+                    label: 'Guardianship Requests',
+                    data: guardianshipCounts,
+                    fill: true,
+                    borderColor: '#2e7d32', // dark green line
+                    backgroundColor: 'rgba(66, 209, 73, 0.2)', // soft green fill
+                    pointBackgroundColor: '#42d149',
+                    pointBorderColor: '#1c552b',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#42d149',
+                    tension: 0.3, // smooth curves
+                    borderWidth: 2,
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  plugins: {
+                    title: {
+                      display: true,
+                      font: {
+                        size: 18,
+                        weight: 'bold'
+                      }
+                    },
+                    legend: {
+                      display: true,
+                      position: 'top'
+                    },
+                    tooltip: {
+                      backgroundColor: '#1c552b',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      borderColor: '#42d149',
+                      borderWidth: 1
+                    }
+                  },
+                  scales: {
+                    x: {
+                      title: {
+                        display: true,
+
+                        font: {
+                          weight: 'bold'
+                        }
+                      },
+                      grid: {
+                        color: '#e0e0e0'
+                      }
+                    },
+                    y: {
+                      beginAtZero: true,
+                      title: {
+                        display: true,
+
+                        font: {
+                          weight: 'bold'
+                        }
+                      },
+                      grid: {
+                        color: '#f0f0f0'
+                      }
+                    }
+                  }
+                }
+              });
+
 
               const businessLabels = <?php echo json_encode($businessLabels); ?>;
               const businessCounts = <?php echo json_encode($businessCounts); ?>;
@@ -5309,7 +6376,14 @@ function reloadItemRequestsPanel(message) {
                     showPanel("blotteredIndividualsPanel");
                     return;
                   }
-                } else if (urlParams.has("search_lastname")) {
+                } else if (urlParams.has("search_online_complainant")){
+                  const onlineComplaintsPanel = document.getElementById("onlineComplaintsPanel");
+                  if (onlineComplaintsPanel) {
+                    showPanel("onlineComplaintsPanel");
+                    return;
+                  }
+                }
+                else if (urlParams.has("search_lastname")) {
                   const governmentDocumentPanel = document.getElementById("governmentDocumentPanel");
                   if (governmentDocumentPanel) {
                     showPanel("governmentDocumentPanel");
@@ -5501,6 +6575,7 @@ function reloadItemRequestsPanel(message) {
               // }
 
               function toggleDropdown(event, id = "dropdownMenu") {
+                event.preventDefault();
                 event.stopPropagation();
                 document.querySelectorAll('.dropdown-content-custom').forEach(menu => {
                   if (menu.id !== id) menu.style.display = "none";
@@ -6190,6 +7265,7 @@ document.getElementById("printForm").addEventListener("submit", function (event)
   event.preventDefault(); // Prevent normal form submit
 
   const formData = new FormData(this);
+  const docType = selectedDocData && selectedDocData.Docutype ? selectedDocData.Docutype.toLowerCase().trim() : "";
 
   fetch("Payment.php", {
     method: "POST",
@@ -6198,38 +7274,57 @@ document.getElementById("printForm").addEventListener("submit", function (event)
   .then((response) => response.text())
   .then((response) => {
     if (response.trim() === "success") {
-      alert("Payment recorded. Now printing...");
+      alert("Payment recorded.");
       bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
 
       if (selectedDocData) {
-        // Generate the printed certificate
-        generateCertificate(selectedDocData);
-
-        // ✅ After printing, update the RequestStatus to "Printed"
-        fetch("update_status.php", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `id=${encodeURIComponent(selectedDocData.ReqId)}&status=Printed`,
-        })
-        .then(res => res.text())
-        .then(res => {
-          if (res.trim() === "success") {
-            alert("Document marked as Printed. You can now release it.");
-            location.reload(); // Refresh the table to show the new Release button
-          } else {
-            console.error("Failed to update status:", res);
-            alert("Failed to mark as Printed. Please refresh and try again.");
-          }
-        })
-        .catch(err => {
-          console.error("Status update error:", err);
-          alert("Error updating document status.");
-        });
-
+        if (docType === "cedula") {
+          // For Cedula, set status to Released and do NOT print
+          fetch("update_status.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedDocData.ReqId)}&status=Released`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Cedula marked as Released.");
+              location.reload();
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Released. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating document status.");
+          });
+        } else {
+          // For other types, print and set to Printed
+          generateCertificate(selectedDocData);
+          fetch("update_status.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedDocData.ReqId)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Document marked as Printed. You can now release it.");
+              location.reload();
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating document status.");
+          });
+        }
       } else {
         alert("No document selected for printing.");
       }
-
     } else {
       alert("Error: " + response);
     }
@@ -6267,38 +7362,95 @@ function releaseDocument(reqId) {
 
 
  <script>
-let selectedDocData = null; // Global variable to store selected document data
+// let selectedDocData = null; // Global variable to store selected document data
 
 // Function to open the modal and save the selected document's data
-function openNoBirthCertificatePrintModal(data) {
-  selectedDocData = data; // Store the selected document for later printing
+function openNoBirthPrintModal(data) {
+  selectedDocData = data; // Store for later use
 
-  document.getElementById("noBirthCertificate_modal_refno").value = data.refno;
-  document.getElementById("noBirthCertificate_modal_name").value = data.Firstname + ' ' + data.Lastname;
-  document.getElementById("noBirthCertificate_modal_type").value = data.Docutype;
-  document.getElementById("noBirthCertificate_modal_date").value = data.DateRequested || new Date().toLocaleDateString();
-
-  // ✅ Automatically set amount based on document type
-  const amountField = document.getElementById("noBirthCertificate_modal_amount");
-  const docType = data.Docutype ? data.Docutype.toLowerCase().trim() : "";
-
-  // ₱100 documents
-  const hundredPesoDocs = ["no birth certificate"];
-
-  // Free documents
- 
-
-  if (hundredPesoDocs.includes(docType)) {
-    amountField.value = 100;
-    amountField.readOnly = true;
+  // Fill in the modal fields
+  document.getElementById("nobirth_modal_refno").value = data.refno;
+  document.getElementById("nobirth_modal_name").value = data.requestor_name;
+  document.getElementById("nobirth_modal_date").value = data.request_date;
   
-  } else {
-    amountField.value = "";
-    amountField.readOnly = false;
-  }
+  // Amount is fixed at 100
+  document.getElementById("nobirth_modal_amount").value = 100;
 
-  const modal = new bootstrap.Modal(document.getElementById('printFormModal'));
+  // Show the modal
+  const modal = new bootstrap.Modal(document.getElementById('nobirthCertPrintModal'));
   modal.show();
+}
+
+// Handle No Birth Certificate Payment Form Submission
+document.getElementById("nobirthCertPrintForm").addEventListener("submit", function(event) {
+  event.preventDefault();
+
+  const formData = new FormData(this);
+
+  fetch("PaymentNoBirthCert.php", {
+    method: "POST",
+    body: formData
+  })
+  .then(response => response.text())
+  .then(response => {
+    if (response.trim() === "success") {
+      alert("Payment recorded. Now printing...");
+      bootstrap.Modal.getInstance(document.getElementById('nobirthCertPrintModal')).hide();
+
+      if (selectedDocData) {
+        // Update status to Printed
+        fetch("update_status_nobirth.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `id=${encodeURIComponent(selectedDocData.id)}&status=Printed`
+        })
+        .then(res => res.text())
+        .then(res => {
+          if (res.trim() === "success") {
+            alert("Document marked as Printed. You can now release it.");
+            location.reload();
+          } else {
+            console.error("Failed to update status:", res);
+            alert("Failed to mark as Printed. Please refresh and try again.");
+          }
+        })
+        .catch(err => {
+          console.error("Status update error:", err);
+          alert("Error updating document status.");
+        });
+      }
+    } else {
+      alert("Error: " + response);
+    }
+  })
+  .catch(error => {
+    console.error("Error submitting payment:", error);
+    alert("Something went wrong. Please try again.");
+  });
+});
+
+// Handle No Birth Certificate Release
+function releaseNoBirthDocument(id) {
+  if (!confirm("Are you sure you want to release this document?")) return;
+
+  fetch("update_status_nobirth.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Document successfully released!");
+      location.reload();
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
 }
 
 // Handle form submission
@@ -6307,7 +7459,7 @@ document.getElementById("printForm").addEventListener("submit", function (event)
 
   const formData = new FormData(this);
 
-  fetch("Paymentbirthcertificate.php", {
+  fetch("PaymentNoBirthCert.php", {
     method: "POST",
     body: formData,
   })
@@ -6318,7 +7470,26 @@ document.getElementById("printForm").addEventListener("submit", function (event)
         bootstrap.Modal.getInstance(document.getElementById('printFormModal')).hide();
 
         if (selectedDocData) {
-          generateCertificate(selectedDocData); // This handles different Docutype values
+          // Update status to Printed
+          fetch("update_status_nobirth.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedDocData.id)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Document marked as Printed. You can now release it.");
+              location.reload(); // Refresh to show updated status
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating document status.");
+          });
         } else {
           alert("No document selected for printing.");
         }
@@ -6673,6 +7844,26 @@ document.getElementById("businessPrintForm").addEventListener("submit", function
 
         if (selectedBusinessDocData) {
           generateCertificate(selectedBusinessDocData);
+          fetch("updatestatus_business.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedBusinessDocData.BsnssID)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Business permit marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating business permit status.");
+          });
+
         } else {
           alert("No business permit selected for printing.");
         }
@@ -6685,6 +7876,29 @@ document.getElementById("businessPrintForm").addEventListener("submit", function
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseBusinessDocument(BsnssID) {
+  if (!confirm("Are you sure you want to release this business document?")) return;
+
+  fetch("updatestatus_business.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(BsnssID)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Business document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -6738,6 +7952,27 @@ document.getElementById("unemploymentPrintForm").addEventListener("submit", func
 
         if (selectedUnemploymentDocData) {
           generateCertificate(selectedUnemploymentDocData);
+
+          // ✅ After printing, update the RequestStatus to "Printed"
+          fetch("updatestatus_unemployment.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedUnemploymentDocData.id)}&status=Printed`,
+          })
+          .then(res => res.text())
+          .then(res => {
+            if (res.trim() === "success") {
+              alert("Unemployment certificate marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch(err => {
+            console.error("Status update error:", err);
+            alert("Error updating unemployment certificate status.");
+          });
         } else {
           alert("No unemployment certificate selected for printing.");
         }
@@ -6750,6 +7985,29 @@ document.getElementById("unemploymentPrintForm").addEventListener("submit", func
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseUnemploymentDocument(id) {
+  if (!confirm("Are you sure you want to release this unemployment document?")) return;
+
+  fetch("updatestatus_unemployment.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Unemployment document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
 
@@ -6804,6 +8062,27 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
         if (selectedGuardianShipDocData) {
           generateCertificate(selectedGuardianShipDocData);
+
+          // ✅ After printing, update the RequestStatus to "Printed"
+          fetch("updatestatus_guardianship.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `id=${encodeURIComponent(selectedGuardianShipDocData.id)}&status=Printed`,
+          })
+          .then((res) => res.text())
+          .then((res) => {
+            if (res.trim() === "success") {
+              alert("Guardianship document marked as Printed. You can now release it.");
+              location.reload(); // Refresh the table to show the new Release button
+            } else {
+              console.error("Failed to update status:", res);
+              alert("Failed to mark as Printed. Please refresh and try again.");
+            }
+          })
+          .catch((err) => {
+            console.error("Status update error:", err);
+            alert("Error updating guardianship document status.");
+          });
         } else {
           alert("No guardianship document selected for printing.");
         }
@@ -6816,8 +8095,156 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
       alert("Something went wrong. Please try again.");
     });
 });
+
+function releaseGuardianshipDocument(id) {
+  if (!confirm("Are you sure you want to release this guardianship document?")) return;
+
+  fetch("updatestatus_guardianship.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then((res) => res.text())
+  .then((res) => {
+    if (res.trim() === "success") {
+      alert("Guardianship document successfully released!");
+      location.reload(); // Refresh to show the final Released state
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch((err) => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
 </script>
 
+<script>
+let selectedNoBirthCertDocData = null;
+
+function openNoBirthCertModal() {
+  const modal = document.getElementById('addNoBirthCertModal');
+  const refInput = modal.querySelector('input[name="refno"]');
+
+  // Generate reference: YYYYMMDD + random 4-digit number
+  const now = new Date();
+  const datePart = now.getFullYear().toString() +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0');
+  const randomPart = Math.floor(1000 + Math.random() * 9000);
+  const referenceNumber = datePart + randomPart;
+
+  refInput.value = referenceNumber;
+  modal.style.display = 'flex';
+}
+
+function closeNoBirthCertModal() {
+  document.getElementById('addNoBirthCertModal').style.display = 'none';
+}
+
+function openNoBirthCertPrintModal(data) {
+  if (typeof data === "string") {
+    data = JSON.parse(data);
+  }
+  selectedNoBirthCertDocData = data;
+
+  document.getElementById("nobirth_modal_refno").value = data.refno;
+  document.getElementById("nobirth_modal_name").value = data.requestor_name;
+  document.getElementById("nobirth_modal_type").value = data.DocuType;
+  document.getElementById("nobirth_modal_date").value = data.request_date || new Date().toLocaleDateString();
+
+  // Set amount based on document type
+  const amountField = document.getElementById("nobirth_modal_amount");
+  const docType = data.DocuType ? data.DocuType.toLowerCase().trim() : "";
+
+  // Set standard fees
+  if (docType === "no birth certificate" || docType === "late registration") {
+    amountField.value = 100;
+    amountField.readOnly = true;
+  } else {
+    amountField.value = "";
+    amountField.readOnly = false;
+  }
+
+  const modal = new bootstrap.Modal(document.getElementById('nobirthCertPrintFormModal'));
+  modal.show();
+}
+
+document.getElementById("nobirthCertPrintForm")?.addEventListener("submit", function(event) {
+  event.preventDefault();
+
+  const formData = new FormData(this);
+
+  fetch("PaymentNoBirthCert.php", {
+    method: "POST",
+    body: formData,
+  })
+  .then((response) => response.text())
+  .then((response) => {
+    if (response.trim() === "success") {
+      alert("Payment recorded. Now printing...");
+      bootstrap.Modal.getInstance(document.getElementById('nobirthCertPrintFormModal')).hide();
+
+      if (selectedNoBirthCertDocData) {
+        generateCertificate(selectedNoBirthCertDocData);
+
+        // Update status to "Printed"
+        fetch("updatestatus_nobirth.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `id=${encodeURIComponent(selectedNoBirthCertDocData.id)}&status=Printed`,
+        })
+        .then(res => res.text())
+        .then(res => {
+          if (res.trim() === "success") {
+            alert("Document marked as Printed. You can now release it.");
+            location.reload();
+          } else {
+            console.error("Failed to update status:", res);
+            alert("Failed to mark as Printed. Please refresh and try again.");
+          }
+        })
+        .catch(err => {
+          console.error("Status update error:", err);
+          alert("Error updating document status.");
+        });
+      } else {
+        alert("No document selected for printing.");
+      }
+    } else {
+      alert("Error: " + response);
+    }
+  })
+  .catch((error) => {
+    console.error("Error submitting payment:", error);
+    alert("Something went wrong. Please try again.");
+  });
+});
+
+function releaseNoBirthCertDocument(id) {
+  if (!confirm("Are you sure you want to release this document?")) return;
+
+  fetch("updatestatus_nobirth.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `id=${encodeURIComponent(id)}&status=Released`,
+  })
+  .then(res => res.text())
+  .then(res => {
+    if (res.trim() === "success") {
+      alert("Document successfully released!");
+      location.reload();
+    } else {
+      alert("Error: " + res);
+    }
+  })
+  .catch(err => {
+    console.error("Release error:", err);
+    alert("Something went wrong while releasing.");
+  });
+}
+</script>
 
             <script>
               function openLogoutModal(e) {
@@ -6833,6 +8260,384 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                 window.location.href = "../Login/logout.php";
               }
             </script>
+
+            
+            <!-- View Complaint Modal Script -->
+            <script>
+            function closeViewComplaintModal() {
+              document.getElementById('viewComplaintModal').style.display = 'none';
+            }
+
+            document.querySelectorAll('.view-complaint').forEach(btn => {
+              btn.addEventListener('click', function() {
+                const complaintId = this.getAttribute('data-id');
+                
+                fetch('../Process/online_complaints/view_online_complaints.php?id=' + encodeURIComponent(complaintId))
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.error) {
+                      alert(data.error);
+                      return;
+                    }
+
+                    const complaint = data.complaint;
+                    
+                    // Fill complaint basic info
+                    document.getElementById('view_complaint_id').textContent = complaint.CmpID;
+                    document.getElementById('view_complaint_refno').textContent = complaint.refno || 'N/A';
+                    
+                    // Fill complainant details
+                    document.getElementById('view_complaint_lastname').value = complaint.Lastname || '';
+                    document.getElementById('view_complaint_firstname').value = complaint.Firstname || '';
+                    document.getElementById('view_complaint_middlename').value = complaint.Middlename || '';
+                    document.getElementById('view_complaint_address').value = complaint.Address || '';
+                    document.getElementById('view_complaint_age').value = complaint.Age || '';
+                    document.getElementById('view_complaint_contact_no').value = complaint.ContactNo || '';
+                    document.getElementById('view_complaint_email').value = complaint.Email || '';
+                    
+                    // Fill complaint details
+                    document.getElementById('view_complaint_incident_datetime').value = complaint.DateTimeofIncident ? 
+                      new Date(complaint.DateTimeofIncident).toLocaleString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric', 
+                        hour: '2-digit', minute: '2-digit'
+                      }) : 'N/A';
+                    document.getElementById('view_complaint_location').value = complaint.LocationofIncident || 'N/A';
+                    document.getElementById('view_complaint_type').value = complaint.IncidentType || 'N/A';
+                    document.getElementById('view_complaint_description').value = complaint.Complain || '';
+                    document.getElementById('view_complaint_date_complained').textContent = complaint.DateComplained ? 
+                      new Date(complaint.DateComplained).toLocaleString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric', 
+                        hour: '2-digit', minute: '2-digit'
+                      }) : 'N/A';
+                    document.getElementById('view_complaint_status').value = complaint.RequestStatus || 'Pending';
+                    
+                    const convertBtnEl = document.getElementById('convertToBlotterBtn'); 
+                    const convertSectionEl = document.getElementById('convertFormSection');
+                    if (complaint.RequestStatus === 'Approved'){
+                      if (convertBtnEl) convertBtnEl.style.display = 'none';
+                      if (convertSectionEl) convertSectionEl.style.display = 'none';
+                    } else {
+                      if (convertBtnEl) convertBtnEl.style.display = 'block';
+                    }
+
+
+
+
+                    // Handle evidence files
+                    const filesContainer = document.getElementById('view_complaint_filesContainer');
+                    filesContainer.innerHTML = '';
+                    
+                    if (complaint.EvidencePic) {
+                      const imgSrc = 'data:image/jpeg;base64,' + complaint.EvidencePic;
+                      filesContainer.innerHTML = `
+                        <tr>
+                          <td style="text-align:center;">
+                            <img src="${imgSrc}" alt="evidence" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">
+                          </td>
+                          <td>Image Evidence</td>
+                          <td>
+                            <button type="button" data-src="${imgSrc}" class="btn btn-primary view-complaint-image" style="padding:5px 10px;">
+                              <i class="fas fa-eye"></i> View
+                            </button>
+                          </td>
+                        </tr>
+                      `;
+                    } else {
+                      filesContainer.innerHTML = `
+                        <tr>
+                          <td colspan="3" style="text-align:center;">No evidence files uploaded.</td>
+                        </tr>
+                      `;
+                    }
+                    
+                    // Show the modal
+                    document.getElementById('viewComplaintModal').style.display = 'flex';
+                  })
+                  .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to fetch complaint details.');
+                  });
+              });
+            });
+
+            function viewComplaintImage(src) {
+              document.getElementById('viewerImg').src = src;
+              document.getElementById('imageViewer').style.display = 'flex';
+            }
+
+            // Prevent form submit and show enlarged image (delegation)
+            document.getElementById('view_complaint_files_table')?.addEventListener('click', function (e) {
+              const btn = e.target.closest('.view-complaint-image');
+              if (!btn) return;
+              e.preventDefault(); // avoid any form submission
+              const src = btn.getAttribute('data-src');
+              if (src) viewComplaintImage(src);
+            });
+
+            function closeImageViewer() {
+              document.getElementById('imageViewer').style.display = 'none';
+            }
+            </script>
+
+            
+
+            <!-- Convert Complaint to Blotter Script -->
+            <script>
+            let currentComplaintData = null;
+
+            // Show/Hide conversion form
+            document.addEventListener('DOMContentLoaded', function() {
+              const convertBtn = document.getElementById('convertToBlotterBtn');
+              const convertSection = document.getElementById('convertFormSection');
+              const cancelBtn = document.getElementById('cancelConversionBtn');
+              const saveBtn = document.getElementById('saveBlotterConversionBtn');
+
+              if (convertBtn) {
+                convertBtn.addEventListener('click', function() {
+                  convertSection.style.display = 'block';
+                  convertBtn.style.display = 'none';
+                  
+                  // Add initial accused row
+                  if (document.getElementById('convert_accusedContainer').children.length === 0) {
+                    addConvertAccusedRow();
+                  }
+                });
+              }
+
+              if (cancelBtn) {
+                cancelBtn.addEventListener('click', function() {
+                  convertSection.style.display = 'none';
+                  // convertBtn.style.display = 'block';
+                  //only show Convert button again if the complaint is not Approved
+                  if (!currentComplaintData || currentComplaintData.RequestStatus !== 'Approved') {
+                    convertBtn.style.display = 'block';
+                  } else {
+                    convertBtn.style.display = 'none';
+                  }
+
+                  // Clear forms
+                  document.getElementById('convert_accusedContainer').innerHTML = '';
+                  document.getElementById('convert_witnessesContainer').innerHTML = '';
+                });
+              }
+
+              if (saveBtn) {
+                saveBtn.addEventListener('click', saveBlotterConversion);
+              }
+
+              // Add accused button
+              document.getElementById('convertAddAccusedBtn')?.addEventListener('click', addConvertAccusedRow);
+              
+              // Add witness button
+              document.getElementById('convertAddWitnessBtn')?.addEventListener('click', addConvertWitnessRow);
+            });
+
+            function addConvertAccusedRow() {
+              const container = document.getElementById('convert_accusedContainer');
+              const div = document.createElement('div');
+              div.className = 'accused-fields';
+              div.innerHTML = `
+                <h6>Full name of the Respondent</h6>
+                <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name *</label>
+                    <input type="text" class="convert-accused-lastname" required>
+                  </div>
+                  <div class="form-group">
+                    <label>First Name *</label>
+                    <input type="text" class="convert-accused-firstname" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" class="convert-accused-middlename">
+                  </div>
+                  <div class="form-group">
+                    <label>Alias</label>
+                    <input type="text" class="convert-accused-alias">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" class="convert-accused-address">
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" class="convert-accused-age">
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" class="convert-accused-contact">
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" class="convert-accused-email">
+                  </div>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm remove-convert-accused-btn" style="margin-bottom:10px; margin-top:10px;">Remove</button>
+                <hr>
+              `;
+              container.appendChild(div);
+              
+              // Add remove functionality
+              div.querySelector('.remove-convert-accused-btn').addEventListener('click', function() {
+                const rows = container.querySelectorAll('.accused-fields');
+                if (rows.length > 1) {
+                  div.remove();
+                } else {
+                  alert('At least one respondent is required.');
+                }
+              });
+            }
+
+            function addConvertWitnessRow() {
+              const container = document.getElementById('convert_witnessesContainer');
+              const div = document.createElement('div');
+              div.className = 'witness-fields';
+              div.innerHTML = `
+                <h6>Full name of the Witness</h6>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" class="convert-witness-lastname">
+                  </div>
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" class="convert-witness-firstname">
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" class="convert-witness-middlename">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" class="convert-witness-address">
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" class="convert-witness-age">
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" class="convert-witness-contact">
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" class="convert-witness-email">
+                  </div>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm remove-convert-witness-btn" style="margin-bottom:10px; margin-top:10px;">Remove</button>
+                <hr>
+              `;
+              container.appendChild(div);
+              
+              // Add remove functionality
+              div.querySelector('.remove-convert-witness-btn').addEventListener('click', function() {
+                div.remove();
+              });
+            }
+
+            function saveBlotterConversion() {
+              const complaintId = document.getElementById('view_complaint_id').textContent;
+              
+              if (!complaintId) {
+                alert('Invalid complaint ID');
+                return;
+              }
+
+              // Collect accused data
+              const accusedRows = document.querySelectorAll('#convert_accusedContainer .accused-fields');
+              const accused = [];
+              
+              let hasErrors = false;
+              accusedRows.forEach(row => {
+                const lastname = row.querySelector('.convert-accused-lastname').value.trim();
+                const firstname = row.querySelector('.convert-accused-firstname').value.trim();
+                
+                if (!lastname || !firstname) {
+                  hasErrors = true;
+                  return;
+                }
+                
+                accused.push({
+                  lastname: lastname,
+                  firstname: firstname,
+                  middlename: row.querySelector('.convert-accused-middlename').value.trim(),
+                  alias: row.querySelector('.convert-accused-alias').value.trim(),
+                  address: row.querySelector('.convert-accused-address').value.trim(),
+                  age: row.querySelector('.convert-accused-age').value.trim(),
+                  contact_no: row.querySelector('.convert-accused-contact').value.trim(),
+                  email: row.querySelector('.convert-accused-email').value.trim()
+                });
+              });
+
+              if (hasErrors) {
+                alert('Please fill in all required fields (Last Name and First Name) for all respondents.');
+                return;
+              }
+
+              if (accused.length === 0) {
+                alert('At least one respondent is required.');
+                return;
+              }
+
+              // Collect witness data
+              const witnessRows = document.querySelectorAll('#convert_witnessesContainer .witness-fields');
+              const witnesses = [];
+              
+              witnessRows.forEach(row => {
+                const lastname = row.querySelector('.convert-witness-lastname').value.trim();
+                const firstname = row.querySelector('.convert-witness-firstname').value.trim();
+                
+                if (lastname || firstname) { // Only add if at least name is provided
+                  witnesses.push({
+                    lastname: lastname,
+                    firstname: firstname,
+                    middlename: row.querySelector('.convert-witness-middlename').value.trim(),
+                    address: row.querySelector('.convert-witness-address').value.trim(),
+                    age: row.querySelector('.convert-witness-age').value.trim(),
+                    contact_no: row.querySelector('.convert-witness-contact').value.trim(),
+                    email: row.querySelector('.convert-witness-email').value.trim()
+                  });
+                }
+              });
+
+              // Send to server
+              const data = {
+                complaint_id: parseInt(complaintId),
+                accused: accused,
+                witnesses: witnesses
+              };
+
+              fetch('../Process/online_complaints/convert_to_blotter.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+              })
+              .then(response => response.json())
+              .then(result => {
+                if (result.success) {
+                  alert('Complaint successfully converted to blotter report!\nBlotter ID: ' + result.blotter_id);
+                  closeViewComplaintModal();
+                  // Reload page to refresh data
+                  window.location.href = window.location.pathname + '?panel=onlineComplaintsPanel';
+                } else {
+                  alert('Error: ' + result.error);
+                }
+              })
+              .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to convert complaint. Please try again.');
+              });
+            }
+            </script>
+
+
 
 
             <!-- View Blotter Modal Script -->
@@ -6856,18 +8661,53 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       }
 
                       document.getElementById('view_blotter_id').textContent = data.blotter.blotter_id;
+                      document.getElementById('view_officer_on_duty').textContent = data.blotter.officer_on_duty;
+
 
                       // Fill complainant fields
-                      const complainant = data.participants.find(p => p.participant_type === 'complainant');
-                      if (complainant) {
-                        document.getElementById('view_complainant_lastname').value = complainant.lastname;
-                        document.getElementById('view_complainant_firstname').value = complainant.firstname;
-                        document.getElementById('view_complainant_middlename').value = complainant.middlename;
-                        document.getElementById('view_complainant_address').value = complainant.address;
-                        document.getElementById('view_complainant_age').value = complainant.age;
-                        document.getElementById('view_complainant_contact_no').value = complainant.contact_no;
-                        document.getElementById('view_complainant_email').value = complainant.email;
-                      }
+                      // Fill ALL complainants (instead of just one)
+                      const complainantsContainer = document.getElementById('view_complainantContainer');
+                      complainantsContainer.innerHTML = '';
+                      data.participants.filter(p => p.participant_type === 'complainant').forEach(complainant => {
+                        complainantsContainer.innerHTML += `
+                          <div class="complainant-fields">
+                            <h6>Full name of the Complainant</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" value="${complainant.lastname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" value="${complainant.firstname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" value="${complainant.middlename}" readonly>
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" value="${complainant.address}" readonly>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" value="${complainant.age === null ? '' : complainant.age}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" value="${complainant.contact_no === null ? '' : complainant.contact_no}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" value="${complainant.email}" readonly>
+                              </div>
+                            </div>
+                            <hr>
+                          </div>
+                        `;
+                      });
                       // Fill blotter details
                       document.getElementById('view_incident_datetime').value = data.blotter.datetime_of_incident;
                       document.getElementById('view_incident_location').value = data.blotter.location_of_incident;
@@ -6879,48 +8719,48 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       accusedContainer.innerHTML = '';
                       data.participants.filter(p => p.participant_type === 'accused').forEach(accused => {
                         accusedContainer.innerHTML += `
-            <div class="accused-fields">
-              <h6>Full name of the Respondent</h6>
-              <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
-                <div class="form-group">
-                  <label>Last Name</label>
-                <input type="text" value="${accused.lastname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>First Name</label>
-                  <input type="text" value="${accused.firstname}" readonly style="grid-column: span 2;">
-                </div>
-                <div class="form-group">
-                  <label>Middle Name</label>
-                  <input type="text" value="${accused.middlename}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Alias</label>
-                  <input type="text" value="${accused.alias}" size="3" readonly>
-                </div>
+                          <div class="accused-fields">
+                            <h6>Full name of the Respondent</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                              <input type="text" value="${accused.lastname}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" value="${accused.firstname}" readonly style="grid-column: span 2;">
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" value="${accused.middlename}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Alias</label>
+                                <input type="text" value="${accused.alias}" size="3" readonly>
+                              </div>
 
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <input type="text" value="${accused.address}" readonly>
-              </div>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Age</label>
-                  <input type="number" value="${accused.age === null ? '' : accused.age}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Contact No</label>
-                  <input type="text" value="${accused.contact_no === null ? '' : accused.contact_no}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" value="${accused.email}" readonly>
-                </div>
-              </div>
-              <hr>
-            </div>
-          `;
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" value="${accused.address}" readonly>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" value="${accused.age === null ? '' : accused.age}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" value="${accused.contact_no === null ? '' : accused.contact_no}" readonly>
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" value="${accused.email}" readonly>
+                              </div>
+                            </div>
+                            <hr>
+                          </div>
+                        `;
                       });
 
                       // Fill witnesses
@@ -6936,43 +8776,43 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       }
                       data.participants.filter(p => p.participant_type === 'witness').forEach(witness => {
                         witnessesContainer.innerHTML += `
-            <div class="witness-fields">
-              <h6>Full name of the Witness</h6>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Last Name</label>
-                  <input type="text" value="${witness.lastname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>First Name</label>
-                  <input type="text" value="${witness.firstname}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Middle Name</label>
-                  <input type="text" value="${witness.middlename}" readonly>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <input type="text" value="${witness.address}" readonly>
-              </div>
-              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <div class="form-group">
-                  <label>Age</label>
-                  <input type="number" value="${witness.age === null ? '' : witness.age}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Contact No</label>
-                  <input type="text" value="${witness.contact_no === null ? '' : witness.contact_no}" readonly>
-                </div>
-                <div class="form-group">
-                  <label>Email</label>
-                  <input type="email" value="${witness.email}" readonly>
-                </div>
-              </div>
-              <hr>
-            </div>
-          `;
+                            <div class="witness-fields">
+                              <h6>Full name of the Witness</h6>
+                              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                  <label>Last Name</label>
+                                  <input type="text" value="${witness.lastname}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>First Name</label>
+                                  <input type="text" value="${witness.firstname}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Middle Name</label>
+                                  <input type="text" value="${witness.middlename}" readonly>
+                                </div>
+                              </div>
+                              <div class="form-group">
+                                <label>Address</label>
+                                <input type="text" value="${witness.address}" readonly>
+                              </div>
+                              <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                                <div class="form-group">
+                                  <label>Age</label>
+                                  <input type="number" value="${witness.age === null ? '' : witness.age}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Contact No</label>
+                                  <input type="text" value="${witness.contact_no === null ? '' : witness.contact_no}" readonly>
+                                </div>
+                                <div class="form-group">
+                                  <label>Email</label>
+                                  <input type="email" value="${witness.email}" readonly>
+                                </div>
+                              </div>
+                              <hr>
+                            </div>
+                          `;
                       });
 
                       // Fetch hearing details (latest for editing, all for history)
@@ -7088,6 +8928,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
 
 
+
                       // FILL UPLOADED Files
                       const filesContainer = document.getElementById('view_filesContainer');
                       filesContainer.innerHTML = '';
@@ -7098,32 +8939,64 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
                           // Show image preview if it's an image
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/Capston/Capstones/Capstones/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySampaguita/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                           } else {
                             // Default file icon if not image
                             thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
                           }
 
-                          filesContainer.innerHTML += `
-      <tr>
-        <td style="text-align:center;">${thumbHTML}</td>
-        <td>${file.file_name}</td>
-        <td>
-          <a href="/Capston/Capstones/Capstones/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
-            <i class="fas fa-download"></i> Download
-          </a>
-          
-        </td>
-      </tr>
-    `;
+                          if (file.file_type.startsWith('image/')) {
+                            filesContainer.innerHTML += `
+                                  <tr>
+                                    <td style="text-align:center;">${thumbHTML}</td>
+                                    <td>${file.file_name}</td>
+                                    <td>
+                                    <a href="/BarangaySampaguita/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                                    <i class="fas fa-download"></i> Download
+                                    </a>
+                                    <button onclick="viewImage('/BarangaySampaguita/BarangaySystem/${file.file_path}')" class="btn btn-primary" style="padding:5px 10px;">
+                                      <i class="fas fa-eye"></i> View
+                                    </button>
+                                      
+                                    </td>
+                                  </tr>
+                                `;
+                          } else {
+                            filesContainer.innerHTML += `
+                                <tr>
+                                  <td style="text-align:center;">${thumbHTML}</td>
+                                  <td>${file.file_name}</td>
+                                  <td>
+                                    <a href="/BarangaySampaguita/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                                      <i class="fas fa-download"></i> Download
+                                    </a>
+                                    
+                                  </td>
+                                </tr>
+                              `;
+                          }
                         });
                       } else {
                         filesContainer.innerHTML = `
-    <tr>
-      <td colspan="3" style="text-align:center;">No uploaded files found.</td>
-    </tr>
-  `;
+                            <tr>
+                              <td colspan="3" style="text-align:center;">No uploaded files found.</td>
+                            </tr>
+                          `;
                       }
+
+
+                      if (data.blotter && (data.blotter.status === 'closed_resolved' || data.blotter.status === 'closed_unresolved' || data.blotter.status === 'closed')) {
+                        const actionBtn = document.getElementById('actionDropdownBtn');
+                        if (actionBtn) {
+                          actionBtn.style.display = 'none';
+                        }
+                      } else {
+                        const actionBtn = document.getElementById('actionDropdownBtn');
+                        if (actionBtn) {
+                          actionBtn.style.display = 'inline-block';
+                        }
+                      }
+
 
 
 
@@ -7182,6 +9055,17 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
               });
 
 
+              // Add these functions at the end of the script or in a suitable place
+              function viewImage(src) {
+                document.getElementById('viewerImg').src = src;
+                document.getElementById('imageViewer').style.display = 'flex';
+              }
+
+              function closeImageViewer() {
+                document.getElementById('imageViewer').style.display = 'none';
+              }
+
+
 
               // Show confirmation popup when "Close Blotter" is clicked
               document.getElementById('closeBlotterBtn').addEventListener('click', function() {
@@ -7221,6 +9105,33 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
               // Save Hearing (mediator, notes, outcome)
               const saveHearingBtn = document.getElementById('saveHearingBtn');
+              const hearingFilesInput = document.getElementById('hearing_files');
+              const hearingFilesErrorEl = document.getElementById('hearingFilesError');
+              const MAX_HEARING_TOTAL_BYTES = 5 * 1024 * 1024; // 5MB
+
+              function totalBytesOfFiles(input) {
+                if (!input || !input.files || input.files.length === 0) return 0;
+                let total = 0;
+                for (let i = 0; i < input.files.length; i++) {
+                  total += input.files[i].size;
+                }
+                return total;
+              }
+
+              if (hearingFilesInput) {
+                hearingFilesInput.addEventListener('change', function () {
+                  const total = totalBytesOfFiles(hearingFilesInput);
+                  if (total > MAX_HEARING_TOTAL_BYTES) {
+                    hearingFilesErrorEl.textContent = 'Total selected files exceed 5MB. Please choose smaller files.';
+                    hearingFilesErrorEl.style.display = 'block';
+                    hearingFilesInput.value = '';
+                    hearingFilesInput.focus();
+                    return;
+                  }
+                  hearingFilesErrorEl.style.display = 'none';
+                  hearingFilesErrorEl.textContent = '';
+                });
+              }
               if (saveHearingBtn) {
                 saveHearingBtn.addEventListener('click', function() {
                   // Determine blotter id
@@ -7231,6 +9142,17 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   const outcome = document.getElementById('hearing_outcome') ? document.getElementById('hearing_outcome').value : '';
                   const schedule = document.getElementById('hearingDateTime') ? document.getElementById('hearingDateTime').textContent.trim() : '';
                   const hearingId = document.getElementById('hearing_id') ? document.getElementById('hearing_id').value.trim() : '';
+
+                  // PRE-SUBMIT: total size validation (client-side)
+                  const preTotal = totalBytesOfFiles(hearingFilesInput);
+                  if (preTotal > MAX_HEARING_TOTAL_BYTES) {
+                    if (hearingFilesErrorEl) {
+                      hearingFilesErrorEl.textContent = 'Total selected files exceed 5MB. Please choose smaller files.';
+                      hearingFilesErrorEl.style.display = 'block';
+                    }
+                    alert('Total selected files exceed 5MB. Please choose smaller files.');
+                    return;
+                  }
 
                   // Prepare FormData for multipart submission
                   const formData = new FormData();
@@ -7258,7 +9180,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   }).then(r => r.json()).then(res => {
                     saveHearingBtn.disabled = false;
                     saveHearingBtn.textContent = 'Save Hearing';
-                    if (res && res.success) {
+                      if (res && res.success) {
                       alert(res.message || 'Hearing saved');
                       // Clear the file input after success
                       if (filesInput) filesInput.value = '';
@@ -7280,11 +9202,26 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       if (filesInput) {
                         filesInput.disabled = true;
                       }
+                      if (hearingFilesErrorEl) {
+                        hearingFilesErrorEl.style.display = 'none';
+                        hearingFilesErrorEl.textContent = '';
+                      }
                       // Disable the save button as well to prevent further saves
                       saveHearingBtn.disabled = true;
                       saveHearingBtn.textContent = 'Saved';
-                      // Section remains visible; it will hide on page reload when fully recorded
+
+                      // NEW: Check outcome and show modal if 'no_agreement', else reload
+                      if (outcome === 'no_agreement') {
+                        document.getElementById('postHearingModal').style.display = 'flex';
+                      } else {
+                        location.reload();
+                      }
                     } else {
+                      // Show server error in inline error area (if any)
+                      if (res && res.message && hearingFilesErrorEl) {
+                        hearingFilesErrorEl.textContent = res.message;
+                        hearingFilesErrorEl.style.display = 'block';
+                      }
                       alert((res && res.message) ? res.message : 'Failed to save hearing');
                     }
                   }).catch(err => {
@@ -7295,8 +9232,36 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                   });
                 });
               }
-            </script>
 
+              // NEW: Event listeners for post-hearing modal buttons
+              document.getElementById('postHearingCloseBlotter').addEventListener('click', function() {
+                if (!currentBlotterId) return alert('Unable to determine blotter ID.');
+                fetch('../Process/blotter/closeblotter.php', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'id=' + encodeURIComponent(currentBlotterId) + '&status=closed_unresolved'
+                  })
+                  .then(response => response.text())
+                  .then(result => {
+                    if (result.trim() === 'success') {
+                      alert('Blotter closed as unresolved.');
+                      document.getElementById('postHearingModal').style.display = 'none';
+                      document.getElementById('viewBlotterModal').style.display = 'none';
+                      location.reload();
+                    } else {
+                      alert('Failed to close blotter: ' + result);
+                    }
+                  })
+                  .catch(() => alert('Error closing blotter.'));
+              });
+
+              document.getElementById('postHearingScheduleHearing').addEventListener('click', function() {
+                document.getElementById('postHearingModal').style.display = 'none';
+                document.getElementById('scheduleHearingModal').style.display = 'flex';
+              });
+            </script>
 
 
 
@@ -7322,43 +9287,55 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       html += `
                     <div style="font-size:16px; font-weight:bold; margin-bottom:10px; margin-top:30px;">
                       Blotter ID: ${data.blotter.blotter_id}
-                    </div>
-                    
-                    
-                    <label style="font-weight:bold;">Full Name of Complainant</label>
-        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Last Name</label>
-            <input type="text" name="complainant_lastname" value="${data.participants.find(p=>p.participant_type==='complainant').lastname}" required>
-          </div>
-          <div class="form-group">
-            <label>First Name</label>
-            <input type="text" name="complainant_firstname" value="${data.participants.find(p=>p.participant_type==='complainant').firstname}" required>
-          </div>
-          <div class="form-group">
-            <label>Middle Name</label>
-            <input type="text" name="complainant_middlename" value="${data.participants.find(p=>p.participant_type==='complainant').middlename}">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Address</label>
-          <input type="text" name="complainant_address" value="${data.participants.find(p=>p.participant_type==='complainant').address}" required>
-        </div>
-        <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="form-group">
-            <label>Age</label>
-            <input type="number" name="complainant_age" value="${data.participants.find(p=>p.participant_type==='complainant').age}">
-          </div>
-          <div class="form-group">
-            <label>Contact No</label>
-            <input type="text" name="complainant_contact_no" value="${data.participants.find(p=>p.participant_type==='complainant').contact_no}">
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" name="complainant_email" value="${data.participants.find(p=>p.participant_type==='complainant').email}">
-          </div>
-        </div>
-        <br><hr>`;
+                    </div>`;
+                      html += `<h3>Complainant Details</h3>
+                      <div id="update_complainantContainer">`;
+
+                      data.participants.filter(p => p.participant_type === 'complainant').forEach((complainant, i) => {
+                        html += `
+                        <div class="complainant-fields">
+                          <input type="hidden" name="complainant_id[]" value="${complainant.blotter_participant_id}">
+                          <h6>Full name of the Complainant</h6>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Last Name</label>
+                              <input type="text" name="complainant_lastname[]" value="${complainant.lastname}" required>
+                            </div>
+                            <div class="form-group">
+                              <label>First Name</label>
+                              <input type="text" name="complainant_firstname[]" value="${complainant.firstname}" required>
+                            </div>
+                            <div class="form-group">
+                              <label>Middle Name</label>
+                              <input type="text" name="complainant_middlename[]" value="${complainant.middlename}">
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" name="complainant_address[]" value="${complainant.address}" required>
+                          </div>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Age</label>
+                              <input type="number" name="complainant_age[]" value="${complainant.age === null ? '' : complainant.age}">
+                            </div>
+                            <div class="form-group">
+                              <label>Contact No</label>
+                              <input type="text" name="complainant_contact_no[]" value="${complainant.contact_no === null ? '' : complainant.contact_no}">
+                            </div>
+                            <div class="form-group">
+                              <label>Email</label>
+                              <input type="email" name="complainant_email[]" value="${complainant.email}">
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" onclick="removeComplainantRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                          <hr>
+                        </div>
+                      `;
+                      });
+                      html += `</div>
+                      <button type="button" class="btn btn-success btn-sm" id="updateAddComplainantBtn">+ Add Complainant</button>
+                      <br><hr>`;
 
                       // Blotter Details
                       html += `<h3>Blotter Details</h3>
@@ -7390,7 +9367,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
           <div class="accused-fields">
             <input type="hidden" name="accused_id[]" value="${accused.blotter_participant_id}">
             <h6>Full name of the Respondent</h6>
-            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+            <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
               <div class="form-group">
                 <label>Last Name</label>
                 <input type="text" name="accused_lastname[]" value="${accused.lastname}" required>
@@ -7432,7 +9409,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
           `;
                       });
                       html += `</div>
-        <button type="button" class="btn btn-success btn-sm" id="updateAddAccusedBtn">+ Add Accused</button>
+        <button type="button" class="btn btn-success btn-sm" id="updateAddAccusedBtn">+ Add Respondent</button>
         <br><hr>`;
 
                       // Witnesses
@@ -7502,7 +9479,7 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                         data.files.forEach(file => {
                           let thumbHTML = '';
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/Capston/Capstones/Capstones/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySampaguita/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                           } else {
                             thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
                           }
@@ -7530,9 +9507,10 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       <hr>
                       <h3>Upload Files</h3>
                         <div class="form-group">
-                          <label>Upload Image(s) (jpg, jpeg, png, gif only) (Optional)</label>
+                          <label>Upload Image(s) (jpg, jpeg, png, pdf, docx only - MAX 5MB) (Optional)</label>
                           <small class="text-muted">Hold ctrl or shift + click the images/files for multiple uploads.</small>
-                          <input type="file" name="blotter_files[]" multiple accept="image/*,application/pdf,.doc,.docx">
+                          <input type="file" id="updateBlotterFilesInput" name="blotter_files[]" multiple accept="image/*,application/pdf,.doc,.docx">
+                          <div id="updateFileSizeError" style="color: #b00020; display:none; margin-top:6px;"></div>
                         </div> 
                       `;
 
@@ -7541,10 +9519,179 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
 
                       document.getElementById('updateBlotterFields').innerHTML = html;
                       document.getElementById('updateBlotterModal').style.display = 'flex';
+                      // -- Add validation for total upload size (5MB) --
+                      (function() {
+                        const fileInput = document.getElementById('updateBlotterFilesInput');
+                        const fileError = document.getElementById('updateFileSizeError');
+                        const updateForm = document.getElementById('updateBlotterForm');
+                        const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+
+                        function checkTotalSize() {
+                          if (!fileInput || !fileInput.files) return true;
+                          const files = Array.from(fileInput.files);
+                          const total = files.reduce((sum, f) => sum + (f.size || 0), 0);
+                          if (total > MAX_BYTES) {
+                            fileError.textContent = 'Total selected files exceed 5MB. Please select smaller files or fewer files.';
+                            fileError.style.display = 'block';
+                            return false;
+                          } else {
+                            fileError.style.display = 'none';
+                            return true;
+                          }
+                        }
+
+                        // Validate on change
+                        if (fileInput) {
+                          fileInput.addEventListener('change', () => {
+                            const ok = checkTotalSize();
+                            if (!ok) {
+                              // Clear selection so user must reselect
+                              fileInput.value = '';
+                            }
+                          });
+                        }
+
+                        // Validate on submit
+                        if (updateForm) {
+                          updateForm.addEventListener('submit', (e) => {
+                            const ok = checkTotalSize();
+                            if (!ok) {
+                              e.preventDefault();
+                              alert('Total selected files exceed 5MB. Please select smaller files or fewer files.');
+                            }
+                         });
+                        }
+                      })();
+                      
+
+
+
+                      // Add function to manage complainant remove buttons
+                      function updateComplainantRemoveButtons() {
+                        const complainantContainer = document.getElementById('update_complainantContainer');
+                        if (!complainantContainer) return;
+
+                        const complainantRows = complainantContainer.querySelectorAll('.complainant-fields');
+                        const removeButtons = complainantContainer.querySelectorAll('.remove-complainant-btn');
+
+                        if (complainantRows.length === 1) {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                          });
+                        } else {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            btn.style.cursor = 'pointer';
+                          });
+                        }
+                      }
+                      updateComplainantRemoveButtons(); // Initial call
+
+                      // Remove complainant row
+                      window.removeComplainantRow = function(btn) {
+                        const container = document.getElementById('update_complainantContainer');
+                        const complainantRows = container.querySelectorAll('.complainant-fields');
+
+                        if (complainantRows.length <= 1) {
+                          alert('At least one complainant must remain.');
+                          return;
+                        }
+
+                        btn.closest('.complainant-fields').remove();
+                        updateComplainantRemoveButtons();
+                      };
+
+                      // Add complainant button
+                      document.getElementById('updateAddComplainantBtn').onclick = function() {
+                        const container = document.getElementById('update_complainantContainer');
+                        const div = document.createElement('div');
+                        div.className = 'complainant-fields';
+                        div.innerHTML = `
+                            <h6>Full name of the Complainant</h6>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" name="complainant_lastname[]" required>
+                              </div>
+                              <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" name="complainant_firstname[]" required>
+                              </div>
+                              <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" name="complainant_middlename[]">
+                              </div>
+                            </div>
+                            <div class="form-group">
+                              <label>Address</label>
+                              <input type="text" name="complainant_address[]" required>
+                            </div>
+                            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                              <div class="form-group">
+                                <label>Age</label>
+                                <input type="number" name="complainant_age[]">
+                              </div>
+                              <div class="form-group">
+                                <label>Contact No</label>
+                                <input type="text" name="complainant_contact_no[]">
+                              </div>
+                              <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" name="complainant_email[]">
+                              </div>
+                            </div>
+                            <button type="button" class="btn btn-danger btn-sm remove-complainant-btn" onclick="removeComplainantRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                            <hr>
+                          `;
+                        container.appendChild(div);
+                        updateComplainantRemoveButtons();
+                      };
+
+
+                      // Add this function to check and update remove button states for accused
+                      function updateAccusedRemoveButtons() {
+                        const accusedContainer = document.getElementById('update_accusedContainer');
+                        if (!accusedContainer) return;
+
+                        const accusedRows = accusedContainer.querySelectorAll('.accused-fields');
+                        const removeButtons = accusedContainer.querySelectorAll('.remove-accused-btn');
+
+                        // Disable all remove buttons if there's only one accused
+                        if (accusedRows.length === 1) {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = true;
+                            btn.style.opacity = '0.5';
+                            btn.style.cursor = 'not-allowed';
+                          });
+                        } else {
+                          removeButtons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                            btn.style.cursor = 'pointer';
+                          });
+                        }
+                      }
+                      // Initial call to set button states
+                      updateAccusedRemoveButtons();
+
+
 
                       // Remove accused row (removes hidden input so it will be deleted in DB)
                       window.removeAccusedRow = function(btn) {
+                        const container = document.getElementById('update_accusedContainer');
+                        const accusedRows = container.querySelectorAll('.accused-fields');
+
+                        // Prevent removal if only one accused remains
+                        if (accusedRows.length <= 1) {
+                          alert('At least one accused must remain.');
+                          return;
+                        }
+
                         btn.closest('.accused-fields').remove();
+                        updateAccusedRemoveButtons(); // Update button states after removal
                       };
 
                       // Remove witness row (removes hidden input so it will be deleted in DB)
@@ -7553,52 +9700,54 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                       };
 
                       // Add accused/witness dynamic add
+                      // Modify the updateAddAccusedBtn.onclick function
                       document.getElementById('updateAddAccusedBtn').onclick = function() {
                         const container = document.getElementById('update_accusedContainer');
                         const div = document.createElement('div');
                         div.className = 'accused-fields';
                         div.innerHTML = `
-            <h6>Full name of the Accused</h6>
-            <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
-              <div class="form-group" >
-                <label>Last Name</label>
-                <input type="text" name="accused_lastname[]" required>
-              </div>
-              <div class="form-group">
-                <label>First Name</label>
-                <input type="text" name="accused_firstname[]" required>
-              </div>
-              <div class="form-group">
-                <label>Middle Name</label>
-                <input type="text" name="accused_middlename[]">
-              </div>
-              <div class="form-group">
-                <label>Alias</label>
-                <input type="text" name="accused_alias[]">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Address</label>
-              <input type="text" name="accused_address[]">
-            </div>
-            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-              <div class="form-group">
-                <label>Age</label>
-                <input type="number" name="accused_age[]">
-              </div>
-              <div class="form-group">
-                <label>Contact No</label>
-                <input type="number" name="accused_contact_no[]">
-              </div>
-              <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="accused_email[]">
-              </div>
-            </div>
-            <button type="button" class="btn btn-danger btn-sm remove-accused-btn" onclick="removeAccusedRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
-            <hr>
-          `;
+                          <h6>Full name of the Respondent</h6>
+                          <div class="form-grid" style="grid-template-columns:1fr 1.7fr 1fr .7fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Last Name</label>
+                              <input type="text" name="accused_lastname[]" required>
+                            </div>
+                            <div class="form-group">
+                              <label>First Name</label>
+                              <input type="text" name="accused_firstname[]" required>
+                            </div>
+                            <div class="form-group">
+                              <label>Middle Name</label>
+                              <input type="text" name="accused_middlename[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Alias</label>
+                              <input type="text" name="accused_alias[]">
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" name="accused_address[]">
+                          </div>
+                          <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                            <div class="form-group">
+                              <label>Age</label>
+                              <input type="number" name="accused_age[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Contact No</label>
+                              <input type="number" name="accused_contact_no[]">
+                            </div>
+                            <div class="form-group">
+                              <label>Email</label>
+                              <input type="email" name="accused_email[]">
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-danger btn-sm remove-accused-btn" onclick="removeAccusedRow(this)" style="margin-bottom:10px; margin-top: 10px;">Remove</button>
+                          <hr>
+                        `;
                         container.appendChild(div);
+                        updateAccusedRemoveButtons(); // Update button states after adding
                       };
 
                       document.getElementById('updateAddWitnessBtn').onclick = function() {
@@ -7685,6 +9834,93 @@ document.getElementById("guardianshipPrintForm").addEventListener("submit", func
                     pad(now.getMinutes());
                   hearingInput.min = minVal;
                 }
+              });
+            </script>
+
+            <!-- View Blottered Individual Script -->
+            <script>
+              function closeViewBlotteredModal() {
+                document.getElementById('viewBlotteredModal').style.display = 'none';
+              }
+
+              document.querySelectorAll('.view-blottered-info').forEach(btn => {
+                btn.addEventListener('click', function() {
+                  const participantId = this.getAttribute('data-id');
+                  // Fetch participant and files info
+                  fetch('../Process/blotter/viewblottered.php?id=' + encodeURIComponent(participantId))
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data.error) {
+                        alert(data.error);
+                        return;
+                      }
+                      // Fill respondent fields
+                      document.getElementById('blottered_blotter_id').textContent = data.participant.blotter_id;
+                      document.getElementById('blottered_participant_id').textContent = data.participant.blotter_participant_id;
+                      document.getElementById('blottered_lastname').value = data.participant.lastname;
+                      document.getElementById('blottered_firstname').value = data.participant.firstname;
+                      document.getElementById('blottered_middlename').value = data.participant.middlename;
+                      document.getElementById('blottered_address').value = data.participant.address;
+                      document.getElementById('blottered_age').value = data.participant.age;
+                      document.getElementById('blottered_contact_no').value = data.participant.contact_no;
+                      document.getElementById('blottered_email').value = data.participant.email;
+
+                      // Prevent form submit and show enlarged image (delegation) for blottered files
+                      document.getElementById('blottered_files_table')?.addEventListener('click', function (e) {
+                        const btn = e.target.closest('.view-file-btn');
+                        if (!btn) return;
+                        e.preventDefault(); // stop button from submitting anything
+                        const src = btn.getAttribute('data-src');
+                        if (src) viewImage(src);
+                      });
+
+                      // Fill files table
+                      const filesContainer = document.getElementById('blottered_filesContainer');
+                      filesContainer.innerHTML = '';
+                      if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                          let thumbHTML = '';
+                          if (file.file_type.startsWith('image/')) {
+                            thumbHTML = `<img src="/BarangaySampaguita/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            filesContainer.innerHTML += `
+                            <tr>
+                              <td style="text-align:center;">${thumbHTML}</td>
+                              <td>${file.file_name}</td>
+                              <td>
+                                <button type="button" data-src="/BarangaySampaguita/BarangaySystem/${file.file_path}" class="btn btn-primary view-file-btn" style="padding:5px 10px;">
+                                  <i class="fas fa-eye"></i> View
+                                </button>
+                              </td>
+                            </tr>
+                          `;
+                          } else {
+                            thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
+                            filesContainer.innerHTML += `
+                        <tr>
+                          <td style="text-align:center;">${thumbHTML}</td>
+                          <td>${file.file_name}</td>
+                          <td>
+                            <a href="/BarangaySampaguita/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                              <i class="fas fa-download"></i> Download
+                            </a>
+                          </td>
+                        </tr>
+                      `;
+                          }
+                        });
+                      } else {
+                        filesContainer.innerHTML = `
+                      <tr>
+                        <td colspan="3" style="text-align:center;">No uploaded files found.</td>
+                      </tr>
+                    `;
+                      }
+
+
+                      document.getElementById('viewBlotteredModal').style.display = 'flex';
+                    })
+                    .catch(() => alert('Failed to fetch blottered individual details.'));
+                });
               });
             </script>
 

@@ -70,12 +70,12 @@ $genderQuery = "
 ";
 $genderResult = $connection->query($genderQuery);
 
-$genderLabels = [];
-$genderCounts = [];
+$guadianshipLabels = [];
+$guadianshipCounts = [];
 
-while ($row = $genderResult->fetch_assoc()) {
-    $genderLabels[] = $row['Gender'];
-    $genderCounts[] = $row['total'];
+while ($row = $guadianshipResult->fetch_assoc()) {
+    $guadianshipLabels[] = $row['request_type'];
+    $guadianshipCounts[] = $row['total'];
 }
 
 

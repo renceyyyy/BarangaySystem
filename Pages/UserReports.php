@@ -1,9 +1,30 @@
 <?php
+// Set resident session name BEFORE starting session
+session_name('BarangayResidentSession');
+
+// Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
+
 if (!isset($_SESSION['user_id'])) {
   header("Location: ../Login/login.php");
+  exit();
+}
+
+// Prevent admin/staff from accessing resident pages
+$userRole = $_SESSION['role'] ?? 'resident';
+if (in_array($userRole, ['admin', 'finance', 'sk', 'SuperAdmin'])) {
+  // Redirect admin back to their dashboard
+  if ($userRole === 'admin') {
+    header("Location: Adminpage.php");
+  } elseif ($userRole === 'finance') {
+    header("Location: FinancePage.php");
+  } elseif ($userRole === 'sk') {
+    header("Location: SKpage.php");
+  } elseif ($userRole === 'SuperAdmin') {
+    header("Location: SuperAdmin.php");
+  }
   exit();
 }
 
@@ -96,6 +117,19 @@ function getPendingRequestTypes($conn, $userId)
     $stmt->close();
   }
 
+  // Cohabitation Form
+  $sql = "SELECT COUNT(*) as count FROM cohabitationtbl WHERE UserId = ? AND RequestStatus = 'Pending'";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->fetch_assoc()['count'] > 0) {
+      $pendingTypes['cohabitation'] = true;
+    }
+    $stmt->close();
+  }
+
   // Complaints
   $sql = "SELECT COUNT(*) as count FROM complaintbl WHERE Userid = ? AND RequestStatus = 'Pending'";
   $stmt = db_prepare($sql);
@@ -127,7 +161,7 @@ function getUserRequests($conn, $userId)
   $requests = [];
 
   // Document requests
-  $sql = "SELECT 'Document Request' as type, DocuType as description, refno, DateRequested as date_requested, RequestStatus as status FROM docsreqtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+  $sql = "SELECT 'Document Request' as type, DocuType as description, refno, DateRequested as date_requested, RequestStatus as status, ReleasedBy as released_by, DateRequested as released_date FROM docsreqtbl WHERE UserId = ? ORDER BY DateRequested DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -140,7 +174,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Business requests 
-  $sql = "SELECT 'Business Request' as type, CONCAT(BusinessName, ' - ', RequestType) as description, refno, RequestedDate as date_requested, RequestStatus as status FROM businesstbl WHERE UserId = ? ORDER BY RequestedDate DESC";
+  $sql = "SELECT 'Business Request' as type, CONCAT(BusinessName, ' - ', RequestType) as description, refno, RequestedDate as date_requested, RequestStatus as status, ReleasedBy as released_by, RequestedDate as released_date FROM businesstbl WHERE UserId = ? ORDER BY RequestedDate DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -153,7 +187,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Scholarship applications
-  $sql = "SELECT 'Scholarship Application' as type, 'Scholarship Application' as description, ApplicationID as refno, DateApplied as date_requested, RequestStatus as status FROM scholarship WHERE UserID = ? ORDER BY DateApplied DESC";
+  $sql = "SELECT 'Scholarship Application' as type, 'Scholarship Application' as description, ApplicationID as refno, DateApplied as date_requested, RequestStatus as status, NULL as released_by, DateApplied as released_date FROM scholarship WHERE UserID = ? ORDER BY DateApplied DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -166,7 +200,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Unemployment certificates
-  $sql = "SELECT 'Unemployment Certificate' as type, CONCAT(certificate_type, ' Certificate') as description, refno, request_date as date_requested, RequestStatus as status FROM unemploymenttbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'Unemployment Certificate' as type, CONCAT(certificate_type, ' Certificate') as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM unemploymenttbl WHERE user_id = ? ORDER BY request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -179,7 +213,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Guardianship/Solo Parent requests
-  $sql = "SELECT 'Guardianship/Solo Parent' as type, CONCAT(request_type, ' for ', child_name) as description, refno, request_date as date_requested, RequestStatus as status FROM guardianshiptbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'Guardianship/Solo Parent' as type, CONCAT(request_type, ' for ', child_name) as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM guardianshiptbl WHERE user_id = ? ORDER BY request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -192,7 +226,7 @@ function getUserRequests($conn, $userId)
   }
 
   // No Birth Certificate requests
-  $sql = "SELECT 'No Birth Certificate' as type, 'No Birth Certificate Request' as description, refno, request_date as date_requested, RequestStatus as status FROM no_birthcert_tbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'No Birth Certificate' as type, 'No Birth Certificate Request' as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM no_birthcert_tbl WHERE user_id = ? ORDER BY request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -205,7 +239,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Complain requests 
-  $sql = "SELECT 'Complaint' as type, Complain as description, refno, DateComplained as date_requested, RequestStatus as status FROM complaintbl WHERE Userid = ? ORDER BY DateComplained DESC";
+  $sql = "SELECT 'Complaint' as type, Complain as description, refno, DateComplained as date_requested, RequestStatus as status, NULL as released_by, DateComplained as released_date FROM complaintbl WHERE Userid = ? ORDER BY DateComplained DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -217,7 +251,18 @@ function getUserRequests($conn, $userId)
     $stmt->close();
   }
 
-
+  // Cohabitation Form requests
+  $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status, DateRequested as released_date FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+  $stmt = db_prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+      $requests[] = $row;
+    }
+    $stmt->close();
+  }
 
   // Sort all requests by date
   usort($requests, function ($a, $b) {
@@ -257,6 +302,16 @@ function getStatusBadgeClass($status)
   <link rel="stylesheet" href="../Styles/StylesProfile.css">
   <link rel="stylesheet" href="../Styles/ReqStatus.css">
   <style>
+    /* Pulse animation for real-time indicator */
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.3;
+      }
+    }
+
     .status-badge {
       padding: 6px 12px;
       border-radius: 20px;
@@ -399,6 +454,207 @@ function getStatusBadgeClass($status)
         text-align: center;
       }
     }
+    /* View Release Button */
+    .btn-view-release {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-view-release:hover {
+      background: linear-gradient(135deg, #45a049, #3d8b40);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-view-release i {
+      font-size: 0.9rem;
+    }
+
+    /* Release Info Modal */
+    .release-info-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .release-info-modal.show {
+      opacity: 1;
+    }
+
+    .release-info-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .release-info-header {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+      padding: 20px 24px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .release-info-header h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .close-modal {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .close-modal:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: rotate(90deg);
+    }
+
+    .release-info-body {
+      padding: 24px;
+    }
+
+    .info-row {
+      display: flex;
+      padding: 14px 0;
+      border-bottom: 1px solid #f0f0f0;
+      gap: 16px;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #2c5f2d;
+      min-width: 180px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-label i {
+      width: 20px;
+      text-align: center;
+    }
+
+    .info-value {
+      flex: 1;
+      color: #333;
+      word-break: break-word;
+    }
+
+    .info-value.highlight {
+      background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      color: #2c5f2d;
+      border-left: 3px solid #4CAF50;
+    }
+
+    .release-status-badge {
+      margin-top: 20px;
+      padding: 16px;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2c5f2d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 2px solid #4CAF50;
+    }
+
+    .release-status-badge i {
+      font-size: 1.3rem;
+    }
+
+    .release-info-footer {
+      padding: 20px 24px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn-close {
+      background: #e0e0e0;
+      color: #333;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-close:hover {
+      background: #d0d0d0;
+    }
+
+    .col-action {
+      width: 130px;
+      text-align: center;
+    }
   </style>
 </head>
 
@@ -409,6 +665,22 @@ function getStatusBadgeClass($status)
     <div class="page-header">
       <h1><i class="fas fa-file-alt"></i> My Request Status</h1>
       <p>Track all your submitted requests and their current status</p>
+      <!-- Real-time monitoring indicator -->
+      <div id="realtimeIndicator" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #28a745; margin-top: 8px;">
+        <i class="fas fa-circle" style="font-size: 0.5rem; animation: pulse 2s infinite;"></i>
+        <span>Real-time monitoring active</span>
+      </div>
+    </div>
+
+    <!-- Document Collection Information -->
+    <div style="background-color: #d1edff; border: 1px solid #b3d7ff; border-radius: 6px; padding: 15px 20px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 15px;">
+      <i class="fas fa-info-circle" style="color: #0b5ed7; font-size: 1.3rem; flex-shrink: 0; margin-top: 2px;"></i>
+      <div>
+        <strong style="color: #0b5ed7;">Document Collection Information</strong>
+        <p style="margin: 5px 0 0 0; color: #0b5ed7; font-size: 0.95rem; line-height: 1.4;">
+          To claim your approved requested documents, please proceed to the barangay hall, pay the required payment, and collect your documents. For any questions or clarifications, please contact us at <strong>86380301</strong> during office hours.
+        </p>
+      </div>
     </div>
 
     <?php 
@@ -443,11 +715,16 @@ function getStatusBadgeClass($status)
       $pendingRequests = [];
       $approvedRequests = [];
       $DeclinedRequests = [];
+      $releasedRequests = [];
 
       foreach ($userRequests as $request) {
         switch (strtolower($request['status'])) {
           case 'pending':
             $pendingRequests[] = $request;
+            break;
+          case 'released':
+          case 'printed':
+            $releasedRequests[] = $request;
             break;
           case 'approved':
           case 'completed':
@@ -461,8 +738,12 @@ function getStatusBadgeClass($status)
         }
       }
 
-      // Sort approved and Declined requests by date (latest first)
+      // Sort approved, released and Declined requests by date (latest first)
       usort($approvedRequests, function ($a, $b) {
+        return strtotime($b['date_requested']) - strtotime($a['date_requested']);
+      });
+
+      usort($releasedRequests, function ($a, $b) {
         return strtotime($b['date_requested']) - strtotime($a['date_requested']);
       });
 
@@ -486,6 +767,10 @@ function getStatusBadgeClass($status)
           <p>Approved</p>
         </div>
         <div class="stat-card">
+          <h3><?php echo count($releasedRequests); ?></h3>
+          <p>Released</p>
+        </div>
+        <div class="stat-card">
           <h3><?php echo count($DeclinedRequests); ?></h3>
           <p>Declined</p>
         </div>
@@ -507,6 +792,9 @@ function getStatusBadgeClass($status)
           </button>
           <button class="status-tab" onclick="showTab('approved')">
             Approved <span class="tab-badge"><?php echo count($approvedRequests); ?></span>
+          </button>
+          <button class="status-tab" onclick="showTab('released')">
+            Released <span class="tab-badge"><?php echo count($releasedRequests); ?></span>
           </button>
           <button class="status-tab" onclick="showTab('Declined')">
             Declined <span class="tab-badge"><?php echo count($DeclinedRequests); ?></span>
@@ -642,6 +930,60 @@ function getStatusBadgeClass($status)
           </div>
         </div>
 
+        <!-- Released Requests Tab -->
+        <div id="released-tab" class="tab-content">
+          <div class="requests-table-container">
+            <table class="requests-table">
+              <thead>
+                <tr>
+                  <th class="col-type">Request Type</th>
+                  <th class="col-description">Description</th>
+                  <th class="col-reference">Reference No.</th>
+                  <th class="col-date">Date Requested</th>
+                  <th class="col-released-by">Released By</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-action">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($releasedRequests as $request): ?>
+                  <tr>
+                    <td class="col-type"><?php echo htmlspecialchars($request['type']); ?></td>
+                    <td class="col-description"><?php echo htmlspecialchars($request['description']); ?></td>
+                    <td class="col-reference">
+                      <span class="request-ref"><?php echo htmlspecialchars($request['refno']); ?></span>
+                    </td>
+                    <td class="col-date"><?php echo date('M d, Y', strtotime($request['date_requested'])); ?></td>
+                    <td class="col-released-by">
+                      <?php echo !empty($request['released_by']) ? htmlspecialchars($request['released_by']) : 'N/A'; ?>
+                    </td>
+                    <td class="col-status">
+                      <span class="status-badge <?php echo getStatusBadgeClass($request['status']); ?>">
+                        <?php echo ucfirst(htmlspecialchars($request['status'])); ?>
+                      </span>
+                    </td>
+                    <td class="col-action">
+                      <button class="btn-view-release" onclick="viewReleaseInfo('<?php echo htmlspecialchars($request['refno']); ?>', '<?php echo htmlspecialchars($request['type']); ?>', '<?php echo htmlspecialchars($request['description']); ?>', '<?php echo date('M d, Y', strtotime($request['date_requested'])); ?>', '<?php echo !empty($request['released_by']) ? htmlspecialchars($request['released_by']) : 'N/A'; ?>', '<?php echo !empty($request['released_date']) ? date('M d, Y', strtotime($request['released_date'])) : 'N/A'; ?>')">
+                        <i class="fas fa-info-circle"></i> View Info
+                      </button>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+                <?php if (empty($releasedRequests)): ?>
+                  <tr>
+                    <td colspan="7" class="no-requests-row">
+                      <div class="no-requests-message">
+                        <i class="fas fa-check-circle"></i>
+                        <p>No released requests found.</p>
+                      </div>
+                    </td>
+                  </tr>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Declined Requests Tab -->
         <div id="Declined-tab" class="tab-content">
           <div class="requests-table-container">
@@ -724,7 +1066,8 @@ function getStatusBadgeClass($status)
         'Unemployment Certificate': '../NewRequests/NewNoFixIncome.php?update=' + refNo,
         'Guardianship/Solo Parent': '../NewRequests/NewGuardianshipForm.php?update=' + refNo,
         'No Birth Certificate': '../NewRequests/NewNoBirthCertificate.php?update=' + refNo,
-        'Complaint': '../NewRequests/NewComplain.php?update=' + refNo
+        'Complaint': '../NewRequests/NewComplain.php?update=' + refNo,
+        'Cohabitation Form': '../NewRequests/CohabilitationForm.php?update=' + refNo
       };
 
       if (updateMap[requestType]) {
@@ -732,6 +1075,377 @@ function getStatusBadgeClass($status)
       } else {
         alert('Update feature not available for this request type.');
       }
+    }
+  </script>
+  
+  <!-- Real-time Notification System -->
+  <script>
+    // Real-time notification checking
+    let notificationCheckInterval;
+    let isPageVisible = true;
+    const STORAGE_KEY = 'barangay_resident_<?php echo $_SESSION['user_id']; ?>_status';
+    const USER_ID = '<?php echo $_SESSION['user_id']; ?>';
+    const USER_ROLE = '<?php echo $userRole; ?>';
+
+    // Function to get stored request snapshot
+    function getStoredSnapshot() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) return null;
+        
+        const data = JSON.parse(stored);
+        
+        // Validate that stored data belongs to current user
+        if (data.userId && data.userId !== USER_ID) {
+          console.log('⚠️ Stored data belongs to different user, clearing...');
+          localStorage.removeItem(STORAGE_KEY);
+          return null;
+        }
+        
+        return data.requests || data;
+      } catch (e) {
+        console.log('Error reading stored snapshot:', e);
+        return null;
+      }
+    }
+
+    // Function to save request snapshot
+    function saveSnapshot(snapshot) {
+      try {
+        const data = {
+          userId: USER_ID,
+          role: USER_ROLE,
+          timestamp: Date.now(),
+          requests: snapshot
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.log('Error saving snapshot:', e);
+      }
+    }
+
+    // Function to check for status updates
+    function checkForStatusUpdates() {
+      // Only check if page is visible and user is active
+      if (!isPageVisible) return;
+      
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      
+      fetch(`../Process/check_status_updates.php?t=${timestamp}`, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Check if user role changed (admin logged in)
+        if (data.error && data.role) {
+          console.log('⚠️ Session changed - redirecting...');
+          // Admin logged in, stop monitoring and redirect
+          clearInterval(notificationCheckInterval);
+          window.location.href = '../Login/login.php';
+          return;
+        }
+        
+        if (data.success && data.requests) {
+          const currentRequests = data.requests;
+          const previousRequests = getStoredSnapshot();
+          
+          console.log('📊 Current requests:', Object.keys(currentRequests).length);
+          console.log('📊 Previous requests:', previousRequests ? Object.keys(previousRequests).length : 0);
+          
+          // If this is the first check, just store the current state
+          if (!previousRequests) {
+            saveSnapshot(currentRequests);
+            console.log('✅ Real-time monitoring initialized - snapshot saved');
+            return;
+          }
+          
+          // Compare current with previous to detect changes
+          const notifications = [];
+          
+          // Check each current request against previous state
+          for (const refno in currentRequests) {
+            const currentReq = currentRequests[refno];
+            const previousReq = previousRequests[refno];
+            
+            // Normalize status to lowercase for comparison
+            const currentStatus = currentReq.status.toLowerCase();
+            const previousStatus = previousReq ? previousReq.status.toLowerCase() : null;
+            
+            console.log(`🔍 Checking ${refno}: ${previousStatus} -> ${currentStatus}`);
+            
+            // If request exists in both and status changed
+            if (previousReq && currentStatus !== previousStatus) {
+              console.log(`🔔 STATUS CHANGE DETECTED! ${refno}: ${previousStatus} -> ${currentStatus}`);
+              const statusChangeNotif = detectStatusChange(currentReq, previousReq);
+              if (statusChangeNotif) {
+                notifications.push(statusChangeNotif);
+                console.log('✅ Notification created:', statusChangeNotif);
+              }
+            }
+          }
+          
+          // Show notifications if any status changes detected
+          if (notifications.length > 0) {
+            console.log('🎉 Showing notifications:', notifications.length);
+            
+            notifications.forEach(notification => {
+              showStatusNotification(notification.message, notification.type);
+            });
+            
+            // Update stored snapshot AFTER showing notification
+            saveSnapshot(currentRequests);
+            
+            // Refresh the page after showing notifications
+            setTimeout(() => {
+              console.log('🔄 Reloading page to show updated status...');
+              location.reload();
+            }, 4000);
+          } else {
+            // No changes, just update the snapshot
+            console.log('✅ No status changes detected');
+            saveSnapshot(currentRequests);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('❌ Error checking updates:', error);
+      });
+    }
+
+    // Function to detect and create notification for status change
+    function detectStatusChange(currentReq, previousReq) {
+      const oldStatus = previousReq.status;
+      const newStatus = currentReq.status;
+      const requestType = currentReq.type || 'Request';
+      const refNo = currentReq.refno || 'N/A';
+      
+      // Pending -> Approved
+      if (oldStatus === 'pending' && (newStatus === 'approved' || newStatus === 'completed')) {
+        return {
+          type: 'approved',
+          message: `Your ${requestType} (Ref No: ${refNo}) is approved. Please proceed to the barangay office and pay the needed fee to get your request.`
+        };
+      }
+      
+      // Pending -> Declined
+      if (oldStatus === 'pending' && newStatus === 'declined') {
+        const reason = currentReq.decline_reason || 'incomplete requirements';
+        return {
+          type: 'declined',
+          message: `Unfortunately, your ${requestType} (Ref No: ${refNo}) is declined due to ${reason}. For inquiries, go to the barangay or contact us at: 86380301.`
+        };
+      }
+      
+      // Approved -> Released
+      if ((oldStatus === 'approved' || oldStatus === 'completed') && newStatus === 'released') {
+        return {
+          type: 'released',
+          message: `Your ${requestType} (Ref No: ${refNo}) is now ready for pickup. Please proceed to the barangay office.`
+        };
+      }
+      
+      return null;
+    }
+
+    // Function to show status update notifications - Simple and clean design
+    function showStatusNotification(message, type) {
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        max-width: 450px;
+        padding: 16px 20px;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+        animation: slideInFromRight 0.4s ease-out;
+        cursor: pointer;
+        border-left: 4px solid;
+      `;
+      
+      // Set simple single-tone color based on type
+      if (type === 'approved') {
+        notification.style.backgroundColor = '#e8f5e9';
+        notification.style.color = '#2e7d32';
+        notification.style.borderLeftColor = '#2e7d32';
+      } else if (type === 'declined') {
+        notification.style.backgroundColor = '#ffebee';
+        notification.style.color = '#c62828';
+        notification.style.borderLeftColor = '#c62828';
+      } else if (type === 'released') {
+        notification.style.backgroundColor = '#e3f2fd';
+        notification.style.color = '#1565c0';
+        notification.style.borderLeftColor = '#1565c0';
+      } else {
+        notification.style.backgroundColor = '#f5f5f5';
+        notification.style.color = '#424242';
+        notification.style.borderLeftColor = '#757575';
+      }
+      
+      // Simple text, no icons
+      notification.textContent = message;
+      
+      // Add click to dismiss
+      notification.addEventListener('click', function() {
+        notification.style.animation = 'slideOutToRight 0.3s ease-out';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      });
+      
+      // Add to page
+      document.body.appendChild(notification);
+      
+      // Auto remove after 10 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.style.animation = 'slideOutToRight 0.3s ease-out';
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.parentNode.removeChild(notification);
+            }
+          }, 300);
+        }
+      }, 10000);
+    }
+
+    // Add CSS animations for notifications
+    if (!document.getElementById('notification-animations')) {
+      const style = document.createElement('style');
+      style.id = 'notification-animations';
+      style.textContent = `
+        @keyframes slideInFromRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideOutToRight {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Page visibility detection
+    document.addEventListener('visibilitychange', function() {
+      isPageVisible = !document.hidden;
+      
+      if (isPageVisible) {
+        // Page became visible, do immediate check
+        checkForStatusUpdates();
+      }
+    });
+
+    // Start checking for updates when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // Clean up any admin localStorage keys
+      const allKeys = Object.keys(localStorage);
+      allKeys.forEach(key => {
+        if (key.includes('barangay') && !key.includes('resident') && !key.includes(USER_ID)) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      console.log('ℹ️ Notifications are handled by navbar.php - no duplicate system running');
+      
+      // DISABLED: Duplicate notification system
+      // The navbar.php already handles real-time notifications
+      // setTimeout(checkForStatusUpdates, 2000);
+      // notificationCheckInterval = setInterval(checkForStatusUpdates, 5000);
+    });
+
+    // Clean up interval when page unloads
+    window.addEventListener('beforeunload', function() {
+      if (notificationCheckInterval) {
+        clearInterval(notificationCheckInterval);
+      }
+    });
+
+    // DISABLED: Also check when window gains focus
+    // window.addEventListener('focus', function() {
+    //   setTimeout(checkForStatusUpdates, 500);
+    // });
+    
+    // Function to view release information
+    function viewReleaseInfo(refno, type, description, dateRequested, releasedBy, releasedDate) {
+      // Create modal
+      const modal = document.createElement('div');
+      modal.className = 'release-info-modal';
+      modal.innerHTML = `
+        <div class="release-info-content">
+          <div class="release-info-header">
+            <h2><i class="fas fa-check-circle"></i> Release Information</h2>
+            <button class="close-modal" onclick="this.closest('.release-info-modal').remove()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="release-info-body">
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-file-alt"></i> Request Type:</span>
+              <span class="info-value">${type}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-info-circle"></i> Description:</span>
+              <span class="info-value">${description}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-hashtag"></i> Reference Number:</span>
+              <span class="info-value highlight">${refno}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-calendar-alt"></i> Date Requested:</span>
+              <span class="info-value">${dateRequested}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-calendar-check"></i> Date Released:</span>
+              <span class="info-value">${releasedDate}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-user-check"></i> Released By:</span>
+              <span class="info-value">${releasedBy}</span>
+            </div>
+            <div class="release-status-badge">
+              <i class="fas fa-check-double"></i> Successfully Released
+            </div>
+          </div>
+          <div class="release-info-footer">
+            <button class="btn-close" onclick="this.closest('.release-info-modal').remove()">
+              <i class="fas fa-times"></i> Close
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      // Add animation
+      setTimeout(() => modal.classList.add('show'), 10);
     }
   </script>
 </body>

@@ -1,7 +1,6 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Session should already be initialized by parent page
+// Don't initialize session here as this file is included after HTML output
 
 // Include database connection module
 require_once '../Process/db_connection.php';
@@ -126,19 +125,6 @@ if (isset($_SESSION['user_id'])) {
         $result = $stmt->get_result();
         if ($result->fetch_assoc()['count'] > 0) {
             $pendingTypes['guardianship'] = true;
-        }
-        $stmt->close();
-    }
-
-    // No Birth Certificate
-    $sql = "SELECT COUNT(*) as count FROM no_birthcert_tbl WHERE user_id = ? AND RequestStatus = 'Pending'";
-    $stmt = $conn->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param("i", $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($result->fetch_assoc()['count'] > 0) {
-            $pendingTypes['no_birth'] = true;
         }
         $stmt->close();
     }
@@ -525,42 +511,7 @@ unset($_SESSION['verification_notification']);
             }
         }
 
-        /* Custom Notification Popup */
-        .custom-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: #4CAF50;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 5px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 9999;
-            display: none;
-            max-width: 350px;
-            animation: slideIn 0.3s ease-out;
-            font-family: 'Archivo', sans-serif;
-        }
-
-        .custom-notification.verification {
-            background-color: #4CAF50;
-        }
-
-        .custom-notification.warning {
-            background-color: #ffcc00;
-            color: #333;
-        }
-
-        .custom-notification i {
-            margin-right: 10px;
-            font-size: 1.2rem;
-        }
-
-        .custom-notification-content {
-            display: flex;
-            align-items: center;
-        }
-
+        /* Animation for real-time notifications (defined in Script_realtime_notifications.js) */
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -665,14 +616,6 @@ unset($_SESSION['verification_notification']);
 </head>
 
 <body>
-    <!-- Custom Notification Popup -->
-    <div class="custom-notification" id="customNotification">
-        <div class="custom-notification-content">
-            <i class="fas fa-check-circle"></i>
-            <span id="notificationMessage"></span>
-        </div>
-    </div>
-
     <!-- Change Password Modal -->
     <div id="changePasswordModal" class="modal">
         <div class="modal-content">
@@ -774,9 +717,6 @@ unset($_SESSION['verification_notification']);
 
                             <!-- Cohabitation -->
                             <a href="../NewRequests/CohabilitationForm.php">Cohabitation</a>
-
-                            <!-- No Birth Certificate -->
-                            <a href="../NewRequests/NewNoBirthCertificate.php">No Birth Certificate</a>
                             
                         <?php else: ?>
                             <a href="#"
@@ -786,7 +726,7 @@ unset($_SESSION['verification_notification']);
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Request
                                 Business Permit</a>
                             <a href="#"
-                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Blotter/Complaint</a>
+                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Complain</a>
                             <a href="#"
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Apply
                                 for Scholar</a>
@@ -797,17 +737,15 @@ unset($_SESSION['verification_notification']);
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Guardianship</a>
                             <a href="#"
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Cohabitation</a>
-                            <a href="#"
-                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">No
-                                Birth Certificate</a>
                         <?php endif; ?>
                     <?php else: ?>
-                        <a href="../Login/login.php">Request Government Documents</a>
-                        <a href="../Login/login.php">Request Business Permit</a>
-                        <a href="../Login/login.php">Blotter/Complaint</a>
-                        <a href="../Login/login.php">Apply for Scholar</a>
-                        <a href="../Login/login.php">No fix income/No income</a>
-                        <a href="../Login/login.php">Guardianship</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Request Government Documents</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Request Business Permit</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Complain</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Apply for Scholar</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">No fix income/No income</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Guardianship</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Cohabitation</a>
                     
                     <?php endif; ?>
                 </div>
@@ -851,6 +789,66 @@ unset($_SESSION['verification_notification']);
     -->
 
     <script src="../Script.js"></script>
+
+    <!-- Global Notification Function -->
+    <script>
+        // Show notification function - must be global to be used in inline onclick handlers
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            
+            let bgColor, textColor, borderColor;
+            switch(type) {
+                case 'warning':
+                    bgColor = '#fff3e0';
+                    textColor = '#e65100';
+                    borderColor = '#e65100';
+                    break;
+                case 'success':
+                case 'verification':
+                    bgColor = '#e8f5e9';
+                    textColor = '#2e7d32';
+                    borderColor = '#2e7d32';
+                    break;
+                case 'error':
+                    bgColor = '#ffebee';
+                    textColor = '#c62828';
+                    borderColor = '#c62828';
+                    break;
+                default:
+                    bgColor = '#e3f2fd';
+                    textColor = '#1565c0';
+                    borderColor = '#1565c0';
+            }
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: ${bgColor};
+                color: ${textColor};
+                padding: 15px 20px;
+                border-radius: 8px;
+                border-left: 4px solid ${borderColor};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                max-width: 350px;
+                font-size: 14px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
 
     <!-- Mobile Responsive Script -->
     <script>
@@ -1119,35 +1117,140 @@ unset($_SESSION['verification_notification']);
                 });
             }
         });
-
-        // Custom notification function
-        function showNotification(message, type = 'warning') {
-            const notification = document.getElementById('customNotification');
-            const messageElement = document.getElementById('notificationMessage');
-
-            // Set notification type
-            notification.className = 'custom-notification';
-            if (type === 'verification') {
-                notification.classList.add('verification');
-                notification.querySelector('i').className = 'fas fa-check-circle';
-            } else {
-                notification.classList.add('warning');
-                notification.querySelector('i').className = 'fas fa-exclamation-circle';
-            }
-
-            messageElement.textContent = message;
-            notification.style.display = 'block';
-            notification.style.animation = 'slideIn 0.3s ease-out';
-
-            // Auto hide after 5 seconds
-            setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease-out';
+    </script>
+    
+    <!-- Real-Time Notification System -->
+    <script>
+        const RESIDENT_USER_ID = '<?php echo $_SESSION['user_id'] ?? ''; ?>';
+        const RESIDENT_ROLE = '<?php echo $_SESSION['role'] ?? 'resident'; ?>';
+        
+        console.log('[Notification System] User ID:', RESIDENT_USER_ID);
+        console.log('[Notification System] User Role:', RESIDENT_ROLE);
+        
+        // Only run for residents (role is 'resident' or empty/undefined for residents)
+        if (RESIDENT_USER_ID && (RESIDENT_ROLE === 'resident' || RESIDENT_ROLE === '')) {
+            console.log('[Notification System] ✓ Starting notification system...');
+            const STORAGE_KEY = `barangay_resident_${RESIDENT_USER_ID}_status`;
+            const CHECK_INTERVAL = 5000; // 5 seconds
+            
+            // Function to show notification
+            function showStatusNotification(message, status) {
+                const notification = document.createElement('div');
+                
+                let bgColor, textColor, borderColor;
+                if (status === 'approved' || status === 'completed') {
+                    bgColor = '#e8f5e9';
+                    textColor = '#2e7d32';
+                    borderColor = '#2e7d32';
+                } else if (status === 'declined') {
+                    bgColor = '#ffebee';
+                    textColor = '#c62828';
+                    borderColor = '#c62828';
+                } else if (status === 'released') {
+                    bgColor = '#e3f2fd';
+                    textColor = '#1565c0';
+                    borderColor = '#1565c0';
+                } else if (status === 'verified') {
+                    // Special styling for account verification
+                    bgColor = '#e8f5e9';
+                    textColor = '#1b5e20';
+                    borderColor = '#4caf50';
+                } else {
+                    bgColor = '#fff3e0';
+                    textColor = '#e65100';
+                    borderColor = '#e65100';
+                }
+                
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    z-index: 99999;
+                    max-width: 450px;
+                    padding: 16px 20px;
+                    border-radius: 4px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    font-family: Arial, sans-serif;
+                    font-size: 15px;
+                    font-weight: bold;
+                    line-height: 1.6;
+                    cursor: pointer;
+                    border-left: 4px solid ${borderColor};
+                    background: ${bgColor};
+                    color: ${textColor};
+                `;
+                
+                notification.textContent = message;
+                notification.onclick = function() {
+                    document.body.removeChild(notification);
+                };
+                
+                document.body.appendChild(notification);
+                
+                // For account verification, show longer (15 seconds) and reload page after
+                const displayTime = status === 'verified' ? 15000 : 10000;
+                
                 setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 300);
-            }, 5000);
+                    if (notification.parentNode) {
+                        document.body.removeChild(notification);
+                    }
+                    // Reload page after account verification notification to update UI
+                    if (status === 'verified') {
+                        window.location.reload();
+                    }
+                }, displayTime);
+            }
+            
+            // Function to check for updates
+            function checkForStatusUpdates() {
+                const timestamp = Date.now();
+                const apiPath = '/BarangaySystem/BarangaySystem/Process/check_status_updates.php?t=' + timestamp;
+                
+                fetch(apiPath, {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('[Notification Debug]', data);
+                    
+                    if (!data.success || !data.requests) {
+                        console.warn('[Notification] No success or requests in response');
+                        return;
+                    }
+                    
+                    // Show new notifications from server (database-backed)
+                    if (data.newNotifications && data.newNotifications.length > 0) {
+                        console.log('[Notification] ✓ New notifications received:', data.newNotifications.length);
+                        
+                        data.newNotifications.forEach(notification => {
+                            console.log('[Notification] Showing:', notification.message);
+                            showStatusNotification(notification.message, notification.status);
+                        });
+                    } else {
+                        console.log('[Notification] No new notifications');
+                    }
+                })
+                .catch(error => {
+                    console.error('[Notification] Error:', error);
+                });
+            }
+            
+            // Start checking every 5 seconds
+            setInterval(checkForStatusUpdates, CHECK_INTERVAL);
+            setTimeout(checkForStatusUpdates, 1000);
+            
+            console.log('[Notification System] ✓ Notification polling started');
+        } else {
+            console.log('[Notification System] ✗ Not starting - User ID:', RESIDENT_USER_ID, 'Role:', RESIDENT_ROLE);
         }
     </script>
+
 </body>
 
 </html>

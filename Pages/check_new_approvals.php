@@ -1,8 +1,7 @@
 <?php
 // check_new_approvals.php - Real-time approval checker
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Initialize resident session
+require_once __DIR__ . '/../config/session_resident.php';
 
 // Include database connection
 require_once 'db_connection.php';

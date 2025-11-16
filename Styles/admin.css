@@ -866,6 +866,14 @@
       width: 30%;
       box-shadow: 0 4px 10px rgba(192, 192, 192, 0.746);
     }
+    .guardianship-box {
+      background: rgba(246, 246, 246, 0.433);
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 30px;
+      width: 68%;
+      box-shadow: 0 4px 10px rgba(192, 192, 192, 0.746);
+    }
   
 .chart-box h4 {
       text-align: center;
@@ -898,6 +906,12 @@
       color: #333;
     }
     .genderbox h4 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+      color: #333;
+    }
+    .guardianship-box h4 {
       text-align: center;
       margin-bottom: 20px;
       font-size: 1.5rem;

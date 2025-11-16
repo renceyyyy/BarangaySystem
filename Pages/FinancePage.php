@@ -519,7 +519,7 @@ error_log("FinancePage.php — Role: " . ($_SESSION['role'] ?? 'NOT SET'));
                  ORDER BY date DESC";
             $pendingResult = $connection->query($pendingSql);
 
-                  $approvedSql = "SELECT CollectionID, refno, name, type, amount, date, PaymentReceivedBy, PaymentDateReceived"
+                  $approvedSql = "SELECT CollectionID, refno, name, type, amount, date, PaymentReceivedBy, PaymentDateReceived, ORNumber"
                     . " FROM tblpayment"
                     . " WHERE RequestStatus = 'Paid' $searchQuery"
                     . " ORDER BY date DESC";
@@ -544,6 +544,7 @@ error_log("FinancePage.php — Role: " . ($_SESSION['role'] ?? 'NOT SET'));
     <th>REFERENCE</th>
     <th>PAYMENT DATE RECEIVED</th>
     <th>PAYMENT RECEIVED BY</th>
+    <th>OR NUMBER</th>
     <th>AMOUNT</th>
   </tr>
 </thead>
@@ -559,6 +560,7 @@ error_log("FinancePage.php — Role: " . ($_SESSION['role'] ?? 'NOT SET'));
               <td>{$row["refno"]}</td>
               <td>" . htmlspecialchars($paymentDateReceived) . "</td>
               <td>" . htmlspecialchars($row["PaymentReceivedBy"]) . "</td>
+              <td>" . htmlspecialchars($row["ORNumber"]) . "</td>
               <td>" . number_format($row["amount"], 2) . "</td>
             </tr>";
     }

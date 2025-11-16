@@ -1240,7 +1240,7 @@ elseif ($row["RequestStatus"] === "Pending") {
                     $unemployed_since = $_POST['unemployed_since'];
                     $certificate_type = $_POST['certificate_type'];
                     $refno = $_POST['refno'];
-                    $request_date = $_POST['request_date'];
+                    $request_date = $_POST['DateRequested'];
 
                     $insertStmt = $connection->prepare("INSERT INTO unemploymenttbl (fullname, age, address, unemployed_since, certificate_type, refno, request_date, RequestStatus) VALUES (?, ?, ?, ?, ?, ?, ?,'Pending')");
                     $insertStmt->bind_param("sisssss", $fullname, $age, $address, $unemployed_since, $certificate_type, $refno, $request_date);
@@ -1530,41 +1530,56 @@ elseif ($row["RequestStatus"] === "Printed") {
                   $redirectUrl = $_SERVER['PHP_SELF'] . $panelParam;
 
                   if (isset($_POST['saveGuardianship'])) {
+                    // Debug: Check if form is being submitted
+                    error_log("Guardianship form submitted");
+                    error_log("POST data: " . print_r($_POST, true));
+                    
                     // Get values safely
-                    $refno = $_POST['refno'];
-                    $applicant_name = $_POST['applicant_name'];
-                    $request_type = $_POST['request_type'];
-                    $child_name = $_POST['child_name'];
-                    $child_age = (int) $_POST['child_age'];
-                    $child_address = $_POST['child_address'];
-                    $request_date = $_POST['request_date'];
+                    $refno = $_POST['refno'] ?? '';
+                    $applicant_name = $_POST['applicant_name'] ?? '';
+                    $request_type = $_POST['request_type'] ?? '';
+                    $child_name = $_POST['child_name'] ?? '';
+                    $child_age = isset($_POST['child_age']) ? (int) $_POST['child_age'] : 0;
+                    $child_address = $_POST['child_address'] ?? '';
+                    $request_date = $_POST['DateRequested'] ?? date('Y-m-d');
 
-                    // Prepare statement (prevents SQL injection)
-                    $insertstmt = $connection->prepare("INSERT INTO guardianshiptbl 
-        (refno, applicant_name, request_type, child_name, child_age, child_address, request_date, RequestStatus) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending)");
-                    $insertstmt->bind_param(
-                      "ssssiss",
-                      $refno,
-                      $applicant_name,
-                      $request_type,
-                      $child_name,
-                      $child_age,
-                      $child_address,
-                      $request_date,
-                      $request_status
-                    );
-
-                    if ($insertstmt->execute()) {
-                      $message = isset($_GET['message']) ? '&message=' . urlencode($_GET['message']) : '&message=approved';
-                      header("Location: " . $redirectUrl . $message);
-                      exit;
+                    // Validate required fields
+                    if (empty($refno) || empty($applicant_name) || empty($request_type) || empty($child_name) || empty($child_address)) {
+                      echo "<script>alert('Please fill in all required fields');</script>";
+                      error_log("Validation failed - missing fields");
                     } else {
-                      echo "<script>alert('Error saving guardianship: " . addslashes($stmt->error) . "');</script>";
-                    }
+                      // Prepare statement (prevents SQL injection)
+                      $insertstmt = $connection->prepare("INSERT INTO guardianshiptbl 
+        (refno, applicant_name, request_type, child_name, child_age, child_address, request_date, RequestStatus) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')");
+                      
+                      if ($insertstmt === false) {
+                        echo "<script>alert('Database prepare error: " . addslashes($connection->error) . "');</script>";
+                        error_log("Prepare failed: " . $connection->error);
+                      } else {
+                        $insertstmt->bind_param(
+                          "sssissa",
+                          $refno,
+                          $applicant_name,
+                          $request_type,
+                          $child_name,
+                          $child_age,
+                          $child_address,
+                          $request_date
+                        );
 
-                    $
-                      $insertstmt->close();
+                        if ($insertstmt->execute()) {
+                          error_log("Guardianship saved successfully with refno: " . $refno);
+                          $message = isset($_GET['message']) ? '&message=' . urlencode($_GET['message']) : '&message=approved';
+                          header("Location: " . $redirectUrl . $message);
+                          exit;
+                        } else {
+                          echo "<script>alert('Error saving guardianship: " . addslashes($insertstmt->error) . "');</script>";
+                          error_log("Execute failed: " . $insertstmt->error);
+                        }
+                        $insertstmt->close();
+                      }
+                    }
                   }
                   $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus, ReleasedBy 
                           FROM guardianshiptbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
@@ -1741,6 +1756,7 @@ else {
               </div>
               <h2>Guardianship Request Form</h2>
               <form id="addGuardianshipForm" method="POST" action="" class="modal-form">
+                <input type="hidden" name="panel" value="guardianshipPanel" />
                 <div class="form-grid">
                   <div class="form-group">
                     <label>Reference</label>

@@ -43,10 +43,30 @@ $connection = getDBConnection();
     // set payment received timestamp (when the record is created)
     $paymentDateReceived = date('Y-m-d H:i:s');
 
+    // Generate unique OR Number (Official Receipt Number)
+    $orNumber = 'OR-' . date('Y') . '-' . str_pad(rand(1, 999999), 6, '0', STR_PAD_LEFT);
+    
+    // Check if OR Number already exists, regenerate if it does
+    $checkStmt = $connection->prepare("SELECT ORNumber FROM tblpayment WHERE ORNumber = ?");
+    if ($checkStmt) {
+        $checkStmt->bind_param("s", $orNumber);
+        $checkStmt->execute();
+        $checkStmt->store_result();
+        
+        // Keep generating until we get a unique OR Number
+        while ($checkStmt->num_rows > 0) {
+            $orNumber = 'OR-' . date('Y') . '-' . str_pad(rand(1, 999999), 6, '0', STR_PAD_LEFT);
+            $checkStmt->bind_param("s", $orNumber);
+            $checkStmt->execute();
+            $checkStmt->store_result();
+        }
+        $checkStmt->close();
+    }
+
     $stmt = $connection->prepare("
         INSERT INTO tblpayment 
-        (refno, name, type, date, amount, PaymentDateReceived, RequestStatus, PaymentReceivedBy)
-        VALUES (?, ?, ?, ?, ?, ?, 'Paid', ?)
+        (refno, name, type, date, amount, PaymentDateReceived, RequestStatus, PaymentReceivedBy, ORNumber)
+        VALUES (?, ?, ?, ?, ?, ?, 'Paid', ?, ?)
     ");
 
     if (!$stmt) {
@@ -56,7 +76,7 @@ $connection = getDBConnection();
         exit;
     }
 
-    $stmt->bind_param("ssssdss", $refno, $ownername, $requesttype, $requesteddate, $amount, $paymentDateReceived, $paymentReceivedBy);
+    $stmt->bind_param("ssssdsss", $refno, $ownername, $requesttype, $requesteddate, $amount, $paymentDateReceived, $paymentReceivedBy, $orNumber);
 
     if ($stmt->execute()) {
         echo "success";

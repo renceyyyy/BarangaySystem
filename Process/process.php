@@ -1,6 +1,14 @@
 <?php
-// Start session only once at the beginning
-session_start();
+// Initialize session based on role (check if staff session exists first)
+if (session_status() === PHP_SESSION_NONE) {
+    // Try staff session first, then resident session, then default
+    if (isset($_COOKIE['BarangayStaffSession'])) {
+        session_name('BarangayStaffSession');
+    } elseif (isset($_COOKIE['BarangayResidentSession'])) {
+        session_name('BarangayResidentSession');
+    }
+    session_start();
+}
 // Include database connection module
 require_once 'db_connection.php';
 
@@ -581,47 +589,64 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
     $response = ['status' => 'error', 'message' => ''];
 
     try {
-        // Check if user is logged in
-        if (!isset($_SESSION['user_id'])) {
-            $response['message'] = "Please log in to apply for scholarship";
-            sendResponse($response);
-        }
-
-        $userId = $_SESSION['user_id'];
-
-        // Check if this is an admin submitting on behalf of someone
-        // If userId doesn't exist in users table, create a user record from the form data
         $conn = getDBConnection();
-        $checkUser = $conn->prepare("SELECT UserId FROM users WHERE UserId = ?");
-        $checkUser->bind_param("i", $userId);
-        $checkUser->execute();
-        $userExists = $checkUser->get_result()->num_rows > 0;
-        $checkUser->close();
+        $userId = null;
 
-        if (!$userExists) {
-            // Admin is submitting - create a user record from form data
-            error_log("Admin submission detected - creating user record from form data");
+        // Check if this is an admin or staff submission (walk-in application)
+        // Login sets: $_SESSION['user_id'], $_SESSION['role'] (admin/finance/sk/SuperAdmin)
+        $isAdminSubmission = isset($_SESSION['user_id']) && isset($_SESSION['role'])
+            && in_array($_SESSION['role'], ['admin', 'finance', 'sk', 'SuperAdmin']);
+
+        if ($isAdminSubmission) {
+            // Admin/Staff submitting walk-in application - create user record from form data
+            error_log("Admin/Staff walk-in submission detected");
 
             // Extract user data from form
-            $firstname = $_POST['firstname'] ?? '';
-            $lastname = $_POST['lastname'] ?? '';
-            $email = $_POST['email'] ?? '';
-            $contactNo = $_POST['contact_no'] ?? '';
-            $address = $_POST['address'] ?? '';
+            $firstname = trim($_POST['firstname'] ?? '');
+            $lastname = trim($_POST['lastname'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $contactNo = trim($_POST['contact_no'] ?? '');
+            $address = trim($_POST['address'] ?? '');
 
-            // Create basic user record
-            $insertUser = $conn->prepare("INSERT INTO users (Firstname, Lastname, Middlename, Email, ContactNo, Birthday, Gender, Age, Address, Birthplace, CivilStat, Nationality) VALUES (?, ?, '', ?, ?, '2000-01-01', 'Not Specified', 0, ?, '', 'Single', 'Filipino')");
-            $insertUser->bind_param("sssss", $firstname, $lastname, $email, $contactNo, $address);
-
-            if ($insertUser->execute()) {
-                $userId = $insertUser->insert_id;
-                error_log("Created new user record with ID: $userId");
-            } else {
-                error_log("Failed to create user record: " . $insertUser->error);
-                $response['message'] = "Failed to create user record";
+            // Validate required fields
+            if (empty($firstname) || empty($lastname) || empty($email) || empty($contactNo) || empty($address)) {
+                $response['message'] = "All applicant information fields are required";
                 sendResponse($response);
             }
-            $insertUser->close();
+
+            // Check if user already exists by email
+            $checkExisting = $conn->prepare("SELECT UserId FROM users WHERE Email = ?");
+            $checkExisting->bind_param("s", $email);
+            $checkExisting->execute();
+            $existingResult = $checkExisting->get_result();
+
+            if ($existingResult->num_rows > 0) {
+                // User exists, use their ID
+                $userId = $existingResult->fetch_assoc()['UserId'];
+                error_log("Found existing user with ID: $userId");
+            } else {
+                // Create new user record
+                $insertUser = $conn->prepare("INSERT INTO users (Firstname, Lastname, Middlename, Email, ContactNo, Birthday, Gender, Age, Address, Birthplace, CivilStat, Nationality) VALUES (?, ?, '', ?, ?, '2000-01-01', 'Not Specified', 0, ?, '', 'Single', 'Filipino')");
+                $insertUser->bind_param("sssss", $firstname, $lastname, $email, $contactNo, $address);
+
+                if ($insertUser->execute()) {
+                    $userId = $insertUser->insert_id;
+                    error_log("Created new user record with ID: $userId");
+                } else {
+                    error_log("Failed to create user record: " . $insertUser->error);
+                    $response['message'] = "Failed to create user record";
+                    sendResponse($response);
+                }
+                $insertUser->close();
+            }
+            $checkExisting->close();
+        } else {
+            // Regular user submission - require login
+            if (!isset($_SESSION['user_id'])) {
+                $response['message'] = "Please log in to apply for scholarship";
+                sendResponse($response);
+            }
+            $userId = $_SESSION['user_id'];
         }
 
         // Debug: Log received data

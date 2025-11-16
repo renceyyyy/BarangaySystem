@@ -1,15 +1,15 @@
-<?php 
+<?php
 // Initialize role-based session for SK
 require_once __DIR__ . '/../config/session_config.php';
 initRoleBasedSession('sk');
 
 // Security check — only sk users allowed
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'sk') {
-    header("Location: ../Login/login.php");
-    exit();
+  header("Location: ../Login/login.php");
+  exit();
 }
 
-include 'dashboard.php'; 
+include 'dashboard.php';
 ?>
 
 <!DOCTYPE html>
@@ -2777,6 +2777,17 @@ include 'dashboard.php';
         }
         console.log('✅ All file uploads validated successfully');
 
+        // Show loading notification
+        if (window.showAlert) {
+          showAlert('info', 'Submitting application... Please wait.', 10000);
+        }
+
+        // Disable submit button to prevent double submission
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
         // Submit the form
         console.log('🚀 Submitting form to ../Process/process.php');
         fetch('../Process/process.php', {
@@ -2799,21 +2810,40 @@ include 'dashboard.php';
           })
           .then(data => {
             console.log('✅ Parsed data:', data);
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+
             if (data.status === 'success') {
-              if (window.showAlert) showAlert('success', 'Scholarship application submitted successfully!');
-              else alert('Scholarship application submitted successfully!');
+              if (window.showAlert) {
+                showAlert('success', '✅ Scholarship application submitted successfully! The application is now in the system.', 5000);
+              } else {
+                alert('Scholarship application submitted successfully!');
+              }
               closeScholarshipModal();
-              // Refresh the page to show the new application
-              window.location.reload();
+              // Refresh the page after a short delay to show the notification
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
             } else {
-              if (window.showAlert) showAlert('error', 'Error: ' + (data.message || 'Unknown error'));
-              else alert('Error: ' + data.message);
+              if (window.showAlert) {
+                showAlert('error', '❌ Error: ' + (data.message || 'Unknown error occurred'), 6000);
+              } else {
+                alert('Error: ' + data.message);
+              }
             }
           })
           .catch(error => {
             console.error('❌ Fetch Error:', error);
-            if (window.showAlert) showAlert('error', 'An error occurred while submitting the application: ' + error.message);
-            else alert('An error occurred while submitting the application: ' + error.message);
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+
+            if (window.showAlert) {
+              showAlert('error', '❌ An error occurred while submitting the application: ' + error.message, 6000);
+            } else {
+              alert('An error occurred while submitting the application: ' + error.message);
+            }
           });
       });
 

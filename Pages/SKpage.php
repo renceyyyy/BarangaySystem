@@ -3080,16 +3080,6 @@ include 'dashboard.php';
         return text ? text.replace(/[&<>"']/g, m => map[m]) : '';
       }
 
-      // Override showPanel to load reports when Reports tab is shown
-      const originalShowPanel = window.showPanel;
-      window.showPanel = function(panelId) {
-        originalShowPanel(panelId);
-
-        if (panelId === 'reportsPanel') {
-          loadReportsData();
-        }
-      };
-
       // ===== PRINT REPORT FUNCTION =====
       function printReport() {
         // Add print date to report container

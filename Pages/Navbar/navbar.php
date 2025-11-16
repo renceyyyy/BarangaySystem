@@ -1132,9 +1132,24 @@ unset($_SESSION['verification_notification']);
             console.log('[Notification System] ✓ Starting notification system...');
             const STORAGE_KEY = `barangay_resident_${RESIDENT_USER_ID}_status`;
             const CHECK_INTERVAL = 5000; // 5 seconds
+            const SHOWN_NOTIFICATIONS_KEY = `barangay_resident_${RESIDENT_USER_ID}_shown_notifs`;
+            
+            // Track which notifications have been shown to prevent duplicates
+            let shownNotificationIds = new Set();
+            
+            // Load shown notification IDs from sessionStorage (persist across page reloads, cleared on browser close)
+            try {
+                const stored = sessionStorage.getItem(SHOWN_NOTIFICATIONS_KEY);
+                if (stored) {
+                    shownNotificationIds = new Set(JSON.parse(stored));
+                    console.log('[Notification System] Loaded shown notification IDs:', Array.from(shownNotificationIds));
+                }
+            } catch (e) {
+                console.log('[Notification System] Could not load shown notifications from storage');
+            }
             
             // Function to show notification
-            function showStatusNotification(message, status) {
+            function showStatusNotification(message, status, notifId) {
                 const notification = document.createElement('div');
                 
                 let bgColor, textColor, borderColor;
@@ -1182,7 +1197,20 @@ unset($_SESSION['verification_notification']);
                 
                 notification.textContent = message;
                 notification.onclick = function() {
-                    document.body.removeChild(notification);
+                    if (notification.parentNode) {
+                        document.body.removeChild(notification);
+                    }
+                    // Mark notification as shown when user dismisses it
+                    if (notifId) {
+                        shownNotificationIds.add(notifId);
+                        try {
+                            sessionStorage.setItem(SHOWN_NOTIFICATIONS_KEY, JSON.stringify(Array.from(shownNotificationIds)));
+                        } catch (e) {
+                            console.log('[Notification System] Could not save shown notifications');
+                        }
+                        // Also mark as read on the server
+                        markNotificationAsRead(notifId);
+                    }
                 };
                 
                 document.body.appendChild(notification);
@@ -1194,6 +1222,15 @@ unset($_SESSION['verification_notification']);
                     if (notification.parentNode) {
                         document.body.removeChild(notification);
                     }
+                    // Mark as shown after display time
+                    if (notifId) {
+                        shownNotificationIds.add(notifId);
+                        try {
+                            sessionStorage.setItem(SHOWN_NOTIFICATIONS_KEY, JSON.stringify(Array.from(shownNotificationIds)));
+                        } catch (e) {
+                            console.log('[Notification System] Could not save shown notifications');
+                        }
+                    }
                     // Reload page after account verification notification to update UI
                     if (status === 'verified') {
                         window.location.reload();
@@ -1201,10 +1238,23 @@ unset($_SESSION['verification_notification']);
                 }, displayTime);
             }
             
+            // Function to mark notification as read on server
+            function markNotificationAsRead(notifId) {
+                fetch('../Process/mark_notification_as_read.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'notification_id=' + notifId
+                })
+                .catch(error => console.log('[Notification System] Error marking as read:', error));
+            }
+            
+            
             // Function to check for updates
             function checkForStatusUpdates() {
                 const timestamp = Date.now();
-                const apiPath = '/BarangaySystem/BarangaySystem/Process/check_status_updates.php?t=' + timestamp;
+                const apiPath = '../Process/check_status_updates.php?t=' + timestamp;
                 
                 fetch(apiPath, {
                     method: 'GET',
@@ -1229,8 +1279,21 @@ unset($_SESSION['verification_notification']);
                         console.log('[Notification] ✓ New notifications received:', data.newNotifications.length);
                         
                         data.newNotifications.forEach(notification => {
-                            console.log('[Notification] Showing:', notification.message);
-                            showStatusNotification(notification.message, notification.status);
+                            // Only show if we haven't shown this notification before
+                            if (!shownNotificationIds.has(notification.id)) {
+                                console.log('[Notification] Showing:', notification.message, 'ID:', notification.id);
+                                // Mark as shown immediately to prevent duplicate shows in next poll
+                                shownNotificationIds.add(notification.id);
+                                try {
+                                    sessionStorage.setItem(SHOWN_NOTIFICATIONS_KEY, JSON.stringify(Array.from(shownNotificationIds)));
+                                } catch (e) {
+                                    console.log('[Notification System] Could not save shown notifications');
+                                }
+                                // Display the notification
+                                showStatusNotification(notification.message, notification.status, notification.id);
+                            } else {
+                                console.log('[Notification] Skipped (already shown):', notification.message);
+                            }
                         });
                     } else {
                         console.log('[Notification] No new notifications');

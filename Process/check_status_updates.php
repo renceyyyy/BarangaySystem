@@ -352,7 +352,9 @@ try {
     }
     
     // First, fetch any unread notifications from the database
-    $unreadSql = "SELECT id, message, status, refno, request_type FROM user_notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC";
+    // NOTE: DO NOT mark as read here - notifications should persist across all devices
+    // Users should see the same notification on all their logged-in devices
+    $unreadSql = "SELECT id, message, status, refno, request_type, created_at FROM user_notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT 5";
     $unreadStmt = $conn->prepare($unreadSql);
     if ($unreadStmt) {
         $unreadStmt->bind_param("i", $userId);
@@ -365,21 +367,15 @@ try {
                 'message' => $notifRow['message'],
                 'status' => $notifRow['status'],
                 'refno' => $notifRow['refno'],
-                'type' => $notifRow['request_type']
+                'type' => $notifRow['request_type'],
+                'created_at' => $notifRow['created_at']
             ];
         }
         $unreadStmt->close();
         
-        // Mark these notifications as read
-        if (count($newNotifications) > 0) {
-            $markReadSql = "UPDATE user_notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0";
-            $markReadStmt = $conn->prepare($markReadSql);
-            if ($markReadStmt) {
-                $markReadStmt->bind_param("i", $userId);
-                $markReadStmt->execute();
-                $markReadStmt->close();
-            }
-        }
+        // REMOVED: Automatic marking as read
+        // Instead, keep notifications as unread so they appear on all devices
+        // They will be marked as read only when user explicitly acknowledges them
     }
     
     foreach ($currentRequests as $request) {

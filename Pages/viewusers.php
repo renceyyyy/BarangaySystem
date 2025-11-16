@@ -8,7 +8,7 @@ if ($connection->connect_error) {
     exit;
 }
 
-// Handle POST request for updating or deleting user
+// Handle POST request for updating, deleting, or deactivating user
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Get JSON input
     $input = file_get_contents('php://input');
@@ -30,6 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['success' => true, 'message' => 'User deleted successfully']);
         } else {
             echo json_encode(['success' => false, 'error' => 'Delete failed: ' . $stmt->error]);
+        }
+        
+        $stmt->close();
+        $connection->close();
+        exit;
+    }
+    
+    // Handle DEACTIVATE action
+    if (isset($data['action']) && $data['action'] === 'deactivate') {
+        $stmt = $connection->prepare("UPDATE userloginfo SET AccountStatus = 'Unverified' WHERE UserID = ?");
+        $stmt->bind_param("i", $id);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Account deactivated successfully']);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Deactivation failed: ' . $stmt->error]);
         }
         
         $stmt->close();

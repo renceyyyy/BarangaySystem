@@ -44,7 +44,7 @@ require_once '../Process/db_connection.php';
     <div class="row">
       <!-- Sidebar -->
       <div class="col-12 col-md-2 sidebar">
-        <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+        <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
         <button class="sidebar-btn" type="button" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
@@ -9330,8 +9330,30 @@ function releaseNoBirthCertDocument(id) {
                       saveHearingBtn.disabled = true;
                       saveHearingBtn.textContent = 'Saved';
 
+
+                      // ✅ NEW: Check if escalated (hearing_no=3 & no_agreement)
+                      if (res.escalate) {
+                        alert('Maximum hearings reached. Case has been closed and escalated to Lupong Tagapamayapa.');
+                        location.reload();
+                        return;
+                      }
+
+
+
+
+                      // ✅ NEW: Check hearing_no and outcome
+                      const hearingNo = res.hearing_no || 0;
                       // NEW: Check outcome and show modal if 'no_agreement', else reload
                       if (outcome === 'no_agreement') {
+                        if (hearingNo >=3){
+                          // Hide Schedule Hearing button in post-hearing modal
+                          document.getElementById('postHearingScheduleHearing').style.display = 'none';
+                          document.getElementById('postHearingCloseBlotter').textContent = 'Close & Escalate to Lupong';
+                        } else {
+                          // Show both buttons
+                          document.getElementById('postHearingScheduleHearing').style.display = 'block';
+                          document.getElementById('postHearingCloseBlotter').textContent = 'Close Blotter';
+                        }
                         document.getElementById('postHearingModal').style.display = 'flex';
                       } else {
                         location.reload();
@@ -9353,20 +9375,25 @@ function releaseNoBirthCertDocument(id) {
                 });
               }
 
-              // NEW: Event listeners for post-hearing modal buttons
+              // ✅ NEW: Update post-hearing modal button logic
               document.getElementById('postHearingCloseBlotter').addEventListener('click', function() {
                 if (!currentBlotterId) return alert('Unable to determine blotter ID.');
+                
+                // Check button text to determine if escalation is needed
+                const btnText = this.textContent;
+                const status = btnText.includes('Escalate') ? 'closed_unresolved' : 'closed_unresolved';
+                
                 fetch('../Process/blotter/closeblotter.php', {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/x-www-form-urlencoded'
                     },
-                    body: 'id=' + encodeURIComponent(currentBlotterId) + '&status=closed_unresolved'
+                    body: `id=${encodeURIComponent(currentBlotterId)}&status=${status}`
                   })
                   .then(response => response.text())
                   .then(result => {
                     if (result.trim() === 'success') {
-                      alert('Blotter closed as unresolved.');
+                      alert(btnText.includes('Escalate') ? 'Blotter closed and escalated to Lupong Tagapamayapa.' : 'Blotter closed as unresolved.');
                       document.getElementById('postHearingModal').style.display = 'none';
                       document.getElementById('viewBlotterModal').style.display = 'none';
                       location.reload();

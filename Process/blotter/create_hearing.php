@@ -1,5 +1,4 @@
 <?php
-// filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Process\blotter\create_hearing.php
 session_name('BarangayStaffSession');
 session_start();
 header('Content-Type: application/json');
@@ -31,6 +30,12 @@ $stmt->close();
 
 $hearing_no = ($max_no === null) ? 1 : ($max_no + 1);
 
+// ✅ NEW: Enforce 3-hearing limit
+if ($hearing_no > 3) {
+    echo json_encode(['success' => false, 'error' => 'Maximum 3 hearings allowed. Case must be escalated to Lupong Tagapamayapa.']);
+    exit;
+}
+
 // Generate hearing_id in the format blotter_id-h{hearing_no}
 $hearing_id = $blotter_id . '-h' . $hearing_no;
 
@@ -46,5 +51,4 @@ if ($stmt->execute()) {
     echo json_encode(['success' => false, 'error' => 'Failed to save hearing']);
 }
 $stmt->close();
-// Singleton connection closed by PHP
 ?>

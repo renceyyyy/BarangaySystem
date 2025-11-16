@@ -1,13 +1,9 @@
 <?php
 session_name('BarangayStaffSession');
 session_start();
-
 date_default_timezone_set('Asia/Manila');
-// Endpoint: Process/blotter/record_hearing.php
-// Accepts multipart form data with: blotter_id, schedule_start (optional), mediator_name, hearing_notes, outcome, hearing_id (optional), hearing_files[] (optional files)
 header('Content-Type: application/json');
 
-// Load DB connection
 $dbPath = __DIR__ . '/../db_connection.php';
 if (!file_exists($dbPath)) {
     echo json_encode(['success' => false, 'message' => 'Database connection file not found.']);
@@ -15,7 +11,6 @@ if (!file_exists($dbPath)) {
 }
 require_once $dbPath;
 
-// Read form data
 $blotter_id = $_POST['blotter_id'] ?? '';
 $schedule_start = $_POST['schedule_start'] ?? '';
 $mediator_name = $_POST['mediator_name'] ?? '';
@@ -28,14 +23,12 @@ if (empty($blotter_id)) {
     exit;
 }
 
-// Sanitize / trim
 $blotter_id = trim($blotter_id);
 $mediator_name = !empty($mediator_name) ? trim($mediator_name) : null;
 $hearing_notes = !empty($hearing_notes) ? trim($hearing_notes) : null;
 $outcome = !empty($outcome) ? trim($outcome) : null;
 $hearing_id_input = !empty($hearing_id_input) ? trim($hearing_id_input) : null;
 
-// Initialize DB connection
 if (function_exists('getDBConnection')) {
     $conn = getDBConnection();
 } elseif (isset($connection) && $connection) {
@@ -52,7 +45,7 @@ if (!$conn) {
     exit;
 }
 
-// === Server-side total upload size check ===
+// Server-side total upload size check
 $MAX_TOTAL_BYTES = 5 * 1024 * 1024; // 5MB
 $totalSizeBytes = 0;
 if (isset($_FILES['hearing_files'])) {
@@ -66,11 +59,10 @@ if (isset($_FILES['hearing_files'])) {
     }
 }
 if ($totalSizeBytes > $MAX_TOTAL_BYTES) {
-    echo json_encode(['success' => false, 'message' => 'Total uploaded files exceed 5MB. Please choose smaller files or fewer files.']);
+    echo json_encode(['success' => false, 'message' => 'Total uploaded files exceed 5MB.']);
     exit;
 }
 
-// Check if blotter exists
 $check = $conn->prepare("SELECT blotter_id FROM blottertbl WHERE blotter_id = ? LIMIT 1");
 $check->bind_param('s', $blotter_id);
 $check->execute();
@@ -81,9 +73,7 @@ if ($check->num_rows === 0) {
 }
 $check->close();
 
-// Function to generate unique file ID
-function generateFileId($conn)
-{
+function generateFileId($conn) {
     $last_id = null;
     $date = date('Ymd');
     $prefix = "FILE-$date-";
@@ -95,7 +85,6 @@ function generateFileId($conn)
     $stmt->bind_result($last_id);
     $stmt->fetch();
     $stmt->close();
-
     if ($last_id) {
         $last_seq = intval(substr($last_id, -3));
         $next_seq = $last_seq + 1;
@@ -105,14 +94,11 @@ function generateFileId($conn)
     return $prefix . str_pad($next_seq, 3, '0', STR_PAD_LEFT);
 }
 
-
-// Handle hearing update/insert
 $hearing_id = null;
 $hearing_no = null;
 $schedule_end = null;
 
 if ($hearing_id_input) {
-    // Try to update existing hearing
     $sel = $conn->prepare("SELECT hearing_id, hearing_no FROM blotter_hearingstbl WHERE hearing_id = ? AND blotter_id = ? LIMIT 1");
     if ($sel) {
         $sel->bind_param('ss', $hearing_id_input, $blotter_id);
@@ -147,9 +133,7 @@ if ($hearing_id_input) {
     }
 }
 
-// If no update happened, insert new hearing
 if (!$hearing_id) {
-    // Determine next hearing_no
     $stmt = $conn->prepare("SELECT MAX(hearing_no) as max_no FROM blotter_hearingstbl WHERE blotter_id = ?");
     $stmt->bind_param('s', $blotter_id);
     $stmt->execute();
@@ -198,7 +182,20 @@ if (!$hearing_id) {
     $insert->close();
 }
 
-// NEW: Update blotter status if outcome is 'agreement'
+// ✅ NEW: Auto-escalate if hearing_no=3 AND outcome=no_agreement
+$escalate = false;
+if ($outcome === 'no_agreement' && $hearing_no == 3) {
+    $escalate_stmt = $conn->prepare("UPDATE blottertbl SET status='closed_unresolved', escalated_to_lupong=1, escalation_date=NOW(), closed_at=NOW() WHERE blotter_id=?");
+    if ($escalate_stmt) {
+        $escalate_stmt->bind_param('s', $blotter_id);
+        if ($escalate_stmt->execute()) {
+            $escalate = true;
+        }
+        $escalate_stmt->close();
+    }
+}
+
+// Update blotter status if outcome is 'agreement'
 if ($outcome === 'agreement') {
     $update_status = $conn->prepare("UPDATE blottertbl SET status = 'closed_resolved', closed_at = NOW() WHERE blotter_id = ?");
     if (!$update_status) {
@@ -214,7 +211,7 @@ if ($outcome === 'agreement') {
     $update_status->close();
 }
 
-// Handle file uploads (after hearing is saved)
+// Handle file uploads
 $uploadErrors = [];
 $uploadDir = __DIR__ . '/../../uploads/blotters/' . $blotter_id . '/';
 $relativeDir = 'uploads/blotters/' . $blotter_id . '/';
@@ -263,8 +260,10 @@ if (isset($_FILES['hearing_files']) && count($_FILES['hearing_files']['name']) >
     }
 }
 
-// Prepare response
 $message = 'Hearing saved';
+if ($escalate) {
+    $message = 'Maximum hearings reached. Case closed and escalated to Lupong Tagapamayapa.';
+}
 if (!empty($uploadErrors)) {
     $message .= ' (Some files failed: ' . implode('; ', $uploadErrors) . ')';
 } elseif (isset($_FILES['hearing_files']) && count($_FILES['hearing_files']['name']) > 0) {
@@ -276,7 +275,8 @@ echo json_encode([
     'message' => $message,
     'hearing_id' => $hearing_id,
     'hearing_no' => $hearing_no,
-    'schedule_end' => $schedule_end
+    'schedule_end' => $schedule_end,
+    'escalate' => $escalate
 ]);
 
 exit;

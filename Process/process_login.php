@@ -57,7 +57,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
             
             // Set role-specific session name BEFORE starting session
-            if (in_array($userRole, ['admin', 'finance', 'sk', 'SuperAdmin'])) {
+            if (in_array($userRole, ['admin', 'finance', 'sk', 'SuperAdmin', 'lupong'])) {
                 session_name('BarangayStaffSession');
             } else {
                 session_name('BarangayResidentSession');
@@ -95,6 +95,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 header("Location: ../Pages/SKpage.php");
             } elseif ($user['Role'] === 'SuperAdmin') {
                 header("Location: ../Pages/SuperAdmin.php");
+            } elseif ($user['Role'] === 'lupong') {
+                header("Location: ../Pages/LupongPage.php");
             } else {
                 header("Location: ../Pages/landingpage.php");
             }

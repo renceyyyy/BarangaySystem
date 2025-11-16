@@ -3451,13 +3451,23 @@ function reloadItemRequestsPanel(message) {
                 value="<?php echo htmlspecialchars($_GET['search_online_complainant'] ?? ''); ?>">
                 <button type="submit" class="govdoc-search-button">Search</button>
 
+                <?php $selectedDateFilter = $_GET['date_filter_online'] ?? 'today'; ?>
+                <select name="date_filter_online" class="govdoc-status-filter" onchange="this.form.submit()" style="margin-left:10px; padding:8px 10px;">
+                  <option value="today" <?php echo ($selectedDateFilter === 'today') ? 'selected' : ''; ?>>Today</option>
+                  <option value="this_week" <?php echo ($selectedDateFilter === 'this_week') ? 'selected' : ''; ?>>This Week</option>
+                  <option value="this_month" <?php echo ($selectedDateFilter === 'this_month') ? 'selected' : ''; ?>>This Month</option>
+                  <option value="this_year" <?php echo ($selectedDateFilter === 'this_year') ? 'selected' : ''; ?>>This Year</option>
+                  <option value="all_time" <?php echo ($selectedDateFilter === 'all_time') ? 'selected' : ''; ?>>All Time</option>
+                </select>
+
+
                 <?php $selectedFilter = $_GET['online_status_filter'] ?? 'Pending'; // default Pending ?>
 
                 <!-- Added: status filter for online complaints -->
                 <select name="online_status_filter" class="govdoc-status-filter" onchange="this.form.submit()" style="margin-left:10px; padding:8px 10px;">
                   <option value="all" <?php echo ($selectedFilter === 'all') ? 'selected' : ''; ?>>All</option>
                   <option value="Pending" <?php echo ($selectedFilter === 'Pending') ? 'selected' : ''; ?>>Pending</option>
-                  <option value="Approved" <?php echo ($selectedFilter === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                  <option value="Approved" <?php echo ($selectedFilter === 'Approved') ? 'selected' : ''; ?>>Escalated to blotter</option>
                 </select>
   
               </div>
@@ -3500,6 +3510,31 @@ function reloadItemRequestsPanel(message) {
                       $whereClauses[] = "CONCAT(Lastname, ', ', Firstname, ' ', COALESCE(Middlename, '')) LIKE '%$searchEscaped%'";
                     }
 
+                    // Date filter (applies regardless of search)
+                    $dateFilter = isset($_GET['date_filter_online']) ? $conn->real_escape_string($_GET['date_filter_online']) : 'today';
+                    if (!in_array($dateFilter, ['today','this_week','this_month','this_year','all_time'], true)) {
+                      $dateFilter = 'today';
+                    }
+                    switch ($dateFilter) {
+                      case 'today':
+                        $whereClauses[] = "DATE(DateComplained) = CURDATE()";
+                        break;
+                      case 'this_week':
+                        // YEARWEEK(...,1) uses Monday as first day of week
+                        $whereClauses[] = "YEARWEEK(DateComplained, 1) = YEARWEEK(CURDATE(), 1)";
+                        break;
+                      case 'this_month':
+                        $whereClauses[] = "YEAR(DateComplained) = YEAR(CURDATE()) AND MONTH(DateComplained) = MONTH(CURDATE())";
+                        break;
+                      case 'this_year':
+                        $whereClauses[] = "YEAR(DateComplained) = YEAR(CURDATE())";
+                        break;
+                      case 'all_time':
+                      default:
+                        // no date filter
+                        break;
+                    }
+
                     // Status filter
                     $statusFilter = isset($_GET['online_status_filter']) ? $conn->real_escape_string($_GET['online_status_filter']) : 'Pending';
                     if ($statusFilter !== 'all') {
@@ -3525,6 +3560,8 @@ function reloadItemRequestsPanel(message) {
                         $type = htmlspecialchars($row['IncidentType'] ?? 'N/A');
                         $dateComplained = $row['DateComplained'] ? htmlspecialchars(date('F d, Y h:i A', strtotime($row['DateComplained']))) : 'N/A';
                         $status = htmlspecialchars($row['RequestStatus'] ?? 'N/A');
+
+                        $statusLabel = ($row['RequestStatus'] === 'Approved') ? 'Escalated to blotter' : $status;
                         echo "<tr>
                           <td>" . htmlspecialchars($row['CmpID']) . "</td>
                           <td>$refno</td>
@@ -3533,7 +3570,7 @@ function reloadItemRequestsPanel(message) {
                           <td>$location</td>
                           <td>$type</td>
                           <td>$dateComplained</td>
-                          <td>$status</td>
+                          <td>$statusLabel</td>
                           <td>
                             <button class='action-btn-2 view-complaint' data-id='" . htmlspecialchars($row['CmpID']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                               <i class='fas fa-eye'></i>
@@ -3667,8 +3704,8 @@ function reloadItemRequestsPanel(message) {
 
                 <!-- Convert Form (Hidden by default) -->
                 <div id="convertFormSection" style="display:none; margin-top: 30px; border-top: 2px solid #ddd; padding-top: 20px;">
-                  <h2 style="text-align:center; color: #059629ff;">Convert to Blotter Report</h2>
-                  <p style="text-align:center; color: #666; margin-bottom: 20px;">
+                  <h2 style="text-align:center;">Convert to Blotter Report</h2>
+                  <p style="text-align:center; color: #666; margin-bottom: 20px; font-size: 16px;">
                     Please add respondent(s) and witness(es) details to complete the blotter report.
                   </p>
 
@@ -3682,7 +3719,10 @@ function reloadItemRequestsPanel(message) {
                   <hr>
 
                   <!-- Witnesses Section -->
-                  <h3>Witnesses Details (Optional)</h3>
+                  <h3>Witnesses Details<p style="color: #666; font-size: 16px; font-style: italic">
+                    (Optional)
+                  </p></h3>
+                  
                   <div id="convert_witnessesContainer">
                     <!-- Witness rows will be added here -->
                   </div>
@@ -4584,7 +4624,7 @@ function reloadItemRequestsPanel(message) {
 
           <!-- blottered individuals panel -->
           <div id="blotteredIndividualsPanel" class="panel-content">
-            <h1>Blottered Individuals</h1>
+            <h1>Blottered Individuals</h1> 
 
             <form method="GET" action="" class="govdoc-search-form" style="display:flex;gap:10px;align-items:center;">
               <div class="govdoc-search-group">
@@ -4603,7 +4643,7 @@ function reloadItemRequestsPanel(message) {
                 <option value="this_year" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'this_year') ? 'selected' : ''; ?>>This Year</option>
                 <option value="all_time" <?php echo (isset($_GET['date_filter']) && $_GET['date_filter'] === 'all_time') ? 'selected' : ''; ?>>All Time</option>
               </select>
-              <label for="blotter_status" style="margin-left:10px;">Case Status:</label>
+              <!-- <label for="blotter_status" style="margin-left:10px;">Case Status:</label> -->
               <select name="blotter_status" class="govdoc-status-filter" id="blotter_status" onchange="this.form.submit()">
                 <option value="active" <?php if (!isset($_GET['blotter_status']) || $_GET['blotter_status'] == 'active') echo 'selected'; ?>>Active</option>
                 <option value="hearing_scheduled" <?php if (isset($_GET['blotter_status']) && $_GET['blotter_status'] == 'hearing_scheduled') echo 'selected'; ?>>Hearing Scheduled</option>
@@ -8370,15 +8410,23 @@ function releaseNoBirthCertDocument(id) {
                         year: 'numeric', month: 'long', day: 'numeric', 
                         hour: '2-digit', minute: '2-digit'
                       }) : 'N/A';
-                    document.getElementById('view_complaint_status').value = complaint.RequestStatus || 'Pending';
-                    
+                    // document.getElementById('view_complaint_status').value = complaint.RequestStatus || 'Pending';
+                    // show friendly label in the modal (Approved => Escalated to blotter)
+                    const statusLabel = (complaint.RequestStatus === 'Approved') ? 'Escalated to blotter' : (complaint.RequestStatus || 'Pending');
+                    document.getElementById('view_complaint_status').value = statusLabel;
+
+                    currentComplaintData = complaint;
+
                     const convertBtnEl = document.getElementById('convertToBlotterBtn'); 
                     const convertSectionEl = document.getElementById('convertFormSection');
                     if (complaint.RequestStatus === 'Approved'){
                       if (convertBtnEl) convertBtnEl.style.display = 'none';
                       if (convertSectionEl) convertSectionEl.style.display = 'none';
                     } else {
-                      if (convertBtnEl) convertBtnEl.style.display = 'block';
+
+                      // default: allow Convert button unless the conversion form is already visible
+                      const formVisible = convertSectionEl && window.getComputedStyle(convertSectionEl).display !== 'none';
+                      if (convertBtnEl) convertBtnEl.style.display = formVisible ? 'none' : 'block';
                     }
 
 
@@ -8518,13 +8566,13 @@ function releaseNoBirthCertDocument(id) {
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Address</label>
-                  <input type="text" class="convert-accused-address">
+                  <label>Address *</label>
+                  <input type="text" class="convert-accused-address" required>
                 </div>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
                   <div class="form-group">
-                    <label>Age</label>
-                    <input type="number" class="convert-accused-age">
+                    <label>Age *</label>
+                    <input type="number" class="convert-accused-age" min="1" step="1" required>
                   </div>
                   <div class="form-group">
                     <label>Contact No</label>
@@ -8613,29 +8661,40 @@ function releaseNoBirthCertDocument(id) {
               const accused = [];
               
               let hasErrors = false;
-              accusedRows.forEach(row => {
+              let invalidMsg = '';
+              accusedRows.forEach((row, i) => {
                 const lastname = row.querySelector('.convert-accused-lastname').value.trim();
                 const firstname = row.querySelector('.convert-accused-firstname').value.trim();
-                
+                const address = row.querySelector('.convert-accused-address').value.trim();
+                const ageStr = row.querySelector('.convert-accused-age').value.trim();
+
                 if (!lastname || !firstname) {
                   hasErrors = true;
+                  invalidMsg = 'Please fill Last Name and First Name for all respondents.';
                   return;
                 }
-                
+
+                const age = parseInt(ageStr, 10);
+                if (!address || !ageStr || isNaN(age) || age <= 0) {
+                  hasErrors = true;
+                  invalidMsg = 'Please add a valid Address and Age for all respondents.';
+                  return;
+                }
+
                 accused.push({
                   lastname: lastname,
                   firstname: firstname,
                   middlename: row.querySelector('.convert-accused-middlename').value.trim(),
                   alias: row.querySelector('.convert-accused-alias').value.trim(),
-                  address: row.querySelector('.convert-accused-address').value.trim(),
-                  age: row.querySelector('.convert-accused-age').value.trim(),
+                  address: address,
+                  age: age, // integer
                   contact_no: row.querySelector('.convert-accused-contact').value.trim(),
                   email: row.querySelector('.convert-accused-email').value.trim()
                 });
               });
 
               if (hasErrors) {
-                alert('Please fill in all required fields (Last Name and First Name) for all respondents.');
+                alert(invalidMsg);
                 return;
               }
 

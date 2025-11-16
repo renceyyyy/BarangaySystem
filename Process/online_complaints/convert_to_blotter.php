@@ -147,13 +147,25 @@ try {
     $stmt->close();
 
     // 6. Insert accused/respondents
+
+    foreach ($accused as $idx => $acc) {
+        $acc_lastname = trim($acc['lastname'] ?? '');
+        $acc_firstname = trim($acc['firstname'] ?? '');
+        $acc_address = trim($acc['address'] ?? '');
+        $acc_age = isset($acc['age']) ? intval($acc['age']) : 0;
+
+        if ($acc_lastname === '' || $acc_firstname === '' || $acc_address === '' || $acc_age <= 0) {
+            throw new Exception("Respondent #" . ($idx + 1) . " requires Lastname, Firstname, Address and valid Age (>=1).");
+        }
+    }
+
     foreach ($accused as $acc) {
         $participant_id = generateParticipantId($conn, $blotter_id);
         $sql = "INSERT INTO blotter_participantstbl 
-                (blotter_participant_id, blotter_id, participant_type, lastname, firstname, middlename, alias, address, age, contact_no, email, created_at) 
-                VALUES (?, ?, 'accused', ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            (blotter_participant_id, blotter_id, participant_type, lastname, firstname, middlename, alias, address, age, contact_no, email, created_at) 
+            VALUES (?, ?, 'accused', ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         $stmt = $conn->prepare($sql);
-        $age = !empty($acc['age']) ? intval($acc['age']) : null;
+        $age = intval($acc['age']);
         $contact = !empty($acc['contact_no']) ? $acc['contact_no'] : null;
         $stmt->bind_param(
             "ssssssiiss",

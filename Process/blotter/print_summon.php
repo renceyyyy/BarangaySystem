@@ -1,4 +1,6 @@
 <?php
+// filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Process\blotter\print_summon.php
+session_name('BarangayStaffSession');
 session_start();
 require_once __DIR__ . '/../../lib/tcpdf/tcpdf.php';
 require_once '../db_connection.php';

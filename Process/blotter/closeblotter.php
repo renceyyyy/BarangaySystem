@@ -1,4 +1,6 @@
 <?php
+// filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Process\blotter\closeblotter.php
+session_name('BarangayStaffSession');
 session_start();
 // Set timezone to Philippine Time
 // date_default_timezone_set('Asia/Manila');

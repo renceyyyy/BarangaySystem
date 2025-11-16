@@ -1,4 +1,5 @@
 <?php
+session_name('BarangayStaffSession');
 session_start();
 require_once '../db_connection.php';
 $conn = getDBConnection();

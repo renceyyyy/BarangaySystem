@@ -5115,7 +5115,9 @@ function reloadItemRequestsPanel(message) {
                       'unemployment' => 'Unemployment Certificates',
                       'guardianship' => 'Guardianship Documents',
                       'items' => 'Item Requests',
-                        'blotters' => 'Blotter/Complaints',
+                      'complaints' => 'Complaints Report',
+                        'blotters' => 'Blotter Reports',
+                      
                         'collections' => 'Financial Collections',
                         'activity logs' => 'User Activity Logs',
                         'resident logs' => 'Resident Activity Logs'
@@ -5621,7 +5623,146 @@ function reloadItemRequestsPanel(message) {
                   break;
 
                    case 'blotters':
-                  echo '<h3>Blotter/Complaints Report</h3>';
+                  echo '<h3>Blotter Report</h3>';
+
+                  // Summary cards: count per status
+                  $stmt = $connection->prepare("SELECT status, COUNT(*) as count 
+                                  FROM blottertbl 
+                                  WHERE created_at BETWEEN ? AND ? 
+                                  GROUP BY status");
+                  $stmt->bind_param("ss", $startDate, $endDate);
+                  $stmt->execute();
+                  $result = $stmt->get_result();
+
+                  if ($result->num_rows > 0) {
+                    echo '<div class="stat-card-container mb-3">';
+                    while ($row = $result->fetch_assoc()) {
+                      $status = $row['status'] ?: 'Pending';
+                      echo '<div class="stat-card">
+                    <div class="stat-left"><i class="fas fa-exclamation-triangle"></i><p>' . htmlspecialchars($status) . '</p></div>
+                    <h4>' . $row['count'] . '</h4>
+                  </div>';
+                    }
+                    echo '</div>';
+
+                    // Full details table
+                    $stmt = $connection->prepare("SELECT blotter_id, reported_by, datetime_of_incident, 
+                                           location_of_incident, incident_type, created_at, 
+                                           closed_at, status
+                                      FROM blottertbl 
+                                      WHERE created_at BETWEEN ? AND ? 
+                                      ORDER BY created_at DESC");
+                    $stmt->bind_param("ss", $startDate, $endDate);
+                    $stmt->execute();
+                    $details = $stmt->get_result();
+
+                    echo '<div class="scrollable-table-container">
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Blotter ID</th>
+                            <th>Reported By</th>
+                            <th>Incident Date/Time</th>
+                            <th>Location</th>
+                            <th>Incident Type</th>
+                            <th>Date Filed</th>
+                            <th>Date Closed</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>';
+                    while ($r = $details->fetch_assoc()) {
+                      $status = $r['status'] ?: 'Pending';
+                      $closedDate = $r['closed_at'] ?: 'N/A';
+                      echo '<tr>
+                    <td>' . htmlspecialchars($r['blotter_id']) . '</td>
+                    <td>' . htmlspecialchars($r['reported_by']) . '</td>
+                    <td>' . htmlspecialchars($r['datetime_of_incident']) . '</td>
+                    <td>' . htmlspecialchars($r['location_of_incident']) . '</td>
+                    <td>' . htmlspecialchars($r['incident_type']) . '</td>
+                    <td>' . htmlspecialchars($r['created_at']) . '</td>
+                    <td>' . htmlspecialchars($closedDate) . '</td>
+                    <td>' . htmlspecialchars($status) . '</td>
+                  </tr>';
+                    }
+                    echo '</tbody></table></div>';
+                  } else {
+                    echo '<div class="alert alert-warning">No blotter/complaint records found for this date range.</div>';
+                  }
+                  break;
+
+                  case 'complaints':
+  echo '<h3>Complaints Report</h3>';
+
+  // Summary cards: count per status
+  $stmt = $connection->prepare("SELECT RequestStatus, COUNT(*) as count 
+                  FROM complaintbl 
+                  WHERE DateComplained BETWEEN ? AND ? 
+                  GROUP BY RequestStatus");
+  $stmt->bind_param("ss", $startDate, $endDate);
+  $stmt->execute();
+  $result = $stmt->get_result();
+
+  if ($result->num_rows > 0) {
+    echo '<div class="stat-card-container mb-3">';
+    while ($row = $result->fetch_assoc()) {
+      $status = $row['RequestStatus'] ?: 'Pending';
+      echo '<div class="stat-card">
+        <div class="stat-left"><i class="fas fa-exclamation-triangle"></i><p>' . htmlspecialchars($status) . '</p></div>
+        <h4>' . $row['count'] . '</h4>
+      </div>';
+    }
+    echo '</div>';
+
+    // Full details table - FIXED QUERY
+    $stmt = $connection->prepare("SELECT CmpID, Firstname, Lastname, Middlename, Complain, 
+                           DateComplained, DateTimeofIncident, LocationofIncident, IncidentType, RequestStatus 
+                      FROM complaintbl 
+                      WHERE DateComplained BETWEEN ? AND ? 
+                      ORDER BY DateComplained DESC");
+    $stmt->bind_param("ss", $startDate, $endDate);
+    $stmt->execute();
+    $details = $stmt->get_result();
+
+    echo '<div class="scrollable-table-container">
+<table class="styled-table">
+    <thead>
+        <tr>
+            <th>Complain ID</th>
+            <th>Firstname</th>
+            <th>Lastname</th>
+            <th>Middlename</th>
+            <th>Complain</th>
+            <th>Date Complained</th>
+            <th>Date & Time of Incident</th>
+            <th>Location of Incident</th>
+            <th>Incident Type</th>
+            <th>Complain Status</th>
+        </tr>
+    </thead>
+    <tbody>';
+    while ($r = $details->fetch_assoc()) {
+      echo '<tr>
+        <td>' . htmlspecialchars($r['CmpID']) . '</td>
+        <td>' . htmlspecialchars($r['Firstname']) . '</td>
+        <td>' . htmlspecialchars($r['Lastname']) . '</td>
+        <td>' . htmlspecialchars($r['Middlename']) . '</td>
+        <td>' . htmlspecialchars($r['Complain']) . '</td>
+        <td>' . htmlspecialchars($r['DateComplained']) . '</td>
+        <td>' . htmlspecialchars($r['DateTimeofIncident']) . '</td>
+        <td>' . htmlspecialchars($r['LocationofIncident']) . '</td>
+        <td>' . htmlspecialchars($r['IncidentType']) . '</td>
+        <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
+      </tr>';
+    }
+    echo '</tbody></table></div>';
+  } else {
+    echo '<div class="alert alert-warning">No complaint records found for this date range.</div>';
+  }
+  break;
+
+                   case 'blottered individuals':
+                  echo '<h3>Blottered Individual Report</h3>';
 
                   // Summary cards: count per status
                   $stmt = $connection->prepare("SELECT status, COUNT(*) as count 

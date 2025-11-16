@@ -841,7 +841,6 @@ function alertNotPaid() {
                       <option value="Barangay Certificate">Barangay Certificate</option>
                       <option value="Employment Form">Employment Form</option>
                       <option value="First Time Job Seeker">First Time Job Seeker</option>
-                      <option value="Indengency Form">Indigency Form</option>
                       <option value="No Birth Certificate">No Birth Certificate</option>
                     </select>
                   </div>

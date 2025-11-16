@@ -1204,7 +1204,7 @@ unset($_SESSION['verification_notification']);
             // Function to check for updates
             function checkForStatusUpdates() {
                 const timestamp = Date.now();
-                const apiPath = '/BarangaySystem/BarangaySystem/Process/check_status_updates.php?t=' + timestamp;
+                 const apiPath = '../Process/check_status_updates.php?t=' + timestamp;
                 
                 fetch(apiPath, {
                     method: 'GET',

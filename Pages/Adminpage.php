@@ -3449,6 +3449,15 @@ function reloadItemRequestsPanel(message) {
                 placeholder="Search by Complainant Name" 
                 value="<?php echo htmlspecialchars($_GET['search_online_complainant'] ?? ''); ?>">
                 <button type="submit" class="govdoc-search-button">Search</button>
+
+                <?php $selectedFilter = $_GET['online_status_filter'] ?? 'Pending'; // default Pending ?>
+
+                <!-- Added: status filter for online complaints -->
+                <select name="online_status_filter" class="govdoc-status-filter" onchange="this.form.submit()" style="margin-left:10px; padding:8px 10px;">
+                  <option value="all" <?php echo ($selectedFilter === 'all') ? 'selected' : ''; ?>>All</option>
+                  <option value="Pending" <?php echo ($selectedFilter === 'Pending') ? 'selected' : ''; ?>>Pending</option>
+                  <option value="Approved" <?php echo ($selectedFilter === 'Approved') ? 'selected' : ''; ?>>Approved</option>
+                </select>
   
               </div>
             </form>
@@ -3464,6 +3473,7 @@ function reloadItemRequestsPanel(message) {
                     <th>LOCATION</th>
                     <th>INCIDENT TYPE</th>
                     <th>DATE COMPLAINED</th>
+                    <th>STATUS</th>
                     <th>ACTION</th>
                   </tr>
                 </thead>
@@ -3478,14 +3488,30 @@ function reloadItemRequestsPanel(message) {
                     $search = isset($_GET['search_online_complainant']) ? trim($_GET['search_online_complainant']) : '';
                     
                     // Build SQL query
-                    $sql = "SELECT CmpID, Firstname, Lastname, Middlename, refno, DateTimeofIncident, LocationofIncident, IncidentType, DateComplained FROM complaintbl";
-                    
-                    // Add WHERE clause if search term is provided
+                    $sql = "SELECT CmpID, Firstname, Lastname, Middlename, refno, DateTimeofIncident, LocationofIncident, IncidentType, DateComplained, RequestStatus FROM complaintbl";
+
+                    // Add WHERE clauses using an array so we can combine search + status safely
+                    $whereClauses = [];
+
+                    // Get and sanitize search term
                     if ($search !== '') {
                       $searchEscaped = $conn->real_escape_string($search);
-                      $sql .= " WHERE CONCAT(Lastname, ', ', Firstname, ' ', COALESCE(Middlename, '')) LIKE '%$searchEscaped%'";
+                      $whereClauses[] = "CONCAT(Lastname, ', ', Firstname, ' ', COALESCE(Middlename, '')) LIKE '%$searchEscaped%'";
                     }
-                    
+
+                    // Status filter
+                    $statusFilter = isset($_GET['online_status_filter']) ? $conn->real_escape_string($_GET['online_status_filter']) : 'Pending';
+                    if ($statusFilter !== 'all') {
+                      // Only allow expected values to avoid injection
+                      if (in_array($statusFilter, ['Pending', 'Approved'], true)) {
+                        $whereClauses[] = "RequestStatus = '$statusFilter'";
+                      }
+                    }
+
+                    if (!empty($whereClauses)) {
+                      $sql .= " WHERE " . implode(" AND ", $whereClauses);
+                    }
+
                     $sql .= " ORDER BY DateComplained DESC";
                     
                     $res = $conn->query($sql);
@@ -3497,6 +3523,7 @@ function reloadItemRequestsPanel(message) {
                         $location = htmlspecialchars($row['LocationofIncident'] ?? 'N/A');
                         $type = htmlspecialchars($row['IncidentType'] ?? 'N/A');
                         $dateComplained = $row['DateComplained'] ? htmlspecialchars(date('F d, Y h:i A', strtotime($row['DateComplained']))) : 'N/A';
+                        $status = htmlspecialchars($row['RequestStatus'] ?? 'N/A');
                         echo "<tr>
                           <td>" . htmlspecialchars($row['CmpID']) . "</td>
                           <td>$refno</td>
@@ -3505,6 +3532,7 @@ function reloadItemRequestsPanel(message) {
                           <td>$location</td>
                           <td>$type</td>
                           <td>$dateComplained</td>
+                          <td>$status</td>
                           <td>
                             <button class='action-btn-2 view-complaint' data-id='" . htmlspecialchars($row['CmpID']) . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;'>
                               <i class='fas fa-eye'></i>
@@ -3513,7 +3541,7 @@ function reloadItemRequestsPanel(message) {
                         </tr>";
                       }
                     } else {
-                      echo "<tr><td colspan='8' style='text-align:center;'>No online complaints found.</td></tr>";
+                      echo "<tr><td colspan='9' style='text-align:center;'>No online complaints found.</td></tr>";
                     }
                     
                     $conn->close();
@@ -3628,6 +3656,50 @@ function reloadItemRequestsPanel(message) {
                     </tbody>
                   </table>
                 </div>
+
+                <!-- Convert to Blotter Button -->
+                <div style="margin-top: 20px; text-align: center;">
+                  <button type="button" id="convertToBlotterBtn" class="btn btn-success" style="padding: 12px 30px; font-size: 16px;">
+                    <i class="fas fa-exchange-alt"></i> Convert to Blotter Report
+                  </button>
+                </div>
+
+                <!-- Convert Form (Hidden by default) -->
+                <div id="convertFormSection" style="display:none; margin-top: 30px; border-top: 2px solid #ddd; padding-top: 20px;">
+                  <h2 style="text-align:center; color: #059629ff;">Convert to Blotter Report</h2>
+                  <p style="text-align:center; color: #666; margin-bottom: 20px;">
+                    Please add respondent(s) and witness(es) details to complete the blotter report.
+                  </p>
+
+                  <!-- Accused/Respondent Section -->
+                  <h3>Respondent Details</h3>
+                  <div id="convert_accusedContainer">
+                    <!-- Accused rows will be added here -->
+                  </div>
+                  <button type="button" class="btn btn-success btn-sm" id="convertAddAccusedBtn" style="margin-bottom: 20px;">+ Add Respondent</button>
+                  
+                  <hr>
+
+                  <!-- Witnesses Section -->
+                  <h3>Witnesses Details (Optional)</h3>
+                  <div id="convert_witnessesContainer">
+                    <!-- Witness rows will be added here -->
+                  </div>
+                  <button type="button" class="btn btn-success btn-sm" id="convertAddWitnessBtn" style="margin-bottom: 20px;">+ Add Witness</button>
+                  
+                  <hr>
+
+                  <!-- Submit Button -->
+                  <div style="text-align: center; margin-top: 20px;">
+                    <button type="button" id="saveBlotterConversionBtn" class="btn btn-primary" style="padding: 12px 40px; font-size: 16px;">
+                      <i class="fas fa-save"></i> Save as Blotter Report
+                    </button>
+                    <button type="button" id="cancelConversionBtn" class="btn btn-secondary" style="padding: 12px 40px; font-size: 16px; margin-left: 10px;">
+                      <i class="fas fa-times"></i> Cancel
+                    </button>
+                  </div>
+                </div>
+
               </form>
             </div>
           </div> <!-- End of View Online Complaint Modal -->
@@ -8239,6 +8311,18 @@ function releaseNoBirthCertDocument(id) {
                       }) : 'N/A';
                     document.getElementById('view_complaint_status').value = complaint.RequestStatus || 'Pending';
                     
+                    const convertBtnEl = document.getElementById('convertToBlotterBtn'); 
+                    const convertSectionEl = document.getElementById('convertFormSection');
+                    if (complaint.RequestStatus === 'Approved'){
+                      if (convertBtnEl) convertBtnEl.style.display = 'none';
+                      if (convertSectionEl) convertSectionEl.style.display = 'none';
+                    } else {
+                      if (convertBtnEl) convertBtnEl.style.display = 'block';
+                    }
+
+
+
+
                     // Handle evidence files
                     const filesContainer = document.getElementById('view_complaint_filesContainer');
                     filesContainer.innerHTML = '';
@@ -8294,6 +8378,266 @@ function releaseNoBirthCertDocument(id) {
               document.getElementById('imageViewer').style.display = 'none';
             }
             </script>
+
+            
+
+            <!-- Convert Complaint to Blotter Script -->
+            <script>
+            let currentComplaintData = null;
+
+            // Show/Hide conversion form
+            document.addEventListener('DOMContentLoaded', function() {
+              const convertBtn = document.getElementById('convertToBlotterBtn');
+              const convertSection = document.getElementById('convertFormSection');
+              const cancelBtn = document.getElementById('cancelConversionBtn');
+              const saveBtn = document.getElementById('saveBlotterConversionBtn');
+
+              if (convertBtn) {
+                convertBtn.addEventListener('click', function() {
+                  convertSection.style.display = 'block';
+                  convertBtn.style.display = 'none';
+                  
+                  // Add initial accused row
+                  if (document.getElementById('convert_accusedContainer').children.length === 0) {
+                    addConvertAccusedRow();
+                  }
+                });
+              }
+
+              if (cancelBtn) {
+                cancelBtn.addEventListener('click', function() {
+                  convertSection.style.display = 'none';
+                  // convertBtn.style.display = 'block';
+                  //only show Convert button again if the complaint is not Approved
+                  if (!currentComplaintData || currentComplaintData.RequestStatus !== 'Approved') {
+                    convertBtn.style.display = 'block';
+                  } else {
+                    convertBtn.style.display = 'none';
+                  }
+
+                  // Clear forms
+                  document.getElementById('convert_accusedContainer').innerHTML = '';
+                  document.getElementById('convert_witnessesContainer').innerHTML = '';
+                });
+              }
+
+              if (saveBtn) {
+                saveBtn.addEventListener('click', saveBlotterConversion);
+              }
+
+              // Add accused button
+              document.getElementById('convertAddAccusedBtn')?.addEventListener('click', addConvertAccusedRow);
+              
+              // Add witness button
+              document.getElementById('convertAddWitnessBtn')?.addEventListener('click', addConvertWitnessRow);
+            });
+
+            function addConvertAccusedRow() {
+              const container = document.getElementById('convert_accusedContainer');
+              const div = document.createElement('div');
+              div.className = 'accused-fields';
+              div.innerHTML = `
+                <h6>Full name of the Respondent</h6>
+                <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name *</label>
+                    <input type="text" class="convert-accused-lastname" required>
+                  </div>
+                  <div class="form-group">
+                    <label>First Name *</label>
+                    <input type="text" class="convert-accused-firstname" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" class="convert-accused-middlename">
+                  </div>
+                  <div class="form-group">
+                    <label>Alias</label>
+                    <input type="text" class="convert-accused-alias">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" class="convert-accused-address">
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" class="convert-accused-age">
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" class="convert-accused-contact">
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" class="convert-accused-email">
+                  </div>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm remove-convert-accused-btn" style="margin-bottom:10px; margin-top:10px;">Remove</button>
+                <hr>
+              `;
+              container.appendChild(div);
+              
+              // Add remove functionality
+              div.querySelector('.remove-convert-accused-btn').addEventListener('click', function() {
+                const rows = container.querySelectorAll('.accused-fields');
+                if (rows.length > 1) {
+                  div.remove();
+                } else {
+                  alert('At least one respondent is required.');
+                }
+              });
+            }
+
+            function addConvertWitnessRow() {
+              const container = document.getElementById('convert_witnessesContainer');
+              const div = document.createElement('div');
+              div.className = 'witness-fields';
+              div.innerHTML = `
+                <h6>Full name of the Witness</h6>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" class="convert-witness-lastname">
+                  </div>
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" class="convert-witness-firstname">
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" class="convert-witness-middlename">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" class="convert-witness-address">
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" class="convert-witness-age">
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="text" class="convert-witness-contact">
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" class="convert-witness-email">
+                  </div>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm remove-convert-witness-btn" style="margin-bottom:10px; margin-top:10px;">Remove</button>
+                <hr>
+              `;
+              container.appendChild(div);
+              
+              // Add remove functionality
+              div.querySelector('.remove-convert-witness-btn').addEventListener('click', function() {
+                div.remove();
+              });
+            }
+
+            function saveBlotterConversion() {
+              const complaintId = document.getElementById('view_complaint_id').textContent;
+              
+              if (!complaintId) {
+                alert('Invalid complaint ID');
+                return;
+              }
+
+              // Collect accused data
+              const accusedRows = document.querySelectorAll('#convert_accusedContainer .accused-fields');
+              const accused = [];
+              
+              let hasErrors = false;
+              accusedRows.forEach(row => {
+                const lastname = row.querySelector('.convert-accused-lastname').value.trim();
+                const firstname = row.querySelector('.convert-accused-firstname').value.trim();
+                
+                if (!lastname || !firstname) {
+                  hasErrors = true;
+                  return;
+                }
+                
+                accused.push({
+                  lastname: lastname,
+                  firstname: firstname,
+                  middlename: row.querySelector('.convert-accused-middlename').value.trim(),
+                  alias: row.querySelector('.convert-accused-alias').value.trim(),
+                  address: row.querySelector('.convert-accused-address').value.trim(),
+                  age: row.querySelector('.convert-accused-age').value.trim(),
+                  contact_no: row.querySelector('.convert-accused-contact').value.trim(),
+                  email: row.querySelector('.convert-accused-email').value.trim()
+                });
+              });
+
+              if (hasErrors) {
+                alert('Please fill in all required fields (Last Name and First Name) for all respondents.');
+                return;
+              }
+
+              if (accused.length === 0) {
+                alert('At least one respondent is required.');
+                return;
+              }
+
+              // Collect witness data
+              const witnessRows = document.querySelectorAll('#convert_witnessesContainer .witness-fields');
+              const witnesses = [];
+              
+              witnessRows.forEach(row => {
+                const lastname = row.querySelector('.convert-witness-lastname').value.trim();
+                const firstname = row.querySelector('.convert-witness-firstname').value.trim();
+                
+                if (lastname || firstname) { // Only add if at least name is provided
+                  witnesses.push({
+                    lastname: lastname,
+                    firstname: firstname,
+                    middlename: row.querySelector('.convert-witness-middlename').value.trim(),
+                    address: row.querySelector('.convert-witness-address').value.trim(),
+                    age: row.querySelector('.convert-witness-age').value.trim(),
+                    contact_no: row.querySelector('.convert-witness-contact').value.trim(),
+                    email: row.querySelector('.convert-witness-email').value.trim()
+                  });
+                }
+              });
+
+              // Send to server
+              const data = {
+                complaint_id: parseInt(complaintId),
+                accused: accused,
+                witnesses: witnesses
+              };
+
+              fetch('../Process/online_complaints/convert_to_blotter.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+              })
+              .then(response => response.json())
+              .then(result => {
+                if (result.success) {
+                  alert('Complaint successfully converted to blotter report!\nBlotter ID: ' + result.blotter_id);
+                  closeViewComplaintModal();
+                  // Reload page to refresh data
+                  window.location.href = window.location.pathname + '?panel=onlineComplaintsPanel';
+                } else {
+                  alert('Error: ' + result.error);
+                }
+              })
+              .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to convert complaint. Please try again.');
+              });
+            }
+            </script>
+
+
 
 
             <!-- View Blotter Modal Script -->
@@ -8595,7 +8939,7 @@ function releaseNoBirthCertDocument(id) {
 
                           // Show image preview if it's an image
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySampaguita/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                           } else {
                             // Default file icon if not image
                             thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
@@ -8607,10 +8951,10 @@ function releaseNoBirthCertDocument(id) {
                                     <td style="text-align:center;">${thumbHTML}</td>
                                     <td>${file.file_name}</td>
                                     <td>
-                                    <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                                    <a href="/BarangaySampaguita/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
                                     <i class="fas fa-download"></i> Download
                                     </a>
-                                    <button onclick="viewImage('/BarangaySystem/BarangaySystem/${file.file_path}')" class="btn btn-primary" style="padding:5px 10px;">
+                                    <button onclick="viewImage('/BarangaySampaguita/BarangaySystem/${file.file_path}')" class="btn btn-primary" style="padding:5px 10px;">
                                       <i class="fas fa-eye"></i> View
                                     </button>
                                       
@@ -8623,7 +8967,7 @@ function releaseNoBirthCertDocument(id) {
                                   <td style="text-align:center;">${thumbHTML}</td>
                                   <td>${file.file_name}</td>
                                   <td>
-                                    <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                                    <a href="/BarangaySampaguita/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
                                       <i class="fas fa-download"></i> Download
                                     </a>
                                     
@@ -9135,7 +9479,7 @@ function releaseNoBirthCertDocument(id) {
                         data.files.forEach(file => {
                           let thumbHTML = '';
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySampaguita/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                           } else {
                             thumbHTML = `<i class="fas fa-file" style="font-size:30px;color:#666;"></i>`;
                           }
@@ -9521,6 +9865,15 @@ function releaseNoBirthCertDocument(id) {
                       document.getElementById('blottered_contact_no').value = data.participant.contact_no;
                       document.getElementById('blottered_email').value = data.participant.email;
 
+                      // Prevent form submit and show enlarged image (delegation) for blottered files
+                      document.getElementById('blottered_files_table')?.addEventListener('click', function (e) {
+                        const btn = e.target.closest('.view-file-btn');
+                        if (!btn) return;
+                        e.preventDefault(); // stop button from submitting anything
+                        const src = btn.getAttribute('data-src');
+                        if (src) viewImage(src);
+                      });
+
                       // Fill files table
                       const filesContainer = document.getElementById('blottered_filesContainer');
                       filesContainer.innerHTML = '';
@@ -9528,13 +9881,13 @@ function releaseNoBirthCertDocument(id) {
                         data.files.forEach(file => {
                           let thumbHTML = '';
                           if (file.file_type.startsWith('image/')) {
-                            thumbHTML = `<img src="/BarangaySystem/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
+                            thumbHTML = `<img src="/BarangaySampaguita/BarangaySystem/${file.file_path}" alt="thumbnail" style="width:60px;height:60px;object-fit:cover;border-radius:4px;">`;
                             filesContainer.innerHTML += `
                             <tr>
                               <td style="text-align:center;">${thumbHTML}</td>
                               <td>${file.file_name}</td>
                               <td>
-                                <button onclick="viewImage('/BarangaySystem/BarangaySystem/${file.file_path}')" class="btn btn-primary" style="padding:5px 10px;">
+                                <button type="button" data-src="/BarangaySampaguita/BarangaySystem/${file.file_path}" class="btn btn-primary view-file-btn" style="padding:5px 10px;">
                                   <i class="fas fa-eye"></i> View
                                 </button>
                               </td>
@@ -9547,7 +9900,7 @@ function releaseNoBirthCertDocument(id) {
                           <td style="text-align:center;">${thumbHTML}</td>
                           <td>${file.file_name}</td>
                           <td>
-                            <a href="/BarangaySystem/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
+                            <a href="/BarangaySampaguita/BarangaySystem/${file.file_path}" download="${file.file_name}" class="btn btn-primary" style="padding:5px 10px;">
                               <i class="fas fa-download"></i> Download
                             </a>
                           </td>
@@ -9562,6 +9915,7 @@ function releaseNoBirthCertDocument(id) {
                       </tr>
                     `;
                       }
+
 
                       document.getElementById('viewBlotteredModal').style.display = 'flex';
                     })

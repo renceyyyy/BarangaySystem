@@ -1,4 +1,6 @@
 <?php
+// filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Process\blotter\create_hearing.php
+session_name('BarangayStaffSession');
 session_start();
 header('Content-Type: application/json');
 require_once '../db_connection.php';

@@ -1,4 +1,5 @@
 <?php
+session_name('BarangayStaffSession');
 session_start();
 header('Content-Type: application/json');
 $servername = "localhost";

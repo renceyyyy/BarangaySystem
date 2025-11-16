@@ -1,5 +1,8 @@
 <?php
+session_name('BarangayStaffSession');
 session_start();
+
+date_default_timezone_set('Asia/Manila');
 // Endpoint: Process/blotter/record_hearing.php
 // Accepts multipart form data with: blotter_id, schedule_start (optional), mediator_name, hearing_notes, outcome, hearing_id (optional), hearing_files[] (optional files)
 header('Content-Type: application/json');
@@ -46,6 +49,24 @@ if (function_exists('getDBConnection')) {
 
 if (!$conn) {
     echo json_encode(['success' => false, 'message' => 'Database connection failed.']);
+    exit;
+}
+
+// === Server-side total upload size check ===
+$MAX_TOTAL_BYTES = 5 * 1024 * 1024; // 5MB
+$totalSizeBytes = 0;
+if (isset($_FILES['hearing_files'])) {
+    $fileSizes = $_FILES['hearing_files']['size'];
+    if (is_array($fileSizes)) {
+        foreach ($fileSizes as $sz) {
+            $totalSizeBytes += intval($sz);
+        }
+    } else {
+        $totalSizeBytes = intval($fileSizes);
+    }
+}
+if ($totalSizeBytes > $MAX_TOTAL_BYTES) {
+    echo json_encode(['success' => false, 'message' => 'Total uploaded files exceed 5MB. Please choose smaller files or fewer files.']);
     exit;
 }
 
@@ -179,13 +200,12 @@ if (!$hearing_id) {
 
 // NEW: Update blotter status if outcome is 'agreement'
 if ($outcome === 'agreement') {
-    $update_status = $conn->prepare("UPDATE blottertbl SET status = 'closed_resolved', closed_at = ? WHERE blotter_id = ?");
+    $update_status = $conn->prepare("UPDATE blottertbl SET status = 'closed_resolved', closed_at = NOW() WHERE blotter_id = ?");
     if (!$update_status) {
         echo json_encode(['success' => false, 'message' => 'DB prepare failed (status update): ' . $conn->error]);
         exit;
     }
-    $now = date('Y-m-d H:i:s');
-    $update_status->bind_param('ss', $now, $blotter_id);
+    $update_status->bind_param('s', $blotter_id);
     if (!$update_status->execute()) {
         echo json_encode(['success' => false, 'message' => 'Status update failed: ' . $update_status->error]);
         $update_status->close();

@@ -1,4 +1,6 @@
 <?php
+// filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Process\blotter\create_hearing.php
+session_name('BarangayStaffSession');
 session_start();
 header('Content-Type: application/json');
 require_once '../db_connection.php';
@@ -44,5 +46,5 @@ if ($stmt->execute()) {
     echo json_encode(['success' => false, 'error' => 'Failed to save hearing']);
 }
 $stmt->close();
-$conn->close();
+// Singleton connection closed by PHP
 ?>

@@ -1,4 +1,5 @@
 <?php
+session_name('BarangayStaffSession');
 session_start();
 require_once '../db_connection.php';
 $conn = getDBConnection();
@@ -30,7 +31,7 @@ $res = $stmt->get_result();
 while ($row = $res->fetch_assoc()) $files[] = $row;
 $stmt->close();
 
-$conn->close();
+// Singleton connection closed by PHP
 
 echo json_encode([
     'participant' => $participant,

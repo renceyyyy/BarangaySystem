@@ -1,11 +1,12 @@
 <?php
+require_once __DIR__ . '/../config/session_resident.php';
 require_once '../Process/db_connection.php';
+require_once '../Process/user_activity_logger.php';
 require_once './Terms&Conditions/Terms&Conditons.php';
-session_start();
 $conn = getDBConnection();
 
 // Initialize variables
-$firstname = $lastname = $name = $partnersince = $purpose = "";
+$firstname = $lastname = $name = $partnersince = $purpose = $otherPurpose = "";
 $errors = [];
 $success = false;
 $success_ref_no = "";
@@ -40,6 +41,7 @@ if (isset($_GET['update'])) {
             $name = $pendingRequest['Name'] ?? '';
             $partnersince = $pendingRequest['Partnersince'] ?? '';
             $purpose = $pendingRequest['Purpose'] ?? '';
+            $otherPurpose = $pendingRequest['OtherPurpose'] ?? '';
         } else {
             // Invalid update request
             header("Location: ../Pages/UserReports.php");
@@ -107,6 +109,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
     $name = trim($_POST["name"] ?? '');
     $partnersince = trim($_POST["partnersince"] ?? '');
     $purpose = trim($_POST["purpose"] ?? '');
+    $otherPurpose = trim($_POST["otherPurpose"] ?? '');
 
     // Basic validation
     if (empty($name)) {
@@ -119,6 +122,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
     
     if (empty($purpose)) {
         $errors[] = "Purpose is required";
+    }
+
+    // Validate other purpose if selected
+    if ($purpose === 'Other' && empty($otherPurpose)) {
+        $errors[] = "Please specify your other purpose";
     }
 
     // Validate partner since date format
@@ -138,7 +146,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
             if ($isUpdateMode) {
                 // UPDATE existing pending request
                 $sql = "UPDATE cohabitationtbl SET 
-                        Name = ?, Partnersince = ?, Purpose = ?
+                        Name = ?, Partnersince = ?, Purpose = ?, OtherPurpose = ?
                         WHERE refno = ? AND UserId = ? AND RequestStatus = 'Pending'";
                 
                 $stmt = $conn->prepare($sql);
@@ -147,10 +155,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
                 }
                 
                 $stmt->bind_param(
-                    "ssssi",
+                    "sssssi",
                     $name,
                     $partnersince,
                     $purpose,
+                    $otherPurpose,
                     $updateRefNo,
                     $userId
                 );
@@ -159,6 +168,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
                     $success = true;
                     $success_ref_no = $updateRefNo;
                     $isUpdateSuccess = true; // Flag to show update success message
+                    
+                    // Log user activity for update
+                    logUserActivity(
+                        'Cohabitation request updated',
+                        'cohabitation_request_update',
+                        [
+                            'name' => $name,
+                            'purpose' => $purpose,
+                            'reference_no' => $updateRefNo,
+                            'action' => 'update'
+                        ]
+                    );
                 } else {
                     throw new Exception("Execute failed: " . $stmt->error);
                 }
@@ -178,6 +199,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
                         Name VARCHAR(255) NOT NULL,
                         Partnersince VARCHAR(255) NOT NULL,
                         Purpose VARCHAR(255) NOT NULL,
+                        OtherPurpose VARCHAR(500),
                         refno VARCHAR(255) NOT NULL UNIQUE,
                         Reason VARCHAR(255),
                         DocuType VARCHAR(255) NOT NULL DEFAULT 'Cohabitation Form',
@@ -192,8 +214,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
 
                 // Insert into database (without reason - admin will add that)
                 $sql = "INSERT INTO cohabitationtbl (
-                    UserId, Name, Partnersince, Purpose, refno, DocuType, RequestStatus
-                ) VALUES (?, ?, ?, ?, ?, 'Cohabitation Form', 'Pending')";
+                    UserId, Name, Partnersince, Purpose, OtherPurpose, refno, DocuType, RequestStatus
+                ) VALUES (?, ?, ?, ?, ?, ?, 'Cohabitation Form', 'Pending')";
 
                 $stmt = $conn->prepare($sql);
 
@@ -202,19 +224,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
                 }
 
                 $stmt->bind_param(
-                    "issss",
+                    "isssss",
                     $userId,
                     $name,
                     $partnersince,
                     $purpose,
+                    $otherPurpose,
                     $refno
                 );
 
                 if ($stmt->execute()) {
                     $success = true;
                     $success_ref_no = $refno;
+                    
+                    // Log user activity
+                    logUserActivity(
+                        'Cohabitation form submitted',
+                        'cohabitation_request',
+                        [
+                            'name' => $name,
+                            'purpose' => $purpose,
+                            'reference_no' => $refno
+                        ]
+                    );
+                    
                     // Reset form
-                    $name = $partnersince = $purpose = "";
+                    $name = $partnersince = $purpose = $otherPurpose = "";
                 } else {
                     throw new Exception("Execute failed: " . $stmt->error);
                 }
@@ -478,12 +513,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
                     </select>
                     <span class="text-small">Select the main purpose for requesting this cohabitation form</span>
                 </div>
+
+                <div class="form-group" id="otherPurposeContainer" style="display: <?php echo $purpose === 'Other' ? 'block' : 'none'; ?>;">
+                    <label for="otherPurpose">Please Specify Your Purpose <span class="required">*</span></label>
+                    <textarea id="otherPurpose" name="otherPurpose" placeholder="Enter your specific purpose here" maxlength="500"><?php echo htmlspecialchars($otherPurpose); ?></textarea>
+                    <span class="text-small">Maximum 500 characters</span>
+                </div>
             </div>
 
             <!-- Terms and Conditions Section -->
             <?php echo displayTermsAndConditions('cohabitation'); ?>
             
-            <div class="form-group" style="text-align: center; margin-top: 30px;">
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
+                <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
                 <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Application' : 'Submit Application'; ?></button>
             </div>
         </form>
@@ -496,42 +540,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
             const closeSuccessMessage = document.getElementById('closeSuccessMessage');
             const form = document.getElementById('cohabitationForm');
             const submitBtn = document.getElementById('submitBtn');
+            const purposeSelect = document.getElementById('purpose');
+            const otherPurposeContainer = document.getElementById('otherPurposeContainer');
+            const otherPurposeField = document.getElementById('otherPurpose');
 
-            function validateForm() {
-                let isValid = true;
-                
-                // Check required fields
-                const requiredFields = form.querySelectorAll('[required]');
-                requiredFields.forEach(field => {
-                    if (!field.value.trim()) {
-                        isValid = false;
-                    }
-                });
+            // Handle "Other" purpose visibility
 
-                // Check if terms are agreed
-                const agreeTerms = document.querySelector('input[name="agreeTerms"]');
-                if (agreeTerms && !agreeTerms.checked) {
-                    isValid = false;
+            // Handle "Other" purpose visibility
+            function toggleOtherPurpose() {
+                if (purposeSelect.value === 'Other') {
+                    otherPurposeContainer.style.display = 'block';
+                    otherPurposeField.setAttribute('required', 'required');
+                } else {
+                    otherPurposeContainer.style.display = 'none';
+                    otherPurposeField.removeAttribute('required');
+                    otherPurposeField.value = '';
                 }
-
-                // Additional validation for date field
-                const partnerSince = document.getElementById('partnersince').value;
-                if (partnerSince) {
-                    const today = new Date().toISOString().split('T')[0];
-                    if (partnerSince > today) {
-                        isValid = false;
-                    }
-                }
-
-                submitBtn.disabled = !isValid;
             }
 
-            // Real-time form validation
-            form.addEventListener('input', validateForm);
-            form.addEventListener('change', validateForm);
+            // Listen to purpose select change
+            purposeSelect.addEventListener('change', toggleOtherPurpose);
 
             // Initialize
-            validateForm();
+            toggleOtherPurpose();
 
             // Set maximum date for partner since field to today
             const today = new Date().toISOString().split('T')[0];
@@ -560,3 +591,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["cohabitation_request"
     </script>
 </body>
 </html>
+

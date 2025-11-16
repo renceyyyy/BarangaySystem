@@ -1,4 +1,12 @@
 <?php
+// Set staff session name BEFORE starting session
+session_name('BarangayStaffSession');
+
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     // Basic sanitization (optional, since prepared statements are used)
     $refno    = trim($_POST['refno'] ?? '');
@@ -6,6 +14,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $request_type = trim($_POST['request_type'] ?? '');
     $request_date  = trim($_POST['request_date'] ?? '');
     $amount   = floatval($_POST['amount'] ?? 0);
+
+     // ✅ Get finance user's name if logged in
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'finance') {
+        $paymentReceivedBy = $_SESSION['fullname'] ?? 'Finance User';
+    } else {
+        // fallback if not finance
+        $paymentReceivedBy = $_SESSION['fullname'] ?? 'Unknown User';
+    }
 
     // Validate required fields
     if (!$refno || !$applicant_name || !$request_type || !$amount) {
@@ -27,8 +43,9 @@ $connection = getDBConnection();
     }
 
     $stmt = $connection->prepare("
-        INSERT INTO tblpayment (refno, name, type, date, amount, RequestStatus)
-        VALUES (?, ?, ?, ?, ?, 'Pending')
+        INSERT INTO tblpayment 
+        (refno, name, type, date, amount, RequestStatus, PaymentReceivedBy) 
+        VALUES (?, ?, ?, ?, ?, 'Paid', ?)
     ");
 
     if (!$stmt) {
@@ -38,7 +55,7 @@ $connection = getDBConnection();
         exit;
     }
 
-    $stmt->bind_param("ssssd", $refno, $applicant_name, $request_type, $request_date, $amount);
+    $stmt->bind_param("ssssds", $refno, $applicant_name, $request_type, $request_date, $amount, $paymentReceivedBy);
 
     if ($stmt->execute()) {
         echo "success";

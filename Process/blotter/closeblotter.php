@@ -1,5 +1,10 @@
 <?php
+// filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Process\blotter\closeblotter.php
+session_name('BarangayStaffSession');
 session_start();
+// Set timezone to Philippine Time
+// date_default_timezone_set('Asia/Manila');
+
 require_once '../db_connection.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -27,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "Update failed";
     }
     $stmt->close();
-    $conn->close();
+    // Singleton connection closed by PHP
 } else {
     echo "Invalid request";
 }

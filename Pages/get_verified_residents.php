@@ -30,7 +30,7 @@ if ($result && $result->num_rows > 0) {
     }
 }
 
-$conn->close();
+// Singleton connection - don't close
 
 echo json_encode($residents);
 ?>

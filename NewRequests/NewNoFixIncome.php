@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/../config/session_resident.php';
 require_once '../Process/db_connection.php';
+require_once '../Process/user_activity_logger.php';
 require_once './Terms&Conditions/Terms&Conditons.php';
-session_start();
 $conn = getDBConnection();
 
 // Check if user is logged in
@@ -174,6 +175,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
                     $success = true;
                     $success_ref_no = $updateRefNo;
                     $isUpdateSuccess = true; // Flag to show update success message
+                    
+                    // Log user activity for update
+                    logUserActivity(
+                        'Unemployment certificate request updated',
+                        'unemployment_certificate_update',
+                        [
+                            'certificate_type' => $certificateType,
+                            'reference_no' => $updateRefNo,
+                            'action' => 'update'
+                        ]
+                    );
                 } else {
                     throw new Exception("Execute failed: " . $stmt->error);
                 }
@@ -240,6 +252,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
                 if ($stmt->execute()) {
                     $success = true;
                     $success_ref_no = $refno;
+                    
+                    // Log user activity
+                    logUserActivity(
+                        'Unemployment certificate requested',
+                        'unemployment_request',
+                        [
+                            'certificate_type' => $certificateType,
+                            'reference_no' => $refno
+                        ]
+                    );
                     
                     // Reset form but keep user data
                     $purpose = '';
@@ -539,7 +561,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
             <!-- Terms and Conditions Section -->
             <?php echo displayTermsAndConditions('unemploymentForm'); ?>
             
-            <div class="form-group">
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
+                <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
                 <button type="submit" class="btn" id="submitBtn"><?php echo $isUpdateMode ? 'Update Request' : 'Submit Request'; ?></button>
             </div>
         </form>
@@ -560,6 +585,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
             const closeSuccessMessage = document.getElementById('closeSuccessMessage');
             const submitBtn = document.getElementById('submitBtn');
             const form = document.getElementById('unemploymentForm');
+
+            // Toggle certificate type function
 
             function toggleCertificateType() {
                 if (certificateTypeNoIncome.checked) {
@@ -582,27 +609,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
                     unemployedSinceInput.required = false;
                     noFixedIncomeSinceInput.required = false;
                 }
-                validateForm();
-            }
-
-            function validateForm() {
-                let isValid = true;
-                
-                // Check required fields
-                const requiredFields = form.querySelectorAll('[required]');
-                requiredFields.forEach(field => {
-                    if (!field.value.trim() && field.offsetParent !== null) {
-                        isValid = false;
-                    }
-                });
-                
-                // Check certificate type
-                const certificateTypeSelected = form.querySelector('input[name="certificateType"]:checked');
-                if (!certificateTypeSelected) {
-                    isValid = false;
-                }
-                
-                submitBtn.disabled = !isValid;
             }
 
             // Event listeners for certificate type change
@@ -616,13 +622,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
                 toggleCertificateType();
             });
 
-            // Real-time form validation
-            form.addEventListener('input', validateForm);
-            form.addEventListener('change', validateForm);
-
             // Initialize
             toggleCertificateType();
-            validateForm();
+
+            // Set maximum date for date fields to today
+            const today = new Date().toISOString().split('T')[0];
+            unemployedSinceInput.max = today;
+            noFixedIncomeSinceInput.max = today;
 
             // Show success message if submission was successful
             <?php if (isset($success) && $success): ?>
@@ -647,3 +653,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
     </script>
 </body>
 </html>
+

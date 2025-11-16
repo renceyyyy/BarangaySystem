@@ -243,9 +243,39 @@ if (!$user_id) {
       <input type="hidden" name="user_id" value="<?php echo $user_id; ?>">
 
       <div class="form-group">
-        <label for="username" class="form-label">Username</label>
+        <label for="firstname" class="form-label">First Name</label>
         <div class="input-with-icon">
           <i class="fas fa-user input-icon"></i>
+          <input type="text" class="form-control" id="firstname" name="firstname" 
+                 placeholder="Enter your first name" required
+                 value="<?php echo isset($_SESSION['form_data']['firstname']) ? htmlspecialchars($_SESSION['form_data']['firstname']) : ''; ?>">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="lastname" class="form-label">Last Name</label>
+        <div class="input-with-icon">
+          <i class="fas fa-user input-icon"></i>
+          <input type="text" class="form-control" id="lastname" name="lastname" 
+                 placeholder="Enter your last name" required
+                 value="<?php echo isset($_SESSION['form_data']['lastname']) ? htmlspecialchars($_SESSION['form_data']['lastname']) : ''; ?>">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email" class="form-label">Email Address</label>
+        <div class="input-with-icon">
+          <i class="fas fa-envelope input-icon"></i>
+          <input type="email" class="form-control" id="email" name="email" 
+                 placeholder="Enter your email address" required
+                 value="<?php echo isset($_SESSION['form_data']['email']) ? htmlspecialchars($_SESSION['form_data']['email']) : ''; ?>">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="username" class="form-label">Username</label>
+        <div class="input-with-icon">
+          <i class="fas fa-user-circle input-icon"></i>
           <input type="text" class="form-control" id="username" name="username" 
                  placeholder="Choose a username" required
                  value="<?php echo isset($_SESSION['form_data']['username']) ? htmlspecialchars($_SESSION['form_data']['username']) : ''; ?>">

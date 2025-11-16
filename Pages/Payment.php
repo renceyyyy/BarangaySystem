@@ -1,5 +1,11 @@
 <?php
-session_start();
+// Set staff session name BEFORE starting session
+session_name('BarangayStaffSession');
+
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     // Basic sanitization
@@ -10,8 +16,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $amount   = floatval($_POST['amount'] ?? 0);
     $DateRequested = date('Y-m-d H:i:s');
 
-    // ✅ Finance user's full name from session
-    $paymentReceivedBy = $_SESSION['fullname'] ?? 'Unknown User';
+    // ✅ Get finance user's name if logged in
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'finance') {
+        $paymentReceivedBy = $_SESSION['fullname'] ?? 'Finance User';
+    } else {
+        // fallback if not finance
+        $paymentReceivedBy = $_SESSION['fullname'] ?? 'Unknown User';
+    }
 
     // Validate required fields
     if (!$refno || !$name || !$docutype) {
@@ -29,11 +40,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 
-    // ✅ Insert with PaymentReceivedBy
+    
+    // set payment received timestamp (when the record is created)
+    $paymentDateReceived = date('Y-m-d H:i:s');
+
+    // ✅ Insert payment record (include PaymentDateReceived)
     $stmt = $connection->prepare("
         INSERT INTO tblpayment 
-            (refno, name, type, address, date, amount, RequestStatus, PaymentReceivedBy)
-        VALUES (?, ?, ?, ?, ?, ?, 'Paid', ?)
+            (refno, name, type, address, date, amount, PaymentDateReceived, RequestStatus, PaymentReceivedBy)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Paid', ?)
     ");
 
     if (!$stmt) {
@@ -43,8 +58,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 
-    $stmt->bind_param("sssssds", $refno, $name, $docutype, $address, $DateRequested, $amount, $paymentReceivedBy);
-
+    $stmt->bind_param("sssssdss", $refno, $name, $docutype, $address, $DateRequested, $amount, $paymentDateReceived, $paymentReceivedBy);
 
     if ($stmt->execute()) {
         echo "success";

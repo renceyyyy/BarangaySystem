@@ -23,5 +23,5 @@ header("Location: FinancePage.php?message=approved&panel=collectionPanel");
   echo "Invalid request.";
 }
 
-$conn->close();
+// Singleton connection - don't close
 ?>

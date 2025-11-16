@@ -1,5 +1,8 @@
 <?php
-session_start(); // Start session at the very beginning
+// Start default session for login page (before role is known)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

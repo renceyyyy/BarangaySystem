@@ -1,4 +1,5 @@
 <?php
+session_name('BarangayStaffSession');
 session_start();
 header('Content-Type: application/json');
 $servername = "localhost";
@@ -81,7 +82,7 @@ while ($row = $res->fetch_assoc()) {
     $files[] = $row;
 }
 $stmt->close();
-$conn->close();
+// Singleton connection closed by PHP
 
 
 

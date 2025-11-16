@@ -1,4 +1,6 @@
 <?php
+// filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Process\blotter\print_summon.php
+session_name('BarangayStaffSession');
 session_start();
 require_once __DIR__ . '/../../lib/tcpdf/tcpdf.php';
 require_once '../db_connection.php';
@@ -52,7 +54,7 @@ while ($row = $accusedResult->fetch_assoc()) {
 }
 $stmt->close();
 
-$conn->close();
+// Singleton connection closed by PHP
 
 if (!$blotter || !$participant) {
   die("Invalid summon request.");

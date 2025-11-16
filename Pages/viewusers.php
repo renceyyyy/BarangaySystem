@@ -8,7 +8,7 @@ if ($connection->connect_error) {
     exit;
 }
 
-// Handle POST request for updating or deleting user
+// Handle POST request for updating, deleting, or deactivating user
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Get JSON input
     $input = file_get_contents('php://input');
@@ -30,6 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['success' => true, 'message' => 'User deleted successfully']);
         } else {
             echo json_encode(['success' => false, 'error' => 'Delete failed: ' . $stmt->error]);
+        }
+        
+        $stmt->close();
+        $connection->close();
+        exit;
+    }
+    
+    // Handle DEACTIVATE action
+    if (isset($data['action']) && $data['action'] === 'deactivate') {
+        $stmt = $connection->prepare("UPDATE userloginfo SET AccountStatus = 'Unverified' WHERE UserID = ?");
+        $stmt->bind_param("i", $id);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Account deactivated successfully']);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Deactivation failed: ' . $stmt->error]);
         }
         
         $stmt->close();
@@ -107,11 +123,36 @@ if ($result->num_rows === 0) {
 
 $row = $result->fetch_assoc();
 
-// Convert file path into accessible image URL
+// Convert ValidID to proper base64 data URL or file path
 if (!empty($row['ValidID'])) {
-    $filePath = str_replace('\\', '/', $row['ValidID']);
-    $filename = basename($filePath);
-    $row['ValidID'] = '/BarangaySampaguita/BarangaySystem/uploads/valid_ids/' . $filename;
+    // Check if it's already a base64 data URL
+    if (strpos($row['ValidID'], 'data:image') === 0) {
+        // Already a data URL, keep as is
+        // Do nothing
+    } else {
+        // It's a file path - convert to accessible URL
+        $filePath = str_replace('\\', '/', $row['ValidID']);
+        
+        // Check if the path is relative or absolute
+        if (strpos($filePath, 'uploads/') !== false) {
+            // Extract the part after 'uploads/'
+            $relativePath = substr($filePath, strpos($filePath, 'uploads/'));
+            $row['ValidID'] = '../' . $relativePath;
+        } else {
+            // Try to read the file and convert to base64
+            $fullPath = '../uploads/valid_ids/' . basename($filePath);
+            if (file_exists($fullPath)) {
+                $imageData = file_get_contents($fullPath);
+                $base64 = base64_encode($imageData);
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mimeType = finfo_file($finfo, $fullPath);
+                finfo_close($finfo);
+                $row['ValidID'] = 'data:' . $mimeType . ';base64,' . $base64;
+            } else {
+                $row['ValidID'] = null;
+            }
+        }
+    }
 } else {
     $row['ValidID'] = null;
 }

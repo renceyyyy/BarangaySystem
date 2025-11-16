@@ -1,9 +1,4 @@
 <?php
-/**
- * Activity Logger - Simple logging to existing user_activity_history table
- * Logs all user and admin actions to track system usage
- */
-
 class ActivityLogger {
     
     // Activity Type Constants
@@ -37,31 +32,33 @@ class ActivityLogger {
     const ADMIN_ACTION = 'ADMIN_ACTION';
 
     /**
-     * Log an activity to user_activity_history table
+     * Log an activity to user_activity_reports table
      * 
      * @param int $userId - User ID performing the action
-     * @param string $activityType - Type of activity (use constants)
-     * @param string $description - Description of what happened
-     * @param string $requestType - Type of request (document, business, etc.) - optional
-     * @param string $requestRefNo - Request reference number - optional
-     * @param string $requestStatus - Current status of request - optional
-     * @param string $adminAction - Admin-specific action details - optional
+     * @param string $userName - User name/full name
+     * @param string $activity - Description of the activity (e.g., "Requested No Birth Certificate", "Changed Password", "Updated Profile")
+     * @param string $loggedInDate - Optional: timestamp when user logged in
+     * @param string $loggedOutDate - Optional: timestamp when user logged out
      */
     public static function log($userId, $activityType, $description, $requestType = null, $requestRefNo = null, $requestStatus = null, $adminAction = null) {
         try {
+            error_log("ActivityLogger::log called with userId: " . $userId . ", activity: " . $description);
+            
             $conn = getDBConnection();
             
-            // Get user role
-            $userRole = self::getUserRole($userId);
+            // Get user name
+            $userName = self::getUserName($userId);
+            error_log("ActivityLogger::log: Got userName: " . $userName);
             
-            // Get IP address
-            $ipAddress = self::getClientIP();
+            // Build detailed activity description
+            $activityDescription = self::buildActivityDescription($activityType, $description, $requestType, $requestRefNo, $requestStatus);
+            error_log("ActivityLogger::log: Activity description: " . $activityDescription);
             
             // Prepare statement to prevent SQL injection
             $stmt = $conn->prepare("
-                INSERT INTO user_activity_history 
-                (UserId, ActivityType, ActivityDescription, RequestType, RequestRefNo, RequestStatus, IPAddress, UserRole, Timestamp, CreatedAt) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                INSERT INTO user_activity_reports 
+                (UserId, UserName, Activity, ActivityDate) 
+                VALUES (?, ?, ?, NOW())
             ");
             
             if (!$stmt) {
@@ -71,19 +68,18 @@ class ActivityLogger {
             
             // Bind parameters
             $stmt->bind_param(
-                "isssssss",
+                "iss",
                 $userId,
-                $activityType,
-                $description,
-                $requestType,
-                $requestRefNo,
-                $requestStatus,
-                $ipAddress,
-                $userRole
+                $userName,
+                $activityDescription
             );
             
             // Execute
             $result = $stmt->execute();
+            error_log("ActivityLogger::log execute result: " . ($result ? "true" : "false"));
+            if (!$result) {
+                error_log("log execute failed: " . $stmt->error);
+            }
             $stmt->close();
             
             return $result;
@@ -95,53 +91,121 @@ class ActivityLogger {
     }
 
     /**
-     * Get user role from database
+     * Log login activity with login timestamp (no activity description)
      */
-    private static function getUserRole($userId) {
+    public static function logLogin($userId) {
         try {
             $conn = getDBConnection();
-            $stmt = $conn->prepare("SELECT Role FROM userlogtbl WHERE UserID = ? LIMIT 1");
+            $userName = self::getUserName($userId);
+            
+            $stmt = $conn->prepare("
+                INSERT INTO user_activity_reports 
+                (UserId, UserName, LoggedInDate, ActivityDate) 
+                VALUES (?, ?, NOW(), NOW())
+            ");
             
             if (!$stmt) {
-                error_log("Prepare failed in getUserRole: " . $conn->error);
-                return 'user';
+                error_log("Prepare failed in logLogin: " . $conn->error);
+                return false;
+            }
+            
+            $stmt->bind_param("is", $userId, $userName);
+            $result = $stmt->execute();
+            $stmt->close();
+            
+            return $result;
+        } catch (Exception $e) {
+            error_log("Error logging login: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Log logout activity with logout timestamp (no activity description)
+     */
+    public static function logLogout($userId) {
+        try {
+            error_log("ActivityLogger::logLogout called for userId: " . $userId);
+            
+            $conn = getDBConnection();
+            $userName = self::getUserName($userId);
+            error_log("ActivityLogger::logLogout: Got userName: " . $userName);
+            
+            $stmt = $conn->prepare("
+                INSERT INTO user_activity_reports 
+                (UserId, UserName, LoggedOutDate, ActivityDate) 
+                VALUES (?, ?, NOW(), NOW())
+            ");
+            
+            if (!$stmt) {
+                error_log("Prepare failed in logLogout: " . $conn->error);
+                return false;
+            }
+            
+            $stmt->bind_param("is", $userId, $userName);
+            $result = $stmt->execute();
+            error_log("ActivityLogger::logLogout execute result: " . ($result ? "true" : "false"));
+            if (!$result) {
+                error_log("logLogout execute failed: " . $stmt->error);
+            }
+            $stmt->close();
+            
+            return $result;
+        } catch (Exception $e) {
+            error_log("Error logging logout: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Build detailed activity description from components
+     */
+    private static function buildActivityDescription($activityType, $description, $requestType = null, $requestRefNo = null, $requestStatus = null) {
+        $parts = [$description];
+        
+        if ($requestType) {
+            $parts[] = "Type: " . $requestType;
+        }
+        if ($requestRefNo) {
+            $parts[] = "Ref: " . $requestRefNo;
+        }
+        if ($requestStatus) {
+            $parts[] = "Status: " . $requestStatus;
+        }
+        
+        return implode(" | ", $parts);
+    }
+
+    /**
+     * Get user name from session or database
+     */
+    private static function getUserName($userId) {
+        try {
+            // First try to get from session (faster)
+            if (isset($_SESSION['fullname']) && !empty($_SESSION['fullname'])) {
+                return $_SESSION['fullname'];
+            }
+            
+            // Fallback to database query
+            $conn = getDBConnection();
+            $stmt = $conn->prepare("SELECT CONCAT(IFNULL(Firstname, ''), ' ', IFNULL(Lastname, '')) FROM userloginfo WHERE UserID = ? LIMIT 1");
+            
+            if (!$stmt) {
+                error_log("Prepare failed in getUserName: " . $conn->error);
+                return 'Unknown User';
             }
             
             $stmt->bind_param("i", $userId);
             $stmt->execute();
             $result = $stmt->get_result();
-            $row = $result->fetch_assoc();
+            $row = $result->fetch_array(MYSQLI_NUM);
             $stmt->close();
             
-            return $row ? $row['Role'] : 'user';
+            return ($row && !empty(trim($row[0]))) ? trim($row[0]) : 'Unknown User';
         } catch (Exception $e) {
-            error_log("Error getting user role: " . $e->getMessage());
-            return 'user';
+            error_log("Error getting user name: " . $e->getMessage());
+            return 'Unknown User';
         }
-    }
-
-    /**
-     * Get client IP address with fallback chain
-     */
-    private static function getClientIP() {
-        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-            $ip = $_SERVER['HTTP_CLIENT_IP'];
-        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            // Handle multiple IPs (take first one)
-            $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-            $ip = trim($ips[0]);
-        } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
-            $ip = $_SERVER['REMOTE_ADDR'];
-        } else {
-            $ip = '0.0.0.0';
-        }
-        
-        // Validate IP
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            $ip = '0.0.0.0';
-        }
-        
-        return $ip;
     }
 
     /**
@@ -151,7 +215,7 @@ class ActivityLogger {
         try {
             $conn = getDBConnection();
             
-            $query = "SELECT * FROM user_activity_history WHERE 1=1";
+            $query = "SELECT * FROM user_activity_reports WHERE 1=1";
             $params = [];
             $types = "";
             
@@ -162,47 +226,40 @@ class ActivityLogger {
                 $types .= "i";
             }
             
-            // Filter by activity type
-            if (!empty($filters['activity_type'])) {
-                $query .= " AND ActivityType = ?";
-                $params[] = $filters['activity_type'];
-                $types .= "s";
-            }
-            
-            // Filter by role
-            if (!empty($filters['user_role'])) {
-                $query .= " AND UserRole = ?";
-                $params[] = $filters['user_role'];
+            // Filter by username
+            if (!empty($filters['user_name'])) {
+                $query .= " AND UserName LIKE ?";
+                $searchTerm = "%" . $filters['user_name'] . "%";
+                $params[] = $searchTerm;
                 $types .= "s";
             }
             
             // Filter by date range
             if (!empty($filters['date_from'])) {
-                $query .= " AND DATE(Timestamp) >= ?";
+                $query .= " AND DATE(ActivityDate) >= ?";
                 $params[] = $filters['date_from'];
                 $types .= "s";
             }
             
             if (!empty($filters['date_to'])) {
-                $query .= " AND DATE(Timestamp) <= ?";
+                $query .= " AND DATE(ActivityDate) <= ?";
                 $params[] = $filters['date_to'];
                 $types .= "s";
             }
             
-            // Search in description
+            // Search in activity description
             if (!empty($filters['search'])) {
-                $query .= " AND (ActivityDescription LIKE ? OR RequestRefNo LIKE ?)";
+                $query .= " AND Activity LIKE ?";
                 $searchTerm = "%" . $filters['search'] . "%";
                 $params[] = $searchTerm;
-                $params[] = $searchTerm;
-                $types .= "ss";
+                $types .= "s";
             }
             
             // Pagination
             $limit = $filters['limit'] ?? 50;
             $offset = $filters['offset'] ?? 0;
             
-            $query .= " ORDER BY Timestamp DESC LIMIT ? OFFSET ?";
+            $query .= " ORDER BY ActivityDate DESC LIMIT ? OFFSET ?";
             $params[] = $limit;
             $params[] = $offset;
             $types .= "ii";
@@ -233,7 +290,7 @@ class ActivityLogger {
         try {
             $conn = getDBConnection();
             
-            $query = "SELECT COUNT(*) as total FROM user_activity_history WHERE 1=1";
+            $query = "SELECT COUNT(*) as total FROM user_activity_reports WHERE 1=1";
             $params = [];
             $types = "";
             
@@ -244,36 +301,30 @@ class ActivityLogger {
                 $types .= "i";
             }
             
-            if (!empty($filters['activity_type'])) {
-                $query .= " AND ActivityType = ?";
-                $params[] = $filters['activity_type'];
-                $types .= "s";
-            }
-            
-            if (!empty($filters['user_role'])) {
-                $query .= " AND UserRole = ?";
-                $params[] = $filters['user_role'];
+            if (!empty($filters['user_name'])) {
+                $query .= " AND UserName LIKE ?";
+                $searchTerm = "%" . $filters['user_name'] . "%";
+                $params[] = $searchTerm;
                 $types .= "s";
             }
             
             if (!empty($filters['date_from'])) {
-                $query .= " AND DATE(Timestamp) >= ?";
+                $query .= " AND DATE(ActivityDate) >= ?";
                 $params[] = $filters['date_from'];
                 $types .= "s";
             }
             
             if (!empty($filters['date_to'])) {
-                $query .= " AND DATE(Timestamp) <= ?";
+                $query .= " AND DATE(ActivityDate) <= ?";
                 $params[] = $filters['date_to'];
                 $types .= "s";
             }
             
             if (!empty($filters['search'])) {
-                $query .= " AND (ActivityDescription LIKE ? OR RequestRefNo LIKE ?)";
+                $query .= " AND Activity LIKE ?";
                 $searchTerm = "%" . $filters['search'] . "%";
                 $params[] = $searchTerm;
-                $params[] = $searchTerm;
-                $types .= "ss";
+                $types .= "s";
             }
             
             $stmt = $conn->prepare($query);
@@ -301,7 +352,7 @@ class ActivityLogger {
     public static function clearOldLogs($days = 90) {
         try {
             $conn = getDBConnection();
-            $stmt = $conn->prepare("DELETE FROM user_activity_history WHERE Timestamp < DATE_SUB(NOW(), INTERVAL ? DAY)");
+            $stmt = $conn->prepare("DELETE FROM user_activity_reports WHERE ActivityDate < DATE_SUB(NOW(), INTERVAL ? DAY)");
             $stmt->bind_param("i", $days);
             $result = $stmt->execute();
             $stmt->close();
@@ -312,18 +363,56 @@ class ActivityLogger {
             return false;
         }
     }
+
+    /**
+     * Get activity summary for a specific user
+     */
+    public static function getUserActivitySummary($userId) {
+        try {
+            $conn = getDBConnection();
+            
+            $stmt = $conn->prepare("
+                SELECT 
+                    COUNT(*) as total_activities,
+                    MAX(ActivityDate) as last_activity,
+                    COUNT(CASE WHEN Activity LIKE '%logged in%' THEN 1 END) as login_count,
+                    COUNT(CASE WHEN Activity LIKE '%logged out%' THEN 1 END) as logout_count
+                FROM user_activity_reports 
+                WHERE UserId = ?
+            ");
+            
+            if (!$stmt) {
+                error_log("Prepare failed in getUserActivitySummary: " . $conn->error);
+                return null;
+            }
+            
+            $stmt->bind_param("i", $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $summary = $result->fetch_assoc();
+            $stmt->close();
+            
+            return $summary;
+        } catch (Exception $e) {
+            error_log("Error getting user activity summary: " . $e->getMessage());
+            return null;
+        }
+    }
 }
 
 /**
  * Helper function for quick logging
- * Usage: logActivity(ActivityLogger::LOGIN, 'User logged in', 'LoginRequest', 'REF123', 'success')
+ * Usage: logActivity(ActivityLogger::LOGIN, 'User logged in')
+ * Usage: logActivity(ActivityLogger::DOCUMENT_REQUEST, 'Document request submitted', 'No Birth Certificate', 'REF123', 'Pending')
  */
 if (!function_exists('logActivity')) {
     function logActivity($activityType, $description, $requestType = null, $requestRefNo = null, $requestStatus = null, $adminAction = null) {
         if (!isset($_SESSION['user_id'])) {
+            error_log("logActivity: user_id not in session. Description: " . $description);
             return false;
         }
         
+        error_log("logActivity: Logging activity for user ID: " . $_SESSION['user_id'] . ", Activity: " . $description);
         return ActivityLogger::log(
             $_SESSION['user_id'],
             $activityType,
@@ -333,6 +422,38 @@ if (!function_exists('logActivity')) {
             $requestStatus,
             $adminAction
         );
+    }
+}
+
+/**
+ * Helper function for login logging
+ * Usage: logActivityLogin()
+ */
+if (!function_exists('logActivityLogin')) {
+    function logActivityLogin() {
+        if (!isset($_SESSION['user_id'])) {
+            return false;
+        }
+        
+        return ActivityLogger::logLogin($_SESSION['user_id']);
+    }
+}
+
+/**
+ * Helper function for logout logging
+ * Usage: logActivityLogout()
+ */
+if (!function_exists('logActivityLogout')) {
+    function logActivityLogout() {
+        if (!isset($_SESSION['user_id'])) {
+            error_log("logActivityLogout: user_id not in session");
+            return false;
+        }
+        
+        error_log("logActivityLogout: Logging logout for user ID: " . $_SESSION['user_id']);
+        $result = ActivityLogger::logLogout($_SESSION['user_id']);
+        error_log("logActivityLogout: Result = " . ($result ? "true" : "false"));
+        return $result;
     }
 }
 

@@ -1,5 +1,15 @@
-<?php include 'dashboard.php';
+<?php 
+// Initialize role-based session for SuperAdmin
+require_once __DIR__ . '/../config/session_config.php';
+initRoleBasedSession('SuperAdmin');
 
+// Security check — only SuperAdmin users allowed
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'SuperAdmin') {
+    header("Location: ../Login/login.php");
+    exit();
+}
+
+include 'dashboard.php';
 ?>
 
 <!DOCTYPE html>
@@ -25,56 +35,56 @@
       <div class="col-12 col-md-2 sidebar">
         <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
-        <button class="sidebar-btn" onclick="showPanel('dashboardPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
         </button>
-        <button class="sidebar-btn" onclick="showPanel('residencePanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('residencePanel')">
           <i class="fas fa-users"></i> Residence
         </button>
         <div class="dropdown w-100">
-          <button class="sidebar-btn w-100" onclick="toggleDropdown(event)">
+          <button class="sidebar-btn w-100" type="button" onclick="toggleDropdown(event); return false;">
             <i class="fas fa-book"></i> Document Request <i class="fas fa-caret-down ms-auto"></i>
           </button>
 
           <div id="dropdownMenu" class="dropdown-content-custom">
-            <a href="#" onclick="showPanel('governmentDocumentPanel')">Government Document</a>
-            <a href="#" onclick="showPanel('businessPermitPanel')">Business Permit</a>
-            <a href="#" onclick="showPanel('businessUnemploymentCertificatePanel')">Unemployment Certificate Request</a>
-            <a href="#" onclick="showPanel('guardianshipPanel')">Guardianship</a>
-             <a href="#" onclick="showPanel('nobirthcertificatePanel')">Birth Certificate</a>
+            <a href="javascript:void(0);" onclick="showPanel('governmentDocumentPanel'); return false;">Government Document</a>
+            <a href="javascript:void(0);" onclick="showPanel('businessPermitPanel'); return false;">Business Permit</a>
+            <a href="javascript:void(0);" onclick="showPanel('businessUnemploymentCertificatePanel'); return false;">Unemployment Certificate Request</a>
+            <a href="javascript:void(0);" onclick="showPanel('guardianshipPanel'); return false;">Guardianship</a>
+             <a href="javascript:void(0);" onclick="showPanel('nobirthcertificatePanel'); return false;">Birth Certificate</a>
           </div>
         </div>
 
-        <button class="sidebar-btn" onclick="showPanel('itemrequestsPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('itemrequestsPanel')">
           <i class="fas fa-box-open"></i> Item Request
         </button>
 
-        <!-- <button class="sidebar-btn" onclick="showPanel('blotterComplaintPanel')">
+        <!-- <button class="sidebar-btn" type="button" onclick="showPanel('blotterComplaintPanel')">
           <i class="fas fa-exclamation-triangle"></i> Blotter/Complaint
         </button> -->
 
         <div class="dropdown w-100">
-          <button class="sidebar-btn w-100" onclick="toggleDropdown(event, 'blotterDropdownMenu')">
+          <button class="sidebar-btn w-100" type="button" onclick="toggleDropdown(event, 'blotterDropdownMenu'); return false;">
             <i class="fas fa-exclamation-triangle"></i> Blotter <i class="fas fa-caret-down ms-auto"></i>
           </button>
           <div id="blotterDropdownMenu" class="dropdown-content-custom">
-            <a href="#" onclick="showPanel('blotterComplaintPanel')">Blotter/Complaint</a>
-            <a href="#" onclick="showPanel('blotteredIndividualsPanel')">Blottered Individuals</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotterComplaintPanel'); return false;">Blotter/Complaint</a>
+            <a href="javascript:void(0);" onclick="showPanel('blotteredIndividualsPanel'); return false;">Blottered Individuals</a>
           </div>
         </div>
 
 
 
-        <button class="sidebar-btn" onclick="showPanel('reportsPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('reportsPanel')">
           <i class="fas fa-file-alt"></i> Reports
         </button>
-        <button class="sidebar-btn" onclick="showPanel('auditTrailPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('auditTrailPanel')">
           <i class="fas fa-history"></i> Audit Trail
         </button>
-        <button class="sidebar-btn" onclick="showPanel('announcementPanel')">
+        <button class="sidebar-btn" type="button" onclick="showPanel('announcementPanel')">
           <i class="fas fa-newspaper"></i> Announcement
         </button>
-        <a href="#" class="logout-link mt-auto" onclick="openLogoutModal(event)">
+        <a href="javascript:void(0);" class="logout-link mt-auto" onclick="openLogoutModal(event); return false;">
           <i class="fas fa-sign-out-alt"></i> Logout
         </a>
 
@@ -1766,7 +1776,7 @@
                   } else {
                     echo "<tr><td colspan='7'>No item requests found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
 
                   // helper to render a small form-button
                   function actionBtn($id, $action, $label)
@@ -1866,7 +1876,7 @@
                   } else {
                     echo "<tr><td colspan='9'>No blotter records found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
 
 
@@ -2309,7 +2319,7 @@
                   } else {
                     echo "<tr><td colspan='10'>No blottered individuals found.</td></tr>";
                   }
-                  $conn->close();
+                  // Singleton connection closed by PHP
                   ?>
                 </tbody>
               </table>
@@ -2393,7 +2403,7 @@
                 echo "<div class='alert alert-danger'>Failed to prepare statement.</div>";
             }
         }
-        $conn->close();
+        // Singleton connection closed by PHP
     }
 }
 ?>
@@ -2440,7 +2450,7 @@
           } else {
               echo "<div class='alert alert-info mt-3'>No announcements yet.</div>";
           }
-          $conn->close();
+          // Singleton connection closed by PHP
       }
     ?>
 </div>
@@ -3889,6 +3899,7 @@ window.addEventListener("DOMContentLoaded", function() {
               // }
 
               function toggleDropdown(event, id = "dropdownMenu") {
+                event.preventDefault();
                 event.stopPropagation();
                 document.querySelectorAll('.dropdown-content-custom').forEach(menu => {
                   if (menu.id !== id) menu.style.display = "none";
@@ -4445,7 +4456,17 @@ window.addEventListener("DOMContentLoaded", function() {
             document.getElementById('modalCivilStat').value = this.getAttribute('data-civilstatus');
             document.getElementById('modalNationality').value = this.getAttribute('data-nationality');
             document.getElementById('modalAccountStatus').value = this.getAttribute('data-accountstatus');
-
+            
+            // Set ValidID image
+            const validIDImg = document.getElementById('modalValidID');
+            const validIDData = this.getAttribute('data-validid');
+            if (validIDData) {
+              validIDImg.src = validIDData;
+              validIDImg.style.display = 'block';
+            } else {
+              validIDImg.src = '';
+              validIDImg.style.display = 'none';
+            }
 
                   document.getElementById('viewModal').style.display = 'flex';
                 });

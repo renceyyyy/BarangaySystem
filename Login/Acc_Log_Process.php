@@ -10,6 +10,9 @@ $conn = $db->getConnection();
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
     // Get form data and sanitize
+    $firstname = trim(db_escape($_POST['firstname']));
+    $lastname = trim(db_escape($_POST['lastname']));
+    $email = trim(db_escape($_POST['email']));
     $username = trim(db_escape($_POST['username']));
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
@@ -19,8 +22,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
     $errors = array();
 
     // Check if fields are empty
-    if (empty($username) || empty($password) || empty($confirm_password)) {
+    if (empty($firstname) || empty($lastname) || empty($email) || empty($username) || empty($password) || empty($confirm_password)) {
         $errors[] = "All fields are required.";
+    }
+
+    // First name validation
+    if (strlen($firstname) < 2) {
+        $errors[] = "First name must be at least 2 characters long.";
+    }
+
+    if (strlen($firstname) > 50) {
+        $errors[] = "First name must not exceed 50 characters.";
+    }
+
+    // Last name validation
+    if (strlen($lastname) < 2) {
+        $errors[] = "Last name must be at least 2 characters long.";
+    }
+
+    if (strlen($lastname) > 50) {
+        $errors[] = "Last name must not exceed 50 characters.";
+    }
+
+    // Email validation
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "Invalid email format.";
+    }
+
+    if (strlen($email) > 100) {
+        $errors[] = "Email must not exceed 100 characters.";
     }
 
     // Username validation
@@ -62,6 +92,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
         $role = 'resident'; // Default to resident if invalid role
     }
 
+    // Check for email uniqueness
+    if (empty($errors)) {
+        $email_check_query = "SELECT Email FROM userloginfo WHERE Email = ?";
+        $stmt = db_prepare($email_check_query);
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        
+        if (mysqli_num_rows($result) > 0) {
+            $errors[] = "This email is already registered.";
+        }
+        mysqli_stmt_close($stmt);
+    }
+
     // Check if username already exists
     if (empty($errors)) {
         $check_stmt = db_prepare("SELECT Username FROM userlogtbl WHERE Username = ?");
@@ -99,11 +143,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
         // Insert into userloginfo first to generate UserID
         $info_stmt = db_prepare("INSERT INTO userloginfo 
             (Firstname, Lastname, Middlename, Birthdate, ContactNo, Email, Birthplace, Address, CivilStatus, Nationality, AccountStatus) 
-            VALUES ('uncompleted', 'uncompleted', 'uncompleted', 0, 0, 'uncompleted', 'uncompleted', 'uncompleted', 'uncompleted', 'uncompleted', 'unverified')");
+            VALUES (?, ?, 'uncompleted', 0, 0, ?, 'uncompleted', 'uncompleted', 'uncompleted', 'uncompleted', 'unverified')");
             
         if ($info_stmt === false) {
             throw new Exception("Database error: Failed to prepare userloginfo insert statement. Error: " . $conn->error);
         }
+
+        $info_stmt->bind_param("sss", $firstname, $lastname, $email);
 
         if (!$info_stmt->execute()) {
             throw new Exception("Error creating user profile: " . $info_stmt->error);

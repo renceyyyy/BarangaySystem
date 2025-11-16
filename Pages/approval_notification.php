@@ -79,7 +79,7 @@ function checkApprovedRequests($conn, $userId) {
         $sql = "SELECT {$query['select']}, '{$query['type']}' as request_type
                 FROM {$query['table']} 
                 WHERE {$query['user_col']} = ? 
-                AND RequestStatus = 'approved' 
+                AND RequestStatus = 'Approved' 
                 AND {$query['date_col']} >= ?
                 ORDER BY {$query['date_col']} DESC 
                 LIMIT 1";

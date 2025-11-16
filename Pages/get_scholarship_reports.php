@@ -1,10 +1,13 @@
 <?php
-session_start();
+// Initialize role-based session
+require_once __DIR__ . '/../config/session_config.php';
+initRoleBasedSession('sk');
+
 header('Content-Type: application/json');
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    echo json_encode(['success' => false, 'message' => 'Not authenticated']);
+// Check if user is logged in with SK role
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'sk') {
+    echo json_encode(['success' => false, 'message' => 'Not authenticated or insufficient permissions']);
     exit();
 }
 

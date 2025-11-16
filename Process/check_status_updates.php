@@ -311,7 +311,9 @@ try {
                             if ($insertNotifStmt) {
                                 $insertNotifStmt->bind_param("is", $userId, $message);
                                 if ($insertNotifStmt->execute()) {
+                                    $notificationId = $insertNotifStmt->insert_id;
                                     $newNotifications[] = [
+                                        'id' => $notificationId,
                                         'message' => $message,
                                         'status' => 'verified',
                                         'refno' => 'ACCOUNT_VERIFICATION',
@@ -427,8 +429,11 @@ try {
                     if ($insertNotifStmt) {
                         $insertNotifStmt->bind_param("issss", $userId, $refno, $message, $currentStatus, $requestType);
                         if ($insertNotifStmt->execute()) {
-                            // Add to new notifications array
+                            // Get the inserted notification ID
+                            $notificationId = $insertNotifStmt->insert_id;
+                            // Add to new notifications array with ID
                             $newNotifications[] = [
+                                'id' => $notificationId,
                                 'message' => $message,
                                 'status' => $currentStatus,
                                 'refno' => $refno,

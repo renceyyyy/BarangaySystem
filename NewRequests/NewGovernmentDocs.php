@@ -1104,9 +1104,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["doc_request"])) {
                             </label>
                         </div>
                         <div class="checkbox-item">
-                      
+                      <input type="checkbox" id="no_birth_certificate" name="doctype[]"
+                                value="No Birth Certificate" <?php
+                                $checked = (isset($doctypes) && in_array('No Birth Certificate', $doctypes)) ? 'checked' : '';
+                                $disabled = in_array('No Birth Certificate', $pending_doc_types) ? 'disabled' : '';
+                                echo $checked . ' ' . $disabled;
+                                ?>>
+                            <label for="no_birth_certificate">
+                                No Birth Certificate
+                                <?php if (in_array('No Birth Certificate', $pending_doc_types)): ?>
+                                    <span style="color: #d9534f; font-size: 0.9em;"> (Already have pending request)</span>
+                                <?php endif; ?>
+                            </label>
                     </div>
                 </div>
+                
 
                 <div class="form-group">
                     <label for="reqPurpose">Purpose of Request <span class="required">*</span></label>

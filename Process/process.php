@@ -114,7 +114,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["signup_request"])) {
 
     // Insert user data
     $sql = "INSERT INTO users (
-        Firstname, Lastname, Middlename, Email, ContactNo, Birthday, 
+        Firstname, Lastname, Middlename, Email, ContactNo, Birthday,
         Gender, Age, Address, Birthplace, CivilStat, Nationality
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -368,7 +368,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
     // Bind parameters - Evidencepic is parameter 4 (index 3)
     $null = null;
     if ($evidencePicData !== null) {
-        $stmt->bind_param("sssbii", 
+        $stmt->bind_param(
+            "sssbii",
             $_POST['firstname'],
             $_POST['lastname'],
             $_POST['complain'],
@@ -378,7 +379,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
         );
         $stmt->send_long_data(3, $evidencePicData); // Parameter index 3 is Evidencepic
     } else {
-        $stmt->bind_param("ssssii", 
+        $stmt->bind_param(
+            "ssssii",
             $_POST['firstname'],
             $_POST['lastname'],
             $_POST['complain'],
@@ -410,7 +412,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
     // Enable detailed error reporting
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
-    
+
     // Initialize response
     $response = ['status' => 'error', 'message' => ''];
 
@@ -434,10 +436,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
             'OwnerName' => ['type' => 'string', 'name' => 'Owner name'],
             'OwnerContact' => ['type' => 'string', 'name' => 'Owner contact']
         ];
-        
+
         $data = [];
         $errors = [];
-        
+
         foreach ($requiredFields as $field => $info) {
             if (empty(trim($_POST[$field] ?? ''))) {
                 $errors[] = "{$info['name']} is required";
@@ -471,13 +473,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
         } else {
             $allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
             $maxSize = 2 * 1024 * 1024; // 2MB
-            
+
             $fileInfo = finfo_open(FILEINFO_MIME_TYPE);
             $fileType = finfo_file($fileInfo, $_FILES['businessProof']['tmp_name']);
             finfo_close($fileInfo);
-            
+
             $fileSize = $_FILES['businessProof']['size'];
-            
+
             if (!in_array($fileType, $allowedTypes)) {
                 $errors[] = "Only JPG, PNG, and PDF files are allowed";
             } elseif ($fileSize > $maxSize) {
@@ -500,14 +502,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
             $sql = "INSERT INTO businesstbl (
                 UserId, refno, BusinessName, BusinessLoc, OwnerName, Purpose, OwnerContact, RequestType, ProofPath
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
+
             $stmt = $conn->prepare($sql);
             if (!$stmt) {
                 throw new Exception("Prepare failed: " . $conn->error);
             }
-            
+
             $null = NULL;
-            $stmt->bind_param("isssssssb", 
+            $stmt->bind_param(
+                "isssssssb",
                 $data['UserId'],
                 $refno,
                 $data['BusinessName'],
@@ -523,14 +526,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
             $sql = "INSERT INTO businesstbl (
                 UserId, refno, BusinessName, BusinessLoc, OwnerName, Purpose, ClosureDate, OwnerContact, RequestType, ProofPath
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
+
             $stmt = $conn->prepare($sql);
             if (!$stmt) {
                 throw new Exception("Prepare failed: " . $conn->error);
             }
-            
+
             $null = NULL;
-            $stmt->bind_param("issssssssb", 
+            $stmt->bind_param(
+                "issssssssb",
                 $data['UserId'],
                 $refno,
                 $data['BusinessName'],
@@ -553,11 +557,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["business_request"])) 
         $response['status'] = 'success';
         $response['message'] = "Business request submitted successfully!";
         $response['refno'] = $refno;
-        
     } catch (Exception $e) {
         error_log("Error: " . $e->getMessage());
         $response['message'] = $e->getMessage();
-        
+
         // For debugging - don't show full errors in production
         if (strpos($e->getMessage(), 'Database') !== false) {
             $response['message'] = "Failed to save business request. Please try again.";
@@ -586,6 +589,41 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
 
         $userId = $_SESSION['user_id'];
 
+        // Check if this is an admin submitting on behalf of someone
+        // If userId doesn't exist in users table, create a user record from the form data
+        $conn = getDBConnection();
+        $checkUser = $conn->prepare("SELECT UserId FROM users WHERE UserId = ?");
+        $checkUser->bind_param("i", $userId);
+        $checkUser->execute();
+        $userExists = $checkUser->get_result()->num_rows > 0;
+        $checkUser->close();
+
+        if (!$userExists) {
+            // Admin is submitting - create a user record from form data
+            error_log("Admin submission detected - creating user record from form data");
+
+            // Extract user data from form
+            $firstname = $_POST['firstname'] ?? '';
+            $lastname = $_POST['lastname'] ?? '';
+            $email = $_POST['email'] ?? '';
+            $contactNo = $_POST['contact_no'] ?? '';
+            $address = $_POST['address'] ?? '';
+
+            // Create basic user record
+            $insertUser = $conn->prepare("INSERT INTO users (Firstname, Lastname, Middlename, Email, ContactNo, Birthday, Gender, Age, Address, Birthplace, CivilStat, Nationality) VALUES (?, ?, '', ?, ?, '2000-01-01', 'Not Specified', 0, ?, '', 'Single', 'Filipino')");
+            $insertUser->bind_param("sssss", $firstname, $lastname, $email, $contactNo, $address);
+
+            if ($insertUser->execute()) {
+                $userId = $insertUser->insert_id;
+                error_log("Created new user record with ID: $userId");
+            } else {
+                error_log("Failed to create user record: " . $insertUser->error);
+                $response['message'] = "Failed to create user record";
+                sendResponse($response);
+            }
+            $insertUser->close();
+        }
+
         // Debug: Log received data
         error_log("Form data received: " . print_r($_POST, true));
         error_log("Files received: " . print_r(array_keys($_FILES), true));
@@ -611,10 +649,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
         // Debug: Log sanitized data
         error_log("Sanitized data: " . print_r($data, true));
 
-        // Validate reason word count
-        if (str_word_count($data['reason']) < 50) {
-            $response['message'] = "Reason must be at least 50 words";
-            sendResponse($response);
+        // Validate reason based on type
+        $reasonType = $_POST['reason_type'] ?? 'text';
+        error_log("Reason type: " . $reasonType);
+
+        if ($reasonType === 'text') {
+            // Validate text reason is not empty
+            if (empty(trim($data['reason']))) {
+                $response['message'] = "Reason for applying is required";
+                sendResponse($response);
+            }
+        } elseif ($reasonType === 'file') {
+            // Validate that reason_file was uploaded
+            if (!isset($blobs['reason_file']) || empty($blobs['reason_file'])) {
+                $response['message'] = "Handwritten reason document is required";
+                sendResponse($response);
+            }
+            // Reason is already set to placeholder in sanitizeInput()
         }
 
         // Save to database
@@ -631,7 +682,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             'reference_id' => $dbResult['insert_id']
         ];
         sendResponse($response);
-
     } catch (Exception $e) {
         error_log("Exception in scholarship application: " . $e->getMessage());
         $response['message'] = "System error: " . $e->getMessage();
@@ -648,7 +698,8 @@ function validateInput()
         'email' => 'Email',
         'contact_no' => 'Contact number',
         'address' => 'Address',
-        'reason' => 'Reason for applying'
+        'education_level' => 'Education level'
+        // Note: 'reason' is NOT in required list because it's validated separately based on reason_type
     ];
 
     foreach ($required as $field => $name) {
@@ -678,6 +729,7 @@ function processFileUploads()
     $errors = [];
     $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
 
+    // Process required files
     foreach ($required_files as $field => $label) {
         if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
             $upload_error = isset($_FILES[$field]) ? $_FILES[$field]['error'] : 'File not uploaded';
@@ -717,6 +769,36 @@ function processFileUploads()
         error_log("Successfully processed file: $field (size: " . strlen($content) . " bytes)");
     }
 
+    // Process optional reason_file if uploaded
+    if (isset($_FILES['reason_file']) && $_FILES['reason_file']['error'] === UPLOAD_ERR_OK) {
+        error_log("Processing reason_file upload");
+
+        if ($_FILES['reason_file']['size'] > 5242880) { // 5MB limit
+            $errors[] = "Reason document must be smaller than 5MB";
+        } else {
+            $tmp_name = $_FILES['reason_file']['tmp_name'];
+
+            if (file_exists($tmp_name)) {
+                $mime = mime_content_type($tmp_name);
+                error_log("Reason file MIME type: $mime");
+
+                if (in_array($mime, $allowed_mime_types)) {
+                    $content = file_get_contents($tmp_name);
+                    if ($content !== false) {
+                        $blobs['reason_file'] = $content;
+                        error_log("Successfully processed reason_file (size: " . strlen($content) . " bytes)");
+                    } else {
+                        $errors[] = "Failed to read reason document";
+                    }
+                } else {
+                    $errors[] = "Reason document must be a JPG, PNG, GIF, or PDF";
+                }
+            } else {
+                $errors[] = "Failed to access reason document file";
+            }
+        }
+    }
+
     if (!empty($errors)) {
         return ['error' => $errors];
     }
@@ -727,13 +809,26 @@ function processFileUploads()
 function sanitizeInput()
 {
     $conn = getDBConnection();
+    $reasonType = $_POST['reason_type'] ?? 'text';
+
+    // Handle reason based on type
+    $reason = '';
+    if ($reasonType === 'file') {
+        // If file upload, set a placeholder - actual file content will be in blobs
+        $reason = '[Handwritten document uploaded]';
+    } else {
+        // If text, get the actual text content
+        $reason = db_escape(trim($_POST['reason'] ?? ''));
+    }
+
     return [
         'firstname' => db_escape(trim($_POST['firstname'])),
         'lastname' => db_escape(trim($_POST['lastname'])),
         'email' => filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL),
         'contactNo' => preg_replace('/[^0-9]/', '', trim($_POST['contact_no'])),
         'address' => db_escape(trim($_POST['address'])),
-        'reason' => db_escape(trim($_POST['reason']))
+        'reason' => $reason,
+        'education_level' => db_escape(trim($_POST['education_level'] ?? ''))
     ];
 }
 
@@ -747,10 +842,27 @@ function saveApplication($userId, $data, $blobs)
             throw new Exception("Database connection not available");
         }
 
-        $sql = "INSERT INTO scholarship 
-                (UserID, Firstname, Lastname, Email, ContactNo, Address, Reason,
-                 SchoolID, BaranggayID, COR, ParentsID, BirthCertificate, RequestStatus, DateApplied)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
+        // Check if ReasonFile column exists, if not create it
+        $checkCol = $conn->query("SHOW COLUMNS FROM scholarship LIKE 'ReasonFile'");
+        if ($checkCol && $checkCol->num_rows === 0) {
+            error_log("ReasonFile column doesn't exist, creating it...");
+            $conn->query("ALTER TABLE scholarship ADD COLUMN ReasonFile LONGBLOB NULL AFTER Reason");
+        }
+
+        // Check if reason_file blob exists
+        $hasReasonFile = isset($blobs['reason_file']) && !empty($blobs['reason_file']);
+
+        if ($hasReasonFile) {
+            $sql = "INSERT INTO scholarship
+                    (UserID, Firstname, Lastname, Email, ContactNo, Address, Reason, EducationLevel, ReasonFile,
+                     SchoolID, BaranggayID, COR, ParentsID, BirthCertificate, RequestStatus, DateApplied)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
+        } else {
+            $sql = "INSERT INTO scholarship
+                    (UserID, Firstname, Lastname, Email, ContactNo, Address, Reason, EducationLevel,
+                     SchoolID, BaranggayID, COR, ParentsID, BirthCertificate, RequestStatus, DateApplied)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
+        }
 
         error_log("SQL Query: " . $sql);
 
@@ -760,23 +872,44 @@ function saveApplication($userId, $data, $blobs)
         }
 
         // Log data being bound
-        error_log("Binding data - UserID: $userId, Name: {$data['firstname']} {$data['lastname']}");
+        error_log("Binding data - UserID: $userId, Name: {$data['firstname']} {$data['lastname']}, Education: {$data['education_level']}, Has ReasonFile: " . ($hasReasonFile ? 'YES' : 'NO'));
 
-        $stmt->bind_param(
-            "isssssssssss",
-            $userId,
-            $data['firstname'],
-            $data['lastname'],
-            $data['email'],
-            $data['contactNo'],
-            $data['address'],
-            $data['reason'],
-            $blobs['school_id'],
-            $blobs['barangay_id'],
-            $blobs['cor'],
-            $blobs['parents_id'],
-            $blobs['birth_certificate']
-        );
+        if ($hasReasonFile) {
+            $stmt->bind_param(
+                "isssssssssssss",
+                $userId,
+                $data['firstname'],
+                $data['lastname'],
+                $data['email'],
+                $data['contactNo'],
+                $data['address'],
+                $data['reason'],
+                $data['education_level'],
+                $blobs['reason_file'],
+                $blobs['school_id'],
+                $blobs['barangay_id'],
+                $blobs['cor'],
+                $blobs['parents_id'],
+                $blobs['birth_certificate']
+            );
+        } else {
+            $stmt->bind_param(
+                "issssssssssss",
+                $userId,
+                $data['firstname'],
+                $data['lastname'],
+                $data['email'],
+                $data['contactNo'],
+                $data['address'],
+                $data['reason'],
+                $data['education_level'],
+                $blobs['school_id'],
+                $blobs['barangay_id'],
+                $blobs['cor'],
+                $blobs['parents_id'],
+                $blobs['birth_certificate']
+            );
+        }
 
         if (!$stmt->execute()) {
             throw new Exception("Execute failed: " . $stmt->error);
@@ -848,7 +981,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
     $refno = date('Ymd') . rand(1000, 9999);
     $successCount = 0;
 
-     try {
+    try {
         // Check if table exists, create if not
         $conn = getDBConnection();
         $table_check = db_query("SHOW TABLES LIKE 'unemploymenttbl'");
@@ -879,8 +1012,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["unemployment_request"
 
         // Insert into database
         $sql = "INSERT INTO unemploymenttbl (
-            refno, certificate_type, fullname, age, address, 
-            unemployed_since, no_fixed_income_since, purpose, 
+            refno, certificate_type, fullname, age, address,
+            unemployed_since, no_fixed_income_since, purpose,
             request_date, user_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
@@ -972,7 +1105,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
     // Generate reference number
     $refno = date('Ymd') . rand(1000, 9999);
 
-      try {
+    try {
         // Check if table exists, create if not
         $conn = getDBConnection();
         $table_check = db_query("SHOW TABLES LIKE 'guardianshiptbl'");
@@ -1005,7 +1138,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
 
         // Insert into database
         $sql = "INSERT INTO guardianshiptbl (
-            refno, request_type, child_name, child_age, child_address, 
+            refno, request_type, child_name, child_age, child_address,
             guardianship_since, solo_parent_since, purpose,
             applicant_name, applicant_relationship, request_date, user_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
@@ -1093,7 +1226,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["no_birthcert_request"
     // Generate reference number
     $refno = date('Ymd') . rand(1000, 9999);
 
-     try {
+    try {
         // Check if table exists, create if not
         $conn = getDBConnection();
         $table_check = db_query("SHOW TABLES LIKE 'no_birthcert_tbl'");
@@ -1121,7 +1254,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["no_birthcert_request"
 
         // Insert into database
         $sql = "INSERT INTO no_birthcert_tbl (
-            refno, requestor_name, requestor_birthday, 
+            refno, requestor_name, requestor_birthday,
             requestor_address, purpose, request_date, user_id
         ) VALUES (?, ?, ?, ?, ?, NOW(), ?)";
 

@@ -31,7 +31,8 @@ require_once '../Process/news_handler.php';
             padding: 0;
         }
 
-        html, body {
+        html,
+        body {
             width: 100%;
             overflow-x: hidden;
         }
@@ -285,6 +286,19 @@ require_once '../Process/news_handler.php';
         }
 
 
+        @media (max-width: 480px) {
+
+            .approval-notification,
+            .decline-notification {
+                width: 95%;
+                right: 2.5%;
+                top: 100px !important;
+            }
+
+            .decline-notification {
+                top: 450px !important;
+            }
+        }
     </style>
 </head>
 
@@ -517,7 +531,7 @@ require_once '../Process/news_handler.php';
 
         // Smooth scrolling for navigation links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
+            anchor.addEventListener('click', function(e) {
                 e.preventDefault();
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
@@ -530,7 +544,7 @@ require_once '../Process/news_handler.php';
         });
 
         // News Slider Functionality
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const slider = document.querySelector('.news-slider');
             const slides = document.querySelectorAll('.news-slide');
             const prevBtn = document.querySelector('.slider-prev');
@@ -602,11 +616,11 @@ require_once '../Process/news_handler.php';
         });
 
         // Scroll to Top Button Functionality
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const scrollToTopBtn = document.getElementById('scrollToTop');
 
             // Show/hide button based on scroll position
-            window.addEventListener('scroll', function () {
+            window.addEventListener('scroll', function() {
                 if (window.pageYOffset > 300) {
                     scrollToTopBtn.classList.add('show');
                 } else {
@@ -615,14 +629,336 @@ require_once '../Process/news_handler.php';
             });
 
             // Smooth scroll to top when button is clicked
-            scrollToTopBtn.addEventListener('click', function () {
+            scrollToTopBtn.addEventListener('click', function() {
                 window.scrollTo({
                     top: 0,
                     behavior: 'smooth'
                 });
             });
         });
+
+        // Enhanced real-time checking for both approvals and declines
+        document.addEventListener('DOMContentLoaded', function() {
+            let isChecking = false;
+            let approvalShown = false;
+            let declinedShown = false;
+
+            // Function to check for new approvals and declines
+            function checkForNewUpdates() {
+                if (isChecking || (approvalShown && declinedShown)) {
+                    return;
+                }
+
+                isChecking = true;
+
+                fetch('../Process/check_new_updates.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'check_updates=1&user_id=<?php echo $_SESSION['user_id'] ?? 0; ?>'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.hasNewApprovals && !approvalShown) {
+                            showNewApprovalAlert();
+                            approvalShown = true;
+
+                            setTimeout(() => {
+                                location.reload();
+                            }, 2000);
+                        }
+
+                        if (data.hasNewDeclines && !declinedShown) {
+                            showNewDeclinedAlert();
+                            declinedShown = true;
+
+                            setTimeout(() => {
+                                location.reload();
+                            }, 2000);
+                        }
+                    })
+                    .catch(error => {
+                        console.log('Update check error:', error);
+                    })
+                    .finally(() => {
+                        isChecking = false;
+                    });
+            }
+
+            // Show alert for new approvals
+            function showNewApprovalAlert() {
+                const alertBadge = document.createElement('div');
+                alertBadge.id = 'newApprovalAlert';
+                alertBadge.innerHTML = `
+                    <div style="
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: linear-gradient(135deg, #4CAF50, #45a049);
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 25px;
+                        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+                        z-index: 9999;
+                        font-size: 0.9rem;
+                        font-weight: 500;
+                        animation: slideInRight 0.5s ease-out, pulse 1s ease-in-out 2;
+                        cursor: pointer;
+                    ">
+                        <i class="fas fa-bell"></i> New approval received! Refreshing...
+                    </div>
+                `;
+
+                document.body.appendChild(alertBadge);
+
+                setTimeout(() => {
+                    if (alertBadge.parentNode) {
+                        alertBadge.remove();
+                    }
+                }, 2000);
+            }
+
+            // Show alert for new declines
+            function showNewDeclinedAlert() {
+                const alertBadge = document.createElement('div');
+                alertBadge.id = 'newDeclinedAlert';
+                alertBadge.innerHTML = `
+                    <div style="
+                        position: fixed;
+                        top: 80px;
+                        right: 20px;
+                        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 25px;
+                        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+                        z-index: 9999;
+                        font-size: 0.9rem;
+                        font-weight: 500;
+                        animation: slideInRight 0.5s ease-out, pulse 1s ease-in-out 2;
+                    ">
+                        <i class="fas fa-exclamation-triangle"></i> Request declined! Refreshing...
+                    </div>
+                `;
+
+                document.body.appendChild(alertBadge);
+
+                setTimeout(() => {
+                    if (alertBadge.parentNode) {
+                        alertBadge.remove();
+                    }
+                }, 2000);
+            }
+
+            // Check for updates every 30 seconds if user is logged in
+            <?php if (isset($_SESSION['user_id'])): ?>
+                const updateCheckInterval = setInterval(checkForNewUpdates, 30000);
+
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) {
+                        setTimeout(checkForNewUpdates, 1000);
+                    }
+                });
+
+                window.addEventListener('beforeunload', function() {
+                    clearInterval(updateCheckInterval);
+                });
+            <?php endif; ?>
+        });
+
+        // Function to close decline notification
+        function closeDeclineNotification() {
+            const notification = document.getElementById('declineNotification');
+            if (notification) {
+                notification.style.animation = 'slideOutRight 0.4s ease-out forwards';
+                setTimeout(() => {
+                    notification.remove();
+                }, 400);
+            }
+        }
+
+        // Check for scholarship pass notification
+        <?php if (isset($_SESSION['user_id'])): ?>
+
+            function checkScholarshipPassNotification() {
+                fetch('check_scholarship_pass_notification.php')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.hasNotification) {
+                            showCongratulationsModal(data);
+                        }
+                    })
+                    .catch(error => console.error('Error checking scholarship notification:', error));
+            }
+
+            function showCongratulationsModal(data) {
+                // Create modal HTML
+                const modalHTML = `
+                <div id="scholarshipPassModal" style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.8);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 99999;
+                    animation: fadeIn 0.5s ease-in;
+                ">
+                    <div style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        padding: 40px;
+                        border-radius: 20px;
+                        max-width: 500px;
+                        width: 90%;
+                        text-align: center;
+                        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                        animation: scaleIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                        position: relative;
+                        overflow: hidden;
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: -50px;
+                            right: -50px;
+                            width: 150px;
+                            height: 150px;
+                            background: rgba(255, 255, 255, 0.1);
+                            border-radius: 50%;
+                        "></div>
+                        <div style="
+                            position: absolute;
+                            bottom: -30px;
+                            left: -30px;
+                            width: 100px;
+                            height: 100px;
+                            background: rgba(255, 255, 255, 0.1);
+                            border-radius: 50%;
+                        "></div>
+
+                        <div style="position: relative; z-index: 1;">
+                            <div style="margin-bottom: 20px;">
+                                <i class="fas fa-trophy" style="font-size: 80px; color: #FFD700; animation: bounce 1s infinite;"></i>
+                            </div>
+                            <h1 style="color: white; margin: 20px 0; font-size: 32px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                                🎉 CONGRATULATIONS! 🎉
+                            </h1>
+                            <h2 style="color: #FFD700; margin: 15px 0; font-size: 24px;">
+                                You Passed the Examination!
+                            </h2>
+                            <div style="
+                                background: rgba(255, 255, 255, 0.95);
+                                padding: 25px;
+                                border-radius: 15px;
+                                margin: 25px 0;
+                                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                            ">
+                                <p style="color: #333; font-size: 16px; margin: 10px 0;">
+                                    <strong style="color: #667eea;">Education Level:</strong><br>
+                                    <span style="font-size: 18px; color: #000;">${data.educationLevel}</span>
+                                </p>
+                                <div style="
+                                    margin: 20px 0;
+                                    padding: 15px;
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    border-radius: 10px;
+                                ">
+                                    <p style="color: white; font-size: 14px; margin: 0; font-weight: 500;">Scholarship Grant</p>
+                                    <p style="color: #FFD700; font-size: 36px; margin: 10px 0; font-weight: bold;">
+                                        ₱${data.grantAmount}
+                                    </p>
+                                </div>
+                            </div>
+                            <p style="color: white; font-size: 14px; margin: 15px 0; line-height: 1.6;">
+                                Your hard work has paid off! We're excited to support your educational journey.
+                            </p>
+                            <button onclick="closePassNotification(${data.applicationId})" style="
+                                background: #FFD700;
+                                color: #333;
+                                border: none;
+                                padding: 15px 40px;
+                                font-size: 16px;
+                                font-weight: bold;
+                                border-radius: 30px;
+                                cursor: pointer;
+                                margin-top: 20px;
+                                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                Continue to Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes scaleIn {
+                        from { transform: scale(0.5); opacity: 0; }
+                        to { transform: scale(1); opacity: 1; }
+                    }
+                    @keyframes bounce {
+                        0%, 100% { transform: translateY(0); }
+                        50% { transform: translateY(-20px); }
+                    }
+                </style>
+            `;
+
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+            }
+
+            function closePassNotification(applicationId) {
+                // Mark notification as shown
+                fetch('mark_notification_shown.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `applicationId=${applicationId}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const modal = document.getElementById('scholarshipPassModal');
+                        if (modal) {
+                            modal.style.animation = 'fadeOut 0.5s ease-out';
+                            setTimeout(() => modal.remove(), 500);
+                        }
+                    })
+                    .catch(error => console.error('Error marking notification:', error));
+            }
+
+            // Check for pass notification on page load
+            setTimeout(checkScholarshipPassNotification, 1000);
+        <?php endif; ?>
     </script>
+
+    <style>
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+
+    <?php
+    // Display approval notifications
+    if (isset($approvedRequests) && !empty($approvedRequests)) {
+        displayApprovalNotifications($approvedRequests);
+    }
+    // Display declined notifications
+    if (isset($declinedRequests) && !empty($declinedRequests)) {
+        displayDeclineNotifications($declinedRequests);
+    }
+    ?>
 </body>
 
 </html>

@@ -29,7 +29,7 @@ if (isset($_GET['update'])) {
     $isUpdateMode = true;
     
     // Fetch pending request data
-    $pendingCheckSql = "SELECT * FROM guardianshiptbl WHERE refno = ? AND UserId = ? AND RequestStatus = 'Pending'";
+    $pendingCheckSql = "SELECT * FROM guardianshiptbl WHERE refno = ? AND user_id = ? AND RequestStatus = 'Pending'";
     $pendingStmt = $conn->prepare($pendingCheckSql);
     if ($pendingStmt) {
         $pendingStmt->bind_param("si", $updateRefNo, $_SESSION['user_id']);
@@ -64,7 +64,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardianship_request"
     
     // Check for existing pending request of SPECIFIC type (only for new submissions)
     if (!$isUpdateMode && !empty($requestType)) {
-        $pendingCheckSql = "SELECT refno FROM guardianshiptbl WHERE UserId = ? AND request_type = ? AND RequestStatus = 'Pending' LIMIT 1";
+        $pendingCheckSql = "SELECT refno FROM guardianshiptbl WHERE user_id = ? AND request_type = ? AND RequestStatus = 'Pending' LIMIT 1";
         $pendingStmt = $conn->prepare($pendingCheckSql);
         if ($pendingStmt) {
             $pendingStmt->bind_param("is", $_SESSION['user_id'], $requestType);

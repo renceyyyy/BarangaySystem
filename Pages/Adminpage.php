@@ -619,7 +619,7 @@ if ($row["RequestStatus"] === "Released") {
 elseif ($row["RequestStatus"] === "Printed") {
   echo "<button type='button' class='action-btn-2 release' 
           onclick='releaseDocument(" . htmlspecialchars($row["ReqId"]) . ")'>
-          <i class='fas fa-share'></i> Release
+          <i class='fas fa-share'></i> 
         </button>";
 
   echo "<a href='viewdocument.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
@@ -837,6 +837,7 @@ function alertNotPaid() {
                       <option value="Employment Form">Employment Form</option>
                       <option value="First Time Job Seeker">First Time Job Seeker</option>
                       <option value="Indengency Form">Indigency Form</option>
+                      <option value="No Birth Certificate">No Birth Certificate</option>
                     </select>
                   </div>
                   <div class="form-group">
@@ -1016,7 +1017,7 @@ function alertNotPaid() {
 elseif ($row["RequestStatus"] === "Printed") {
   echo "<button type='button' class='action-btn-2 release' 
           onclick='releaseBusinessDocument(" . htmlspecialchars($row["BsnssID"]) . ")'>
-          <i class='fas fa-share'></i> Release
+          <i class='fas fa-share'></i> 
         </button>";
 
   echo "<a href='viewbusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
@@ -1312,7 +1313,7 @@ if ($row["RequestStatus"] === "Released") {
 elseif ($row["RequestStatus"] === "Printed") {
   echo "<button type='button' class='action-btn-2 release'
           onclick='releaseUnemploymentDocument(" . htmlspecialchars($row["id"]) . ")'>
-          <i class='fas fa-share'></i> Release
+          <i class='fas fa-share'></i> 
         </button>";
 
   echo "<a href='viewunemployment.php?id=" . htmlspecialchars($row["id"]) . "'
@@ -1621,7 +1622,7 @@ if ($row["RequestStatus"] === "Released") {
 elseif ($row["RequestStatus"] === "Printed") {
   echo "<button type='button' class='action-btn-2 release' 
           onclick='releaseGuardianshipDocument(" . htmlspecialchars($row["id"]) . ")'>
-          <i class='fas fa-share'></i> Release
+          <i class='fas fa-share'></i> 
         </button>";
 
   echo "<a href='viewguardianship.php?id=" . htmlspecialchars($row["id"]) . "' 
@@ -6550,6 +6551,66 @@ function reloadItemRequestsPanel(message) {
     </div>
   </div>
     `;
+
+    } else if  (data.Docutype === "No Birth Certificate") {
+                  htmlContent = `
+      <img src="/Capstone/Assets/sampaguitalogo.png"
+         style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
+                opacity:0.2; width:400px; height:auto; z-index:0; pointer-events:none;" />
+
+
+       <div style="position:relative; z-index:1;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="flex: 1; text-align: left;">
+      
+        </div>
+
+        <div style="flex: 2; text-align: center;">
+          <h3 style="margin: 0; font-weight: normal;">REPUBLIC OF THE PHILIPPINES</h3>
+          <p style="margin: 0;">Province of Laguna</p>
+          <p style="margin: 0;">City of San Pedro</p>
+          <h2 style="margin: 10px 0; font-weight: normal;">BARANGAY SAMPAGUITA</h2>
+          <p style="margin: 0;">Tel. No. 8638-0301</p>
+        </div>
+
+        <div style="flex: 1; text-align: right;">
+          <img src="/Capstone/Assets/SanPedroLogo.png" alt="San Pedro Logo"
+               style="width: 100px; height: 100px; object-fit: contain; border-radius: 50%;">
+        </div>
+      </div>
+
+      <div style="text-align:center; font-size:18px; margin-top:10px;">
+        <p style="margin:0;">OFFICE OF THE PUNONG BARANGAY</p>
+        <p style="margin:0;">Date: ${formattedDate}</p>
+
+      </div>
+
+      <div style="text-align:center; font-size:22px; margin:30px 0 20px;">
+        CERTIFICATION
+      </div>
+
+      <div style="font-size:18px; text-align:justify; line-height:1.8;">
+        <br>TO WHOM IT MAY CONCERN:<br><br>
+        <p>This is to certify that <span style="text-transform:uppercase;">${data.Firstname + " " + data.Lastname}</span>, a Filipino citizen, 
+        in a resident of ${data.Address || "Barangay Sampaguita, San Pedro, Laguna"}.</p>
+
+       <p>This certification futhermore is issued upon yhe request of <span style="text-transform:uppercase;">${data.Firstname + " " + data.Lastname}</span>
+       for any legal purposes this may serve.</p>
+
+        
+
+        <br>Issued this${formattedDate} at Barangay Sampaguita, City of San Pedro, Laguna 
+        <br>Reference No.${data.refno}.
+
+     
+
+      <div style="margin-top:60px; text-align:right;">
+        <br><br><p>HON. RHYXTER S. LABAY</p>
+        <p>Punong Barangay</p>
+      </div>
+    </div>
+  </div>
+    `;
                } else if (data.certificate_type === "No Income") {
                   htmlContent = `
      <br><br><img src="/Capstone/Assets/sampaguitalogo.png"
@@ -6959,7 +7020,7 @@ function openPrintModal(data) {
   const docType = data.Docutype ? data.Docutype.toLowerCase().trim() : "";
 
   // ₱100 documents
-  const hundredPesoDocs = ["barangay certificate", "cedula", "employment form"];
+  const hundredPesoDocs = ["barangay certificate", "cedula", "employment form", "no birth certificate"];
 
   // Free documents
   const freeDocs = ["indigency form", "first time job seeker"];
@@ -9962,7 +10023,7 @@ function releaseNoBirthCertDocument(id) {
                 });
               })();
             </script>
-       <script>
+      <script>
 (function () {
   function escapeHtml(s) {
     if (s === null || s === undefined) return '';
@@ -10047,7 +10108,10 @@ function releaseNoBirthCertDocument(id) {
           <div id="vu_content" class="vb-content" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
         </form>
         <div class="vb-footer" style="display:flex;gap:10px;justify-content:space-between;">
-          <button id="vu_delete_btn" class="vb-btn" type="button" style="background:#dc3545;color:white;">Delete Account</button>
+          <div style="display:flex;gap:10px;">
+            <button id="vu_deactivate_btn" class="vb-btn" type="button" style="background:#ff9800;color:white;">Deactivate Account</button>
+            <button id="vu_delete_btn" class="vb-btn" type="button" style="background:#dc3545;color:white;">Delete Account</button>
+          </div>
           <div style="display:flex;gap:10px;">
             <button id="vu_edit_btn" class="vb-btn" type="button" style="background:#667eea;color:white;">Edit</button>
             <button id="vu_save_btn" class="vb-btn" type="button" style="background:#28a745;color:white;display:none;">Save Changes</button>
@@ -10214,6 +10278,42 @@ function releaseNoBirthCertDocument(id) {
       .catch(err => {
         console.error(err);
         showAlert('Error updating user information', 'error');
+      });
+    });
+
+    modal.querySelector('#vu_deactivate_btn').addEventListener('click', () => {
+      if (!confirm('Are you sure you want to deactivate this account?')) {
+        return;
+      }
+      
+      // Send deactivate request
+      fetch('viewusers.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          UserID: userData.UserID,
+          action: 'deactivate'
+        })
+      })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          showAlert('Account deactivated successfully!', 'success');
+          // Update local userData
+          userData.AccountStatus = 'Unverified';
+          // Re-render to show updated status
+          renderFields(false);
+          updateEditButtonState();
+        } else {
+          showAlert(json.error || 'Failed to deactivate account', 'error');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        showAlert('Error deactivating account', 'error');
       });
     });
 

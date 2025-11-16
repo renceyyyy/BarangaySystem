@@ -716,7 +716,7 @@ unset($_SESSION['verification_notification']);
                             <a href="../NewRequests/NewGuardianshipForm.php">Guardianship</a>
 
                             <!-- Cohabitation -->
-                            <a href="../NewRequests/CohabilitationForm.php">Cohabitation</a>
+                           
                             
                         <?php else: ?>
                             <a href="#"

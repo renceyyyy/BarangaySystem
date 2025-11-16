@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../config/session_resident.php';
 require_once '../Process/db_connection.php';
 require_once '../Process/user_activity_logger.php';
 require_once './Terms&Conditions/Terms&Conditons.php';
@@ -140,7 +141,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
             $filename = $_FILES['reason_file']['name'];
             $file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
             $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf'];
-            
+
             if (!in_array($file_ext, $allowed_extensions)) {
                 $errors[] = "Reason document must be a JPG, PNG, GIF, or PDF file";
             }
@@ -168,7 +169,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                 $filename = $_FILES[$field]['name'];
                 $file_ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
                 $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf'];
-                
+
                 if (!in_array($file_ext, $allowed_extensions)) {
                     $errors[] = "$label must be a JPG, PNG, GIF, or PDF file";
                 }
@@ -270,7 +271,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                         $success = true;
                         $success_ref_id = $updateRefNo;
                         $isUpdateSuccess = true; // Flag to show update success message
-                        
+
                         // Log user activity
                         logUserActivity(
                             'Scholarship application updated',
@@ -320,7 +321,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                     if ($stmt->execute()) {
                         $success = true;
                         $success_ref_id = $stmt->insert_id;
-                        
+
                         // Log user activity
                         logUserActivity(
                             'Scholarship application submitted',
@@ -332,7 +333,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["scholar_request"])) {
                                 'email' => $email
                             ]
                         );
-                        
+
                         $reason = "";
                         $reason_type = "text";
                     } else {

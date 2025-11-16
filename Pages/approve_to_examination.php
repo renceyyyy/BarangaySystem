@@ -1,9 +1,10 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/session_config.php';
+initRoleBasedSession('sk');
 require_once '../Process/db_connection.php';
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
+// Check if user is logged in and has SK role
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'sk') {
     header("Location: ../Login/login.php");
     exit();
 }

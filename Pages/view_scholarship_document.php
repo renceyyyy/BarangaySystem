@@ -1,11 +1,20 @@
 <?php
-session_start();
+// Initialize session based on role (check if staff session exists first)
+if (session_status() === PHP_SESSION_NONE) {
+    // Try staff session first, then resident session, then default
+    if (isset($_COOKIE['BarangayStaffSession'])) {
+        session_name('BarangayStaffSession');
+    } elseif (isset($_COOKIE['BarangayResidentSession'])) {
+        session_name('BarangayResidentSession');
+    }
+    session_start();
+}
 require_once '../Process/db_connection.php';
 
 // Set JSON header
 header('Content-Type: application/json');
 
-// Check if user is logged in
+// Check if user is logged in (either as staff or resident)
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Not authorized']);
     exit();
@@ -34,7 +43,7 @@ $columnMap = [
     'cor' => 'COR',
     'parents_id' => 'ParentsID',
     'birth_certificate' => 'BirthCertificate',
-    'reason_file' => 'ReasonFile'
+    'reason_file' => 'Reason'  // Reason field stores the file path
 ];
 
 $column = $columnMap[$documentType];
@@ -60,11 +69,43 @@ try {
     }
 
     $row = $result->fetch_assoc();
-    $documentBlob = $row[$column];
+    $documentData = $row[$column];
 
-    if (empty($documentBlob)) {
+    if (empty($documentData)) {
         echo json_encode(['success' => false, 'message' => 'Document is empty']);
         exit();
+    }
+
+    // Check if this is a file path (for reason_file) or BLOB data (for other documents)
+    if ($documentType === 'reason_file') {
+        // Reason is stored as a file path
+        $filePath = $documentData;
+
+        // Construct the full path to the file
+        if (strpos($filePath, '../uploads/') === 0 || strpos($filePath, '/uploads/') === 0) {
+            // Path is already relative from Pages directory
+            $fullPath = __DIR__ . '/' . ltrim($filePath, '/');
+        } else {
+            // Assume it's stored as absolute path from webroot
+            $fullPath = $_SERVER['DOCUMENT_ROOT'] . $filePath;
+        }
+
+        // Check if file exists
+        if (!file_exists($fullPath)) {
+            echo json_encode(['success' => false, 'message' => 'File not found on server: ' . basename($filePath)]);
+            exit();
+        }
+
+        // Read file content
+        $documentBlob = file_get_contents($fullPath);
+
+        if ($documentBlob === false) {
+            echo json_encode(['success' => false, 'message' => 'Failed to read file']);
+            exit();
+        }
+    } else {
+        // For other documents, data is stored as BLOB
+        $documentBlob = $documentData;
     }
 
     // Detect MIME type using finfo

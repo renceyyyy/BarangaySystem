@@ -1,15 +1,15 @@
-<?php 
+<?php
 // Initialize role-based session for SK
 require_once __DIR__ . '/../config/session_config.php';
 initRoleBasedSession('sk');
 
 // Security check — only sk users allowed
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'sk') {
-    header("Location: ../Login/login.php");
-    exit();
+  header("Location: ../Login/login.php");
+  exit();
 }
 
-include 'dashboard.php'; 
+include 'dashboard.php';
 ?>
 
 <!DOCTYPE html>
@@ -970,6 +970,9 @@ include 'dashboard.php';
                       } elseif ($row["RequestStatus"] == "Rejected") {
                         $statusClass = "status-rejected";
                         $displayStatus = $row["RequestStatus"];
+                      } elseif ($row["RequestStatus"] == "Failed") {
+                        $statusClass = "status-rejected";
+                        $displayStatus = "Failed";
                       } else {
                         $statusClass = "status-pending";
                         $displayStatus = $row["RequestStatus"];
@@ -1017,8 +1020,9 @@ include 'dashboard.php';
                       echo "<td>
                           <div class='action-buttons'>";
 
-                      // Show PRINT button only if approved (final status)
+                      // Button logic based on status
                       if ($row["RequestStatus"] === "Approved") {
+                        // APPROVED: Show only PRINT and VIEW buttons
                         $scholarData = json_encode([
                           "ApplicationID" => $row['ApplicationID'],
                           "Firstname" => $row['Firstname'],
@@ -1029,26 +1033,29 @@ include 'dashboard.php';
                           "EducationLevel" => $row['EducationLevel']
                         ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
-                        echo "<button type='button' class='action-btn-2 print' onclick='openScholarshipPrintModal(JSON.parse(`$scholarData`))'>
+                        echo "<button type='button' class='action-btn-2 print' onclick='openScholarshipPrintModal(JSON.parse(`$scholarData`))' title='Print Certificate'>
                                 <i class='fas fa-print'></i>
                               </button>";
                       } elseif ($row["RequestStatus"] === "For Examination") {
-                        // Show PASSED and FAILED buttons for For Examination status
+                        // FOR EXAMINATION: Show PASSED, FAILED, and VIEW buttons (NO REJECT)
                         echo "<button type='button'
                                class='action-btn-2 approve'
                                onclick=\"showPassedModal({$row['ApplicationID']}, '{$educationLevelJS}');\"
                                title='Mark as Passed'>
-                               <i class='fas fa-check-circle'></i> Passed
+                               <i class='fas fa-check-circle'></i>
                             </button>";
                         echo "<button type='button'
                                class='action-btn-2 decline'
                                onclick=\"showFailedModal({$row['ApplicationID']});\"
-                               title='Mark as Failed'
-                               style='margin-left: 5px;'>
-                               <i class='fas fa-times-circle'></i> Failed
+                               title='Mark as Failed'>
+                               <i class='fas fa-times-circle'></i>
                             </button>";
+                      } elseif ($row["RequestStatus"] === "Failed") {
+                        // FAILED: Show only VIEW button (NO APPROVE, NO REJECT)
+                        // View button will be added below
+
                       } else {
-                        // Show APPROVE button for Pending status to move to For Examination
+                        // PENDING or other status: Show APPROVE TO EXAMINATION button
                         echo "<button type='button'
                                class='action-btn-2 approve'
                                onclick=\"showApproveToExaminationModal({$row['ApplicationID']});\"
@@ -1057,6 +1064,7 @@ include 'dashboard.php';
                             </button>";
                       }
 
+                      // Always show VIEW button for all statuses
                       echo "<button
                               type='button'
                               class='action-btn-2 view'
@@ -1074,8 +1082,8 @@ include 'dashboard.php';
                               <i class='fas fa-eye'></i>
                             </button>";
 
-                      // Only show reject button if status is NOT "Approved"
-                      if ($row["RequestStatus"] !== "Approved") {
+                      // Show REJECT button only for PENDING status (not for For Examination, Approved, or Failed)
+                      if ($row["RequestStatus"] === "Pending") {
                         echo "<button type='button'
                                class='action-btn-2 decline'
                                data-status='{$row["RequestStatus"]}'
@@ -1297,10 +1305,10 @@ include 'dashboard.php';
             <div class="form-group">
               <label>Reason for Application</label>
               <textarea id="scholarReason" rows="4" readonly style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; background-color:#f9f9f9;"></textarea>
-              <!-- Button to view handwritten document if it exists -->
+              <!-- Container for handwritten document preview and button -->
               <div id="reasonDocumentButton" style="margin-top: 10px; display: none;">
-                <button type="button" class="btn btn-sm btn-warning" onclick="viewDocument('reason_file')" style="width: 100%; padding: 8px; background-color: #ffc107; color: #000; border: none; border-radius: 4px; cursor: pointer;">
-                  <i class="fas fa-file-alt"></i> View Handwritten Reason Document
+                <button type="button" class="btn btn-sm btn-warning" onclick="viewDocument('reason_file')" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #000; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3); transition: all 0.2s ease;">
+                  <i class="fas fa-expand-alt"></i> View Full Size Handwritten Reason
                 </button>
               </div>
             </div>
@@ -2054,14 +2062,44 @@ include 'dashboard.php';
           document.getElementById('scholarAddress').value = this.dataset.address;
 
           const reason = this.dataset.reason;
-          document.getElementById('scholarReason').value = reason;
 
-          // Show/hide the handwritten document button based on whether it's a file upload
-          const reasonDocButton = document.getElementById('reasonDocumentButton');
-          if (reason === '[Handwritten document uploaded]') {
+          // Check if reason is a file path (uploaded handwritten document)
+          const isUploadedFile = reason.startsWith('/uploads/') || reason.startsWith('../uploads/') || reason.includes('/scholarship/');
+
+          if (isUploadedFile) {
+            // Hide textarea, show image preview and view button
+            document.getElementById('scholarReason').style.display = 'none';
+            const reasonDocButton = document.getElementById('reasonDocumentButton');
             reasonDocButton.style.display = 'block';
+
+            // Add image preview before the button
+            const previewContainer = document.createElement('div');
+            previewContainer.id = 'reasonImagePreview';
+            previewContainer.style.cssText = 'margin-bottom: 10px; text-align: center; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;';
+            previewContainer.innerHTML = `
+              <img src="${reason}" alt="Handwritten Reason" style="max-width: 100%; max-height: 300px; border-radius: 4px; cursor: pointer;" onclick="viewDocument('reason_file')">
+              <p style="margin-top: 8px; font-size: 12px; color: #666;"><i class="fas fa-info-circle"></i> Click image or button below to view full size</p>
+            `;
+
+            // Remove existing preview if any
+            const existingPreview = document.getElementById('reasonImagePreview');
+            if (existingPreview) {
+              existingPreview.remove();
+            }
+
+            // Insert preview before the button
+            reasonDocButton.parentNode.insertBefore(previewContainer, reasonDocButton);
           } else {
-            reasonDocButton.style.display = 'none';
+            // Show textarea with text reason, hide button
+            document.getElementById('scholarReason').style.display = 'block';
+            document.getElementById('scholarReason').value = reason;
+            document.getElementById('reasonDocumentButton').style.display = 'none';
+
+            // Remove image preview if exists
+            const existingPreview = document.getElementById('reasonImagePreview');
+            if (existingPreview) {
+              existingPreview.remove();
+            }
           }
 
           document.getElementById('scholarEducationLevel').value = this.dataset.educationlevel || 'Not Specified';
@@ -2777,6 +2815,17 @@ include 'dashboard.php';
         }
         console.log('✅ All file uploads validated successfully');
 
+        // Show loading notification
+        if (window.showAlert) {
+          showAlert('info', 'Submitting application... Please wait.', 10000);
+        }
+
+        // Disable submit button to prevent double submission
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
         // Submit the form
         console.log('🚀 Submitting form to ../Process/process.php');
         fetch('../Process/process.php', {
@@ -2799,21 +2848,40 @@ include 'dashboard.php';
           })
           .then(data => {
             console.log('✅ Parsed data:', data);
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+
             if (data.status === 'success') {
-              if (window.showAlert) showAlert('success', 'Scholarship application submitted successfully!');
-              else alert('Scholarship application submitted successfully!');
+              if (window.showAlert) {
+                showAlert('success', '✅ Scholarship application submitted successfully! The application is now in the system.', 5000);
+              } else {
+                alert('Scholarship application submitted successfully!');
+              }
               closeScholarshipModal();
-              // Refresh the page to show the new application
-              window.location.reload();
+              // Refresh the page after a short delay to show the notification
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
             } else {
-              if (window.showAlert) showAlert('error', 'Error: ' + (data.message || 'Unknown error'));
-              else alert('Error: ' + data.message);
+              if (window.showAlert) {
+                showAlert('error', '❌ Error: ' + (data.message || 'Unknown error occurred'), 6000);
+              } else {
+                alert('Error: ' + data.message);
+              }
             }
           })
           .catch(error => {
             console.error('❌ Fetch Error:', error);
-            if (window.showAlert) showAlert('error', 'An error occurred while submitting the application: ' + error.message);
-            else alert('An error occurred while submitting the application: ' + error.message);
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+
+            if (window.showAlert) {
+              showAlert('error', '❌ An error occurred while submitting the application: ' + error.message, 6000);
+            } else {
+              alert('An error occurred while submitting the application: ' + error.message);
+            }
           });
       });
 

@@ -161,7 +161,7 @@ function getUserRequests($conn, $userId)
   $requests = [];
 
   // Document requests
-  $sql = "SELECT 'Document Request' as type, DocuType as description, refno, DateRequested as date_requested, RequestStatus as status, ReleasedBy as released_by, DateRequested as released_date FROM docsreqtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+  $sql = "SELECT 'Document Request' as type, d.DocuType as description, d.refno, d.DateRequested as date_requested, d.RequestStatus as status, d.ReleasedBy as released_by, d.DateRequested as released_date, p.ORNumber as or_number FROM docsreqtbl d LEFT JOIN tblpayment p ON d.refno = p.refno WHERE d.UserId = ? ORDER BY d.DateRequested DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -174,7 +174,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Business requests 
-  $sql = "SELECT 'Business Request' as type, CONCAT(BusinessName, ' - ', RequestType) as description, refno, RequestedDate as date_requested, RequestStatus as status, ReleasedBy as released_by, RequestedDate as released_date FROM businesstbl WHERE UserId = ? ORDER BY RequestedDate DESC";
+  $sql = "SELECT 'Business Request' as type, CONCAT(b.BusinessName, ' - ', b.RequestType) as description, b.refno, b.RequestedDate as date_requested, b.RequestStatus as status, b.ReleasedBy as released_by, b.RequestedDate as released_date, p.ORNumber as or_number FROM businesstbl b LEFT JOIN tblpayment p ON b.refno = p.refno WHERE b.UserId = ? ORDER BY b.RequestedDate DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -187,7 +187,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Scholarship applications
-  $sql = "SELECT 'Scholarship Application' as type, 'Scholarship Application' as description, ApplicationID as refno, DateApplied as date_requested, RequestStatus as status, NULL as released_by, DateApplied as released_date FROM scholarship WHERE UserID = ? ORDER BY DateApplied DESC";
+  $sql = "SELECT 'Scholarship Application' as type, 'Scholarship Application' as description, s.ApplicationID as refno, s.DateApplied as date_requested, s.RequestStatus as status, NULL as released_by, s.DateApplied as released_date, NULL as or_number FROM scholarship s WHERE s.UserID = ? ORDER BY s.DateApplied DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -200,7 +200,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Unemployment certificates
-  $sql = "SELECT 'Unemployment Certificate' as type, CONCAT(certificate_type, ' Certificate') as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM unemploymenttbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'Unemployment Certificate' as type, CONCAT(u.certificate_type, ' Certificate') as description, u.refno, u.request_date as date_requested, u.RequestStatus as status, u.ReleasedBy as released_by, u.request_date as released_date, p.ORNumber as or_number FROM unemploymenttbl u LEFT JOIN tblpayment p ON u.refno = p.refno WHERE u.user_id = ? ORDER BY u.request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -213,7 +213,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Guardianship/Solo Parent requests
-  $sql = "SELECT 'Guardianship/Solo Parent' as type, CONCAT(request_type, ' for ', child_name) as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM guardianshiptbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'Guardianship/Solo Parent' as type, CONCAT(g.request_type, ' for ', g.child_name) as description, g.refno, g.request_date as date_requested, g.RequestStatus as status, g.ReleasedBy as released_by, g.request_date as released_date, p.ORNumber as or_number FROM guardianshiptbl g LEFT JOIN tblpayment p ON g.refno = p.refno WHERE g.user_id = ? ORDER BY g.request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -226,7 +226,7 @@ function getUserRequests($conn, $userId)
   }
 
   // No Birth Certificate requests
-  $sql = "SELECT 'No Birth Certificate' as type, 'No Birth Certificate Request' as description, refno, request_date as date_requested, RequestStatus as status, ReleasedBy as released_by, request_date as released_date FROM no_birthcert_tbl WHERE user_id = ? ORDER BY request_date DESC";
+  $sql = "SELECT 'No Birth Certificate' as type, 'No Birth Certificate Request' as description, n.refno, n.request_date as date_requested, n.RequestStatus as status, n.ReleasedBy as released_by, n.request_date as released_date, p.ORNumber as or_number FROM no_birthcert_tbl n LEFT JOIN tblpayment p ON n.refno = p.refno WHERE n.user_id = ? ORDER BY n.request_date DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -239,7 +239,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Complain requests 
-  $sql = "SELECT 'Complaint' as type, Complain as description, refno, DateComplained as date_requested, RequestStatus as status, NULL as released_by, DateComplained as released_date FROM complaintbl WHERE Userid = ? ORDER BY DateComplained DESC";
+  $sql = "SELECT 'Complaint' as type, c.Complain as description, c.refno, c.DateComplained as date_requested, c.RequestStatus as status, NULL as released_by, c.DateComplained as released_date, NULL as or_number FROM complaintbl c WHERE c.Userid = ? ORDER BY c.DateComplained DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -252,7 +252,7 @@ function getUserRequests($conn, $userId)
   }
 
   // Cohabitation Form requests
-  $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status, DateRequested as released_date FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+  $sql = "SELECT 'Cohabitation Form' as type, CONCAT(c.Name, ' - ', c.Purpose) as description, c.refno, c.DateRequested as date_requested, c.RequestStatus as status, c.DateRequested as released_date, p.ORNumber as or_number FROM cohabitationtbl c LEFT JOIN tblpayment p ON c.refno = p.refno WHERE c.UserId = ? ORDER BY c.DateRequested DESC";
   $stmt = db_prepare($sql);
   if ($stmt) {
     $stmt->bind_param("i", $userId);
@@ -963,7 +963,7 @@ function getStatusBadgeClass($status)
                       </span>
                     </td>
                     <td class="col-action">
-                      <button class="btn-view-release" onclick="viewReleaseInfo('<?php echo htmlspecialchars($request['refno']); ?>', '<?php echo htmlspecialchars($request['type']); ?>', '<?php echo htmlspecialchars($request['description']); ?>', '<?php echo date('M d, Y', strtotime($request['date_requested'])); ?>', '<?php echo !empty($request['released_by']) ? htmlspecialchars($request['released_by']) : 'N/A'; ?>', '<?php echo !empty($request['released_date']) ? date('M d, Y', strtotime($request['released_date'])) : 'N/A'; ?>')">
+                      <button class="btn-view-release" onclick="viewReleaseInfo('<?php echo htmlspecialchars($request['refno']); ?>', '<?php echo htmlspecialchars($request['type']); ?>', '<?php echo htmlspecialchars($request['description']); ?>', '<?php echo date('M d, Y', strtotime($request['date_requested'])); ?>', '<?php echo !empty($request['released_by']) ? htmlspecialchars($request['released_by']) : 'N/A'; ?>', '<?php echo !empty($request['released_date']) ? date('M d, Y', strtotime($request['released_date'])) : 'N/A'; ?>', '<?php echo !empty($request['or_number']) ? htmlspecialchars($request['or_number']) : 'N/A'; ?>')">
                         <i class="fas fa-info-circle"></i> View Info
                       </button>
                     </td>
@@ -1394,7 +1394,7 @@ function getStatusBadgeClass($status)
     // });
     
     // Function to view release information
-    function viewReleaseInfo(refno, type, description, dateRequested, releasedBy, releasedDate) {
+    function viewReleaseInfo(refno, type, description, dateRequested, releasedBy, releasedDate,   ORNumber  ) {
       // Create modal
       const modal = document.createElement('div');
       modal.className = 'release-info-modal';
@@ -1418,6 +1418,10 @@ function getStatusBadgeClass($status)
             <div class="info-row">
               <span class="info-label"><i class="fas fa-hashtag"></i> Reference Number:</span>
               <span class="info-value highlight">${refno}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label"><i class="fas fa-receipt"></i> OR Number:</span>
+              <span class="info-value highlight">${  ORNumber  }</span>
             </div>
             <div class="info-row">
               <span class="info-label"><i class="fas fa-calendar-alt"></i> Date Requested:</span>

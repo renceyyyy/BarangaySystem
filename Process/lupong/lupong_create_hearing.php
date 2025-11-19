@@ -2,6 +2,7 @@
 session_name('BarangayStaffSession');
 session_start();
 header('Content-Type: application/json');
+date_default_timezone_set('Asia/Manila');
 require_once '../db_connection.php';
 
 $conn = getDBConnection();
@@ -16,6 +17,13 @@ $hearing_datetime = $_POST['hearing_datetime'] ?? '';
 
 if (!$blotter_id || !$hearing_datetime) {
     echo json_encode(['success' => false, 'error' => 'Missing parameters']);
+    exit;
+}
+
+// Validate hearing_datetime is not in the past
+$selected_ts = strtotime($hearing_datetime);
+if ($selected_ts === false || $selected_ts < time()) {
+    echo json_encode(['success' => false, 'error' => 'Selected date/time cannot be in the past.']);
     exit;
 }
 

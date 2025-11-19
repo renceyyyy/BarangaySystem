@@ -30,6 +30,23 @@ $stmt = $conn->prepare($sql);
 $stmt->bind_param("ssss", $mediator_name, $hearing_notes, $outcome, $lupong_hearing_id);
 
 if ($stmt->execute()) {
+
+    // if hearing outcome is "amicably_settled", update blotter status to "lupong_resolved"
+    if ($outcome === 'amicably_settled') {
+        $update_sql = "UPDATE blottertbl SET status = 'lupong_resolved', resolution_notes = ?, closed_at = NOW() WHERE blotter_id = ?";
+        $update_stmt = $conn->prepare($update_sql);
+
+        if ($update_stmt) {
+             $update_stmt->bind_param("ss", $hearing_notes, $blotter_id);
+            if (!$update_stmt->execute()) {
+                error_log("Failed to update blottertbl status for blotter_id={$blotter_id}: " . $update_stmt->error);
+            }
+            $update_stmt->close();
+        } else {
+            error_log("Failed to update blotter status prepare statement for blotter_id={$blotter_id}: " . $conn->error);
+        }
+    }
+
     echo json_encode(['success' => true, 'message' => 'Hearing recorded successfully']);
 } else {
     echo json_encode(['success' => false, 'error' => 'Failed to record hearing']);

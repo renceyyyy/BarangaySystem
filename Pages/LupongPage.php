@@ -1,6 +1,7 @@
 <?php
 // Set staff session name BEFORE starting session
 session_name('BarangayStaffSession');
+date_default_timezone_set('Asia/Manila');
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
@@ -233,6 +234,11 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
                     <!-- Populated via AJAX -->
                 </div>
 
+                <h3 id="lupongHearingHistoryHeader" style="display: none;">Lupong Hearing History</h3>
+                <div id="lupongHearingHistorySection" style="display: none; background:#f0f8ff; padding:15px; border-radius:8px; margin-bottom:20px;">
+                    <!-- Populated via AJAX -->
+                </div>
+
                 <!-- Hearing Details Section (for recording current hearing) -->
                 <h3 id="hearingDetailsHeader" style="display:none;">Hearing Details</h3>
                 <div id="hearingDetailsSection" style="display:none;">
@@ -265,16 +271,7 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
                 </div>
                 <hr id="hearingDetailsHR" style="display:none;">
 
-                <!-- Action Buttons -->
-                <div style="margin-top:20px; text-align:right; position:relative;">
-                    <div class="action-dropdown" style="display:inline-block; position:relative;">
-                        <button id="lupongActionDropdownBtn" class="btn btn-secondary">Action ▾</button>
-                        <div id="lupongActionDropdownMenu" class="action-dropdown-menu" style="display:none; position:absolute; right:0; background:#fff; border:1px solid #ccc; padding:8px; box-shadow:0 4px 8px rgba(0,0,0,0.1); z-index:1000; min-width:180px;">
-                            <button id="lupongScheduleHearingBtn" class="btn btn-primary" style="display:block; width:100%; margin-bottom:8px;">Schedule Hearing</button>
-                            <button type="button" id="lupongCloseCaseBtn" class="btn btn-danger" style="display:block; width:100%;">Close Case</button>
-                        </div>
-                    </div>
-                </div>
+
 
                 <!-- Lupong Actions -->
                 <div style="margin-top:20px; text-align:right;">
@@ -314,6 +311,17 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
         </div>
     </div>
 
+    <!-- Not Settled Outcome Modal -->
+    <div id="notSettledOutcomeModal" class="custom-confirm-overlay" style="display:none;">
+        <div class="custom-confirm-box">
+            <p>The hearing outcome was "Not Settled". What would you like to do?</p>
+            <div class="custom-confirm-actions">
+                <button id="closeBlotterBtn" class="custom-confirm-btn yes">Close Blotter</button>
+                <button id="scheduleAnotherHearingBtn" class="custom-confirm-btn no">Schedule Hearing</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- include same JS as Adminpage -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -325,7 +333,7 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
         }
 
 
-    
+
         // Auto-submit status filter
         document.addEventListener('DOMContentLoaded', function() {
             const statusSelect = document.getElementById('status_filter');
@@ -335,27 +343,52 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
                 });
             }
 
-            // Action dropdown toggle
-            const actionBtn = document.getElementById('lupongActionDropdownBtn');
-            const actionMenu = document.getElementById('lupongActionDropdownMenu');
-            
-            if (actionBtn && actionMenu) {
-                actionBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    actionMenu.style.display = actionMenu.style.display === 'none' ? 'block' : 'none';
-                });
+            // Set max for lupong hearing datetime-local so it cannot be a future date/time
+            function pad(n) {
+                return String(n).padStart(2, '0');
+            }
 
-                // Close dropdown when clicking outside
-                document.addEventListener('click', function() {
-                    actionMenu.style.display = 'none';
+            function formatForInput(dt) {
+                return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate()) +
+                    'T' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+            }
+
+            function setLupongMaxDateTime() {
+                const input = document.getElementById('lupong_hearing_datetime');
+                if (!input) return;
+                const now = new Date();
+                input.min = formatForInput(now);
+                // if user already selected a future value, clear and mark invalid
+                if (input.value && input.value < input.min) {
+                    input.setCustomValidity('Date and Time cannot be in the past.');
+                    // don't call reportValidity here; user will get message on submit or change
+                } else {
+                    input.setCustomValidity('');
+                }
+            }
+
+            // Set initially and update every 30 seconds (keeps max value current)
+            setLupongMaxDateTime();
+            setInterval(setLupongMaxDateTime, 30000);
+
+            // Enforce validation on change/input
+            const lupongInput = document.getElementById('lupong_hearing_datetime');
+            if (lupongInput) {
+                lupongInput.addEventListener('input', function() {
+                    if (this.value && this.value < this.min) {
+                        this.setCustomValidity('Date and Time of hearing may not be in the past.');
+                        this.reportValidity();
+                    } else {
+                        this.setCustomValidity('');
+                    }
                 });
             }
         });
     </script>
 
-    <!-- view escalated blotter modal script -->
-    
 
+
+    <!-- view escalated blotter modal script -->
     <script>
         let currentEscalatedBlotterId = null;
 
@@ -383,7 +416,7 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
 
                         // Populate blotter content (complainant, blotter details, respondent, witnesses)
                         let contentHTML = `<h3>Complainant Details</h3>`;
-                        
+
                         data.participants.filter(p => p.participant_type === 'complainant').forEach(complainant => {
                             contentHTML += `
                             <div class="complainant-fields">
@@ -541,6 +574,21 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
 
                         document.getElementById('escalated_blotter_content').innerHTML = contentHTML;
 
+
+                        // hide/show Re-open / Close buttons when status === 'lupong_in_progress'
+                        const reopenBtn = document.getElementById('reopenCaseBtn');
+                        const closeBtn = document.getElementById('closeLupongCaseBtn');
+
+                        if (data.blotter && (data.blotter.status === 'lupong_in_progress' || data.blotter.status === 'lupong_resolved' || data.blotter.status === 'lupong_unresolved')) {
+                            if (reopenBtn) reopenBtn.style.display = 'none';
+                            if (closeBtn) closeBtn.style.display = 'none';
+                        } else {
+                            if (reopenBtn) reopenBtn.style.display = 'inline-block';
+                            if (closeBtn) closeBtn.style.display = 'inline-block';
+                        }
+
+
+
                         // Show barangay hearing history
                         if (data.hearings && data.hearings.length > 0) {
                             const recordedHearings = data.hearings.filter(h =>
@@ -673,23 +721,33 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
             e.preventDefault();
             const dt = document.getElementById('lupong_hearing_datetime').value;
             if (!dt) return alert('Please select date and time.');
-            
+
+            // Prevent scheduling past datetimes
+            const selected = new Date(dt);
+            const now = new Date();
+            if (selected.getTime() < now.getTime()) {
+                alert('Selected date/time cannot be in the past.');
+                return;
+            }
+
             fetch('../Process/lupong/lupong_create_hearing.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `blotter_id=${encodeURIComponent(currentEscalatedBlotterId)}&hearing_datetime=${encodeURIComponent(dt)}`
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    alert(res.message || 'Hearing scheduled successfully.');
-                    closeScheduleLupongHearingModal();
-                    location.reload();
-                } else {
-                    alert(res.error || 'Failed to schedule hearing.');
-                }
-            })
-            .catch(() => alert('Error scheduling hearing.'));
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `blotter_id=${encodeURIComponent(currentEscalatedBlotterId)}&hearing_datetime=${encodeURIComponent(dt)}`
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        alert(res.message || 'Hearing scheduled successfully.');
+                        closeScheduleLupongHearingModal();
+                        location.reload();
+                    } else {
+                        alert(res.error || 'Failed to schedule hearing.');
+                    }
+                })
+                .catch(() => alert('Error scheduling hearing.'));
         });
 
         // Save Lupong Hearing
@@ -716,28 +774,69 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
             btn.textContent = 'Saving...';
 
             fetch('../Process/lupong/lupong_record_hearing.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(res => {
-                btn.disabled = false;
-                btn.textContent = 'Save Hearing';
-                
-                if (res.success) {
-                    alert(res.message || 'Hearing saved successfully.');
-                    location.reload();
-                } else {
-                    alert(res.error || 'Failed to save hearing.');
-                }
-            })
-            .catch(err => {
-                btn.disabled = false;
-                btn.textContent = 'Save Hearing';
-                alert('Error saving hearing.');
-                console.error(err);
-            });
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(res => {
+                    btn.disabled = false;
+                    btn.textContent = 'Save Hearing';
+
+                    if (res.success) {
+                        alert(res.message || 'Hearing saved successfully.');
+
+                        // if outcome is "note_settled", show decision modal
+                        if (outcome === 'not_settled') {
+                            closeViewEscalatedBlotterModal();
+                            document.getElementById('notSettledOutcomeModal').style.display = 'flex';
+                        } else {
+                            // if amicably_settled, just reload
+                            location.reload();
+                        }
+                    } else {
+                        alert(res.error || 'Failed to save hearing.');
+                    }
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    btn.textContent = 'Save Hearing';
+                    alert('Error saving hearing.');
+                    console.error(err);
+                });
         });
+
+        // Handle "Close Blotter" button in Not Settled modal
+        document.getElementById('closeBlotterBtn')?.addEventListener('click', function() {
+            if (!currentEscalatedBlotterId) return alert('Unable to determine blotter ID.');
+
+            fetch('../Process/lupong/close_case.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `blotter_id=${encodeURIComponent(currentEscalatedBlotterId)}&outcome=unresolved`
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        alert('Case closed as unresolved.');
+                        document.getElementById('notSettledOutcomeModal').style.display = 'none';
+                        location.reload();
+                    } else {
+                        alert(res.error || 'Failed to close case.');
+                    }
+                })
+                .catch(() => alert('Error closing case.'));
+        });
+
+
+        // Handle "Schedule Hearing" button in Not Settled modal
+        document.getElementById('scheduleAnotherHearingBtn')?.addEventListener('click', function() {
+            document.getElementById('notSettledOutcomeModal').style.display = 'none';
+            document.getElementById('scheduleLupongHearingModal').style.display = 'flex';
+        });
+
+
 
         // Close Case Button
         document.getElementById('lupongCloseCaseBtn')?.addEventListener('click', function() {
@@ -761,22 +860,51 @@ if ($escalatedResult && $row = $escalatedResult->fetch_assoc()) {
             if (!currentEscalatedBlotterId) return alert('Unable to determine blotter ID.');
 
             fetch('../Process/lupong/close_case.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `blotter_id=${encodeURIComponent(currentEscalatedBlotterId)}&outcome=${outcome}`
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    alert(res.message || 'Case closed successfully.');
-                    document.getElementById('lupongCloseCaseConfirm').style.display = 'none';
-                    location.reload();
-                } else {
-                    alert(res.error || 'Failed to close case.');
-                }
-            })
-            .catch(() => alert('Error closing case.'));
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `blotter_id=${encodeURIComponent(currentEscalatedBlotterId)}&outcome=${outcome}`
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        alert(res.message || 'Case closed successfully.');
+                        document.getElementById('lupongCloseCaseConfirm').style.display = 'none';
+                        location.reload();
+                    } else {
+                        alert(res.error || 'Failed to close case.');
+                    }
+                })
+                .catch(() => alert('Error closing case.'));
         }
+
+        // Re-open case button (changes status to lupong_in_progress and shows schedule modal)
+        document.getElementById('reopenCaseBtn')?.addEventListener('click', function() {
+            if (!currentEscalatedBlotterId) return alert('Unable to determine blotter ID.');
+
+            if (!confirm('Re-open this case for Lupong Tagapamayapa proceedings?')) return;
+
+            fetch('../Process/lupong/reopen_case.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'blotter_id=' + encodeURIComponent(currentEscalatedBlotterId)
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        alert(res.message || 'Case re-opened successfully.');
+                        // Close the view modal and show schedule hearing modal
+                        closeViewEscalatedBlotterModal();
+                        document.getElementById('scheduleLupongHearingModal').style.display = 'flex';
+                    } else {
+                        alert(res.error || 'Failed to re-open case.');
+                    }
+                })
+                .catch(() => alert('Error re-opening case.'));
+        });
     </script>
 </body>
 

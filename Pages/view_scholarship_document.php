@@ -104,13 +104,59 @@ try {
             exit();
         }
     } else {
-        // For other documents, data is stored as BLOB
-        $documentBlob = $documentData;
+        // Check if data might be a file path instead of BLOB
+        if (strlen($documentData) < 500 && (strpos($documentData, '/') !== false || strpos($documentData, '\\') !== false)) {
+            // This looks like a file path, not blob data
+            $filePath = $documentData;
+            
+            // Try different path constructions
+            $possiblePaths = [
+                __DIR__ . '/' . ltrim($filePath, './'),
+                __DIR__ . '/../' . ltrim($filePath, './'),
+                $_SERVER['DOCUMENT_ROOT'] . '/' . ltrim($filePath, './'),
+                $filePath
+            ];
+            
+            $found = false;
+            foreach ($possiblePaths as $testPath) {
+                if (file_exists($testPath)) {
+                    $documentBlob = file_get_contents($testPath);
+                    $found = true;
+                    break;
+                }
+            }
+            
+            if (!$found) {
+                echo json_encode(['success' => false, 'message' => 'Document file not found. Path: ' . basename($filePath)]);
+                exit();
+            }
+        } else {
+            // For other documents, data is stored as BLOB
+            $documentBlob = $documentData;
+        }
+    }
+
+    // Validate blob data
+    if (empty($documentBlob) || strlen($documentBlob) < 100) {
+        echo json_encode(['success' => false, 'message' => 'Document data is empty or too small']);
+        exit();
     }
 
     // Detect MIME type using finfo
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mimeType = $finfo->buffer($documentBlob);
+
+    // Validate MIME type
+    $validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    $validTypes = array_merge($validImageTypes, ['application/pdf']);
+    
+    if (!in_array($mimeType, $validTypes)) {
+        echo json_encode([
+            'success' => false, 
+            'message' => 'Unsupported file format: ' . $mimeType . '. Only images (JPG, PNG, GIF, WEBP) and PDF files are supported.'
+        ]);
+        exit();
+    }
 
     // Determine if it's a PDF or image
     $isPdf = ($mimeType === 'application/pdf');

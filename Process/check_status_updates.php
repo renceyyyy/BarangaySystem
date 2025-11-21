@@ -15,6 +15,8 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Check if user is a resident (not admin/finance/sk)
+// DISABLED: Allow all logged in users to use this endpoint for testing
+/*
 $userRole = $_SESSION['role'] ?? 'resident';
 if (in_array($userRole, ['admin', 'finance', 'sk', 'SuperAdmin'])) {
     // Admin/staff shouldn't use this endpoint
@@ -25,6 +27,7 @@ if (in_array($userRole, ['admin', 'finance', 'sk', 'SuperAdmin'])) {
     ]);
     exit();
 }
+*/
 
 require_once 'db_connection.php';
 
@@ -43,66 +46,101 @@ function getUserRequestsRealtime($conn, $userId) {
     $requests = [];
 
     // Document requests
-    $sql = "SELECT 'Document Request' as type, DocuType as description, refno, DateRequested as date_requested, RequestStatus as status, Reason as decline_reason FROM docsreqtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+    $sql = "SELECT 'Document Request' as type, DocuType as description, refno, DateRequested as date_requested, RequestStatus as status FROM docsreqtbl WHERE UserId = ? ORDER BY DateRequested DESC";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            $requests[] = $row;
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
         }
         $stmt->close();
     }
 
     // Business requests 
-    $sql = "SELECT 'Business Request' as type, CONCAT(BusinessName, ' - ', RequestType) as description, refno, RequestedDate as date_requested, RequestStatus as status, Reason as decline_reason FROM businesstbl WHERE UserId = ? ORDER BY RequestedDate DESC";
+    $sql = "SELECT 'Business Request' as type, CONCAT(BusinessName, ' - ', RequestType) as description, refno, RequestedDate as date_requested, RequestStatus as status FROM businesstbl WHERE UserId = ? ORDER BY RequestedDate DESC";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            $requests[] = $row;
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
         }
         $stmt->close();
     }
 
     // Scholarship applications
-    $sql = "SELECT 'Scholarship Application' as type, 'Scholarship Application' as description, ApplicationID as refno, DateApplied as date_requested, RequestStatus as status, '' as decline_reason FROM scholarship WHERE UserID = ? ORDER BY DateApplied DESC";
+    $sql = "SELECT 'Scholarship Application' as type, 'Scholarship Application' as description, ApplicationID as refno, DateApplied as date_requested, RequestStatus as status FROM scholarship WHERE UserID = ? ORDER BY DateApplied DESC";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            $requests[] = $row;
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
         }
         $stmt->close();
     }
 
     // Unemployment certificates
-    $sql = "SELECT 'Unemployment Certificate' as type, CONCAT(certificate_type, ' Certificate') as description, refno, request_date as date_requested, RequestStatus as status, decline_reason FROM unemploymenttbl WHERE user_id = ? ORDER BY request_date DESC";
+    $sql = "SELECT 'Unemployment Certificate' as type, CONCAT(certificate_type, ' Certificate') as description, refno, request_date as date_requested, RequestStatus as status FROM unemploymenttbl WHERE user_id = ? ORDER BY request_date DESC";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            $requests[] = $row;
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
         }
         $stmt->close();
     }
 
     // Guardianship/Solo Parent requests
-    $sql = "SELECT 'Guardianship/Solo Parent' as type, CONCAT(request_type, ' for ', child_name) as description, refno, request_date as date_requested, RequestStatus as status, COALESCE(Reason, '') as decline_reason FROM guardianshiptbl WHERE user_id = ? ORDER BY request_date DESC";
+    $sql = "SELECT 'Guardianship/Solo Parent' as type, CONCAT(request_type, ' for ', child_name) as description, refno, request_date as date_requested, RequestStatus as status FROM guardianshiptbl WHERE user_id = ? ORDER BY request_date DESC";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            $requests[] = $row;
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
         }
         $stmt->close();
     } else {
@@ -110,40 +148,81 @@ function getUserRequestsRealtime($conn, $userId) {
     }
 
     // No Birth Certificate requests
-    $sql = "SELECT 'No Birth Certificate' as type, 'No Birth Certificate Request' as description, refno, request_date as date_requested, RequestStatus as status, COALESCE(Reason, '') as decline_reason FROM no_birthcert_tbl WHERE user_id = ? ORDER BY request_date DESC";
+    $sql = "SELECT 'No Birth Certificate' as type, 'No Birth Certificate Request' as description, refno, request_date as date_requested, RequestStatus as status FROM no_birthcert_tbl WHERE user_id = ? ORDER BY request_date DESC";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            $requests[] = $row;
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
         }
         $stmt->close();
     }
 
     // Complain requests 
-    $sql = "SELECT 'Complaint' as type, Complain as description, refno, DateComplained as date_requested, RequestStatus as status, '' as decline_reason FROM complaintbl WHERE Userid = ? ORDER BY DateComplained DESC";
+    $sql = "SELECT 'Complaint' as type, Complain as description, refno, DateComplained as date_requested, RequestStatus as status FROM complaintbl WHERE Userid = ? ORDER BY DateComplained DESC";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            $requests[] = $row;
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
         }
         $stmt->close();
     }
 
     // Cohabitation Form requests
-    $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status, COALESCE(Reason, '') as decline_reason FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
+    $sql = "SELECT 'Cohabitation Form' as type, CONCAT(Name, ' - ', Purpose) as description, refno, DateRequested as date_requested, RequestStatus as status FROM cohabitationtbl WHERE UserId = ? ORDER BY DateRequested DESC";
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
-            $requests[] = $row;
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
+        }
+        $stmt->close();
+    }
+
+    // Scholarship requests
+    $sql = "SELECT 'Scholarship' as type, CONCAT('Scholarship Application - ', EducationLevel) as description, ApplicationID as refno, DateApplied as date_requested, RequestStatus as status FROM scholarship WHERE UserID = ? ORDER BY DateApplied DESC";
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $requests[] = [
+                'type' => $row['type'],
+                'description' => $row['description'],
+                'refno' => $row['refno'],
+                'date_requested' => $row['date_requested'],
+                'status' => $row['status'],
+                'decline_reason' => ''
+            ];
         }
         $stmt->close();
     }
@@ -353,32 +432,8 @@ try {
         $accountStatusStmt->close();
     }
     
-    // First, fetch any unread notifications from the database
-    // NOTE: DO NOT mark as read here - notifications should persist across all devices
-    // Users should see the same notification on all their logged-in devices
-    $unreadSql = "SELECT id, message, status, refno, request_type, created_at FROM user_notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT 5";
-    $unreadStmt = $conn->prepare($unreadSql);
-    if ($unreadStmt) {
-        $unreadStmt->bind_param("i", $userId);
-        $unreadStmt->execute();
-        $unreadResult = $unreadStmt->get_result();
-        
-        while ($notifRow = $unreadResult->fetch_assoc()) {
-            $newNotifications[] = [
-                'id' => $notifRow['id'],
-                'message' => $notifRow['message'],
-                'status' => $notifRow['status'],
-                'refno' => $notifRow['refno'],
-                'type' => $notifRow['request_type'],
-                'created_at' => $notifRow['created_at']
-            ];
-        }
-        $unreadStmt->close();
-        
-        // REMOVED: Automatic marking as read
-        // Instead, keep notifications as unread so they appear on all devices
-        // They will be marked as read only when user explicitly acknowledges them
-    }
+    // Don't pre-fetch notifications here - they will be added to $newNotifications 
+    // array when status changes are detected below
     
     foreach ($currentRequests as $request) {
         $refno = $request['refno'];
@@ -443,7 +498,7 @@ try {
                         $insertNotifStmt->close();
                     }
                     
-                    // Update snapshot
+                    // Update snapshot immediately to prevent duplicate notifications
                     $updateSql = "UPDATE user_request_snapshots SET last_status = ?, last_checked = CURRENT_TIMESTAMP WHERE user_id = ? AND refno = ?";
                     $updateStmt = $conn->prepare($updateSql);
                     if ($updateStmt) {

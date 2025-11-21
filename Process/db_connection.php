@@ -6,7 +6,7 @@ class DatabaseConnection {
     private $servername = "localhost";
     private $username = "root";
     private $password = "";
-    private $dbname = "barangayDb";
+    private $dbname = "barangaydb";
     
     private function __construct() {
         // Create connection

@@ -1240,14 +1240,12 @@ elseif ($row["RequestStatus"] === "Pending") {
                     $unemployed_since = $_POST['unemployed_since'];
                     $certificate_type = $_POST['certificate_type'];
                     $refno = $_POST['refno'];
-                    $request_date = $_POST['request_date'];
+                    $request_date = $_POST['DateRequested'];
 
                     $insertStmt = $connection->prepare("INSERT INTO unemploymenttbl (fullname, age, address, unemployed_since, certificate_type, refno, request_date, RequestStatus) VALUES (?, ?, ?, ?, ?, ?, ?,'Pending')");
                     $insertStmt->bind_param("sisssss", $fullname, $age, $address, $unemployed_since, $certificate_type, $refno, $request_date);
                     if ($insertStmt->execute()) {
-                      // Preserve any existing message or add one
-                      $message = isset($_GET['message']) ? '&message=' . urlencode($_GET['message']) : '&message=approved';
-                      header("Location: " . $redirectUrl . $message);
+                      echo "<script>alert('Unemployment Request added successfully'); window.location.href='$redirectUrl';</script>";
                       exit;
                     } else {
                       echo "<script>alert('Error adding unemployment request: " . $connection->error . "');</script>";
@@ -1351,7 +1349,7 @@ elseif ($row["RequestStatus"] === "Printed") {
                           class='action-btn-2 view'>  
                   <i class='fas fa-eye'></i>
                 </a>";
-                      echo "<a href='decline.php?id=" . htmlspecialchars($row["id"]) . "' 
+                      echo "<a href='declineunemployment.php?id=" . htmlspecialchars($row["id"]) . "' 
                             class='action-btn-2 decline' 
                             onclick=\"showCustomDeclineConfirm(event, this.href);\">
                             <i class='fas fa-xmark'></i>
@@ -1530,41 +1528,63 @@ elseif ($row["RequestStatus"] === "Printed") {
                   $redirectUrl = $_SERVER['PHP_SELF'] . $panelParam;
 
                   if (isset($_POST['saveGuardianship'])) {
+                    // Debug: Check if form is being submitted
+                    error_log("Guardianship form submitted");
+                    error_log("POST data: " . print_r($_POST, true));
+                    
                     // Get values safely
-                    $refno = $_POST['refno'];
-                    $applicant_name = $_POST['applicant_name'];
-                    $request_type = $_POST['request_type'];
-                    $child_name = $_POST['child_name'];
-                    $child_age = (int) $_POST['child_age'];
-                    $child_address = $_POST['child_address'];
-                    $request_date = $_POST['request_date'];
+                    $refno = $_POST['refno'] ?? '';
+                    $applicant_name = $_POST['applicant_name'] ?? '';
+                    $request_type = $_POST['request_type'] ?? '';
+                    $child_name = $_POST['child_name'] ?? '';
+                    $child_age = isset($_POST['child_age']) ? (int) $_POST['child_age'] : 0;
+                    $child_address = $_POST['child_address'] ?? '';
+                    $request_date = $_POST['request_date'] ?? date('Y-m-d');
 
-                    // Prepare statement (prevents SQL injection)
-                    $insertstmt = $connection->prepare("INSERT INTO guardianshiptbl 
-        (refno, applicant_name, request_type, child_name, child_age, child_address, request_date, RequestStatus) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending)");
-                    $insertstmt->bind_param(
-                      "ssssiss",
-                      $refno,
-                      $applicant_name,
-                      $request_type,
-                      $child_name,
-                      $child_age,
-                      $child_address,
-                      $request_date,
-                      $request_status
-                    );
-
-                    if ($insertstmt->execute()) {
-                      $message = isset($_GET['message']) ? '&message=' . urlencode($_GET['message']) : '&message=approved';
-                      header("Location: " . $redirectUrl . $message);
-                      exit;
+                    // Validate required fields
+                    if (empty($refno) || empty($applicant_name) || empty($request_type) || empty($child_name) || empty($child_address)) {
+                      echo "<script>alert('Please fill in all required fields');</script>";
+                      error_log("Validation failed - missing fields");
                     } else {
-                      echo "<script>alert('Error saving guardianship: " . addslashes($stmt->error) . "');</script>";
-                    }
+                      // Prepare statement (prevents SQL injection)
+                      $insertstmt = $connection->prepare("INSERT INTO guardianshiptbl 
+        (refno, applicant_name, request_type, child_name, child_age, child_address, request_date, RequestStatus) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')");
+                      
+                      if ($insertstmt === false) {
+                        echo "<script>alert('Database prepare error: " . addslashes($connection->error) . "');</script>";
+                        error_log("Prepare failed: " . $connection->error);
+                      } else {
+                        // Correct bind types: refno(s), applicant_name(s), request_type(s), child_name(s), child_age(i), child_address(s), request_date(s)
+                        $bindOk = $insertstmt->bind_param(
+                          "ssssiss",
+                          $refno,
+                          $applicant_name,
+                          $request_type,
+                          $child_name,
+                          $child_age,
+                          $child_address,
+                          $request_date
+                        );
 
-                    $
-                      $insertstmt->close();
+                        if ($bindOk === false) {
+                          $err = $insertstmt->error ?: $connection->error;
+                          error_log("Guardianship bind_param failed: " . $err);
+                          echo "<script>alert('Database bind error: " . addslashes($err) . "');</script>";
+                        } else {
+                          if ($insertstmt->execute()) {
+                            error_log("Guardianship saved successfully with refno: " . $refno);
+                            echo "<script>alert('Guardianship Request added successfully'); window.location.href='$redirectUrl';</script>";
+                            exit;
+                          } else {
+                            $err = $insertstmt->error ?: $connection->error;
+                            error_log("Guardianship execute failed: " . $err);
+                            echo "<script>alert('Error saving guardianship: " . addslashes($err) . "');</script>";
+                          }
+                        }
+                        $insertstmt->close();
+                      }
+                    }
                   }
                   $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus, ReleasedBy 
                           FROM guardianshiptbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
@@ -1741,10 +1761,11 @@ else {
               </div>
               <h2>Guardianship Request Form</h2>
               <form id="addGuardianshipForm" method="POST" action="" class="modal-form">
+                <input type="hidden" name="panel" value="guardianshipPanel" />
                 <div class="form-grid">
                   <div class="form-group">
                     <label>Reference</label>
-                    <input type="text" name="refno" readonly required>
+                    <input type="text" name="refno" id="guardianshipRefnoInput" readonly required>
                   </div>
                   <div class="form-group" style="position: relative;">
                     <label>Applicant Name</label>
@@ -1756,7 +1777,7 @@ else {
                     <select name="request_type" required>
                       <option value="Guardianship">Guardianship</option>
                       <option value="Solo Parent">Solo Parent</option>
-                      <option value="Other">Other</option>
+               
                     </select>
                   </div>
                   <div class="form-group">
@@ -1781,9 +1802,38 @@ else {
                 </div>
               </form>
             </div>
-          </div>
+        </div>
+        
 
-         
+<script>
+// Auto-generate refno for guardianship form when modal opens
+function generateGuardianshipRefno() {
+  const now = new Date();
+  const refno = now.getFullYear().toString() +
+    (now.getMonth() + 1).toString().padStart(2, '0') +
+    now.getDate().toString().padStart(2, '0') +
+    now.getHours().toString().padStart(2, '0') +
+    now.getMinutes().toString().padStart(2, '0') +
+    now.getSeconds().toString().padStart(2, '0') +
+    Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  document.getElementById('guardianshipRefnoInput').value = refno;
+}
+
+// Attach to modal open event
+document.getElementById('addOpenGuardianship').addEventListener('show', generateGuardianshipRefno);
+
+// If modal is opened by setting display, use MutationObserver to detect
+const guardianshipModal = document.getElementById('addOpenGuardianship');
+const observer = new MutationObserver(function(mutations) {
+  mutations.forEach(function(mutation) {
+    if (guardianshipModal.style.display === 'block') {
+      generateGuardianshipRefno();
+    }
+  });
+});
+observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style'] });
+</script>
+              
 
           
 
@@ -4586,7 +4636,7 @@ function reloadItemRequestsPanel(message) {
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
               <span class="close-btn" onclick="closeUpdateBlotterModal()">&times;</span>
               <div style="text-align: center;">
-                <img src="/Capston/Capstones/Capstones/Assets/sampaguitalogo.png" alt="Logo" class="mb-4">
+                <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4">
               </div>
               <h1 style="text-align:center;">Update Blotter Report</h1>
               <form id="updateBlotterForm" method="POST" action="../Process/blotter/update_blotter.php" class="modal-form" enctype="multipart/form-data">

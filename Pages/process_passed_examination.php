@@ -200,6 +200,29 @@ try {
         $logStmt->close();
     }
 
+    // Get applicant's user ID for notification
+    $getUserSql = "SELECT UserID FROM scholarship WHERE ApplicationID = ?";
+    $getUserStmt = $conn->prepare($getUserSql);
+    if ($getUserStmt) {
+        $getUserStmt->bind_param("i", $applicationId);
+        $getUserStmt->execute();
+        $userResult = $getUserStmt->get_result();
+        if ($userRow = $userResult->fetch_assoc()) {
+            $applicantUserId = $userRow['UserID'];
+            
+            // Create notification for the applicant
+            $notifMessage = "Congratulations! Your Scholarship Application (ID: {$applicationId}) has been approved with a grant of ₱" . number_format($grantAmount, 2) . " for {$educationLevel}.";
+            $notifSql = "INSERT INTO user_notifications (user_id, refno, message, status, request_type, created_at) VALUES (?, ?, ?, 'approved', 'Scholarship', NOW())";
+            $notifStmt = $conn->prepare($notifSql);
+            if ($notifStmt) {
+                $notifStmt->bind_param("iss", $applicantUserId, $applicationId, $notifMessage);
+                $notifStmt->execute();
+                $notifStmt->close();
+            }
+        }
+        $getUserStmt->close();
+    }
+
     // Commit transaction
     $conn->commit();
 

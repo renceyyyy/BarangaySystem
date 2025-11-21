@@ -428,27 +428,8 @@ function displayDeclineNotifications($declinedRequests) {
     `;
     document.head.appendChild(style);
     
-    // Add real-time checking functionality for declines
-    function checkForNewDeclines() {
-        fetch('../Process/check_new_declines.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'check_declines=1'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.hasNewDeclines && data.displayCount < 3) {
-                // Reload page to show new decline notifications
-                location.reload();
-            }
-        })
-        .catch(error => console.log('Decline check error:', error));
-    }
-    
-    // Check for new declines every 30 seconds
-    setInterval(checkForNewDeclines, 30000);
+    // Real-time notification system is now handled by navbar.php
+    // Removed automatic page reload to prevent continuous refreshing
     </script>
     <?php
 }

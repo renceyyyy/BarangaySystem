@@ -745,7 +745,6 @@ unset($_SESSION['verification_notification']);
                         <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Apply for Scholar</a>
                         <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">No fix income/No income</a>
                         <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Guardianship</a>
-                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Cohabitation</a>
                     
                     <?php endif; ?>
                 </div>
@@ -840,7 +839,7 @@ unset($_SESSION['verification_notification']);
             document.body.appendChild(notification);
             
             setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease-out';
+                notification.style.animation = 'slideOutToRight 0.3s ease-out';
                 setTimeout(() => {
                     if (notification.parentNode) {
                         notification.parentNode.removeChild(notification);
@@ -1119,199 +1118,122 @@ unset($_SESSION['verification_notification']);
         });
     </script>
     
-    <!-- Real-Time Notification System -->
+    <!-- BRAND NEW Real-Time Notification System -->
     <script>
-        const RESIDENT_USER_ID = '<?php echo $_SESSION['user_id'] ?? ''; ?>';
-        const RESIDENT_ROLE = '<?php echo $_SESSION['role'] ?? 'resident'; ?>';
-        
-        console.log('[Notification System] User ID:', RESIDENT_USER_ID);
-        console.log('[Notification System] User Role:', RESIDENT_ROLE);
-        
-        // Only run for residents (role is 'resident' or empty/undefined for residents)
-        if (RESIDENT_USER_ID && (RESIDENT_ROLE === 'resident' || RESIDENT_ROLE === '')) {
-            console.log('[Notification System] ✓ Starting notification system...');
-            const STORAGE_KEY = `barangay_resident_${RESIDENT_USER_ID}_status`;
-            const CHECK_INTERVAL = 5000; // 5 seconds
-            const SHOWN_NOTIFICATIONS_KEY = `barangay_resident_${RESIDENT_USER_ID}_shown_notifs`;
+        (function() {
+            const userId = '<?php echo $_SESSION['user_id'] ?? ''; ?>';
+            if (!userId) return;
             
-            // Track which notifications have been shown to prevent duplicates
-            let shownNotificationIds = new Set();
+            console.log('[NEW NOTIF] Starting for user:', userId);
             
-            // Load shown notification IDs from sessionStorage (persist across page reloads, cleared on browser close)
-            try {
-                const stored = sessionStorage.getItem(SHOWN_NOTIFICATIONS_KEY);
-                if (stored) {
-                    shownNotificationIds = new Set(JSON.parse(stored));
-                    console.log('[Notification System] Loaded shown notification IDs:', Array.from(shownNotificationIds));
-                }
-            } catch (e) {
-                console.log('[Notification System] Could not load shown notifications from storage');
-            }
+            const STORAGE_KEY = 'brgy_notif_last_id_' + userId;
+            let lastSeenNotifId = parseInt(localStorage.getItem(STORAGE_KEY) || '0');
+            let currentNotif = null;
             
-            // Function to show notification
-            function showStatusNotification(message, status, notifId) {
-                const notification = document.createElement('div');
+            function displayNotif(msg, status, id, refno) {
+                console.log('[NEW NOTIF] Display:', status, refno, 'ID:', id);
                 
-                let bgColor, textColor, borderColor;
+                // Close existing notification
+                if (currentNotif) {
+                    currentNotif.remove();
+                    currentNotif = null;
+                }
+                
+                // Color scheme
+                let bg, text, border;
                 if (status === 'approved' || status === 'completed') {
-                    bgColor = '#e8f5e9';
-                    textColor = '#2e7d32';
-                    borderColor = '#2e7d32';
+                    bg = '#d4edda'; text = '#155724'; border = '#28a745';
                 } else if (status === 'declined') {
-                    bgColor = '#ffebee';
-                    textColor = '#c62828';
-                    borderColor = '#c62828';
+                    bg = '#f8d7da'; text = '#721c24'; border = '#dc3545';
                 } else if (status === 'released') {
-                    bgColor = '#e3f2fd';
-                    textColor = '#1565c0';
-                    borderColor = '#1565c0';
-                } else if (status === 'verified') {
-                    // Special styling for account verification
-                    bgColor = '#e8f5e9';
-                    textColor = '#1b5e20';
-                    borderColor = '#4caf50';
+                    bg = '#d1ecf1'; text = '#0c5460'; border = '#17a2b8';
                 } else {
-                    bgColor = '#fff3e0';
-                    textColor = '#e65100';
-                    borderColor = '#e65100';
+                    bg = '#fff3cd'; text = '#856404'; border = '#ffc107';
                 }
                 
-                notification.style.cssText = `
+                const notif = document.createElement('div');
+                notif.style.cssText = `
                     position: fixed;
                     top: 80px;
                     right: 20px;
-                    z-index: 99999;
-                    max-width: 450px;
-                    padding: 16px 20px;
+                    max-width: 400px;
+                    padding: 16px;
+                    background: ${bg};
+                    color: ${text};
+                    border-left: 4px solid ${border};
                     border-radius: 4px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    z-index: 99999;
                     font-family: Arial, sans-serif;
-                    font-size: 15px;
-                    font-weight: bold;
-                    line-height: 1.6;
-                    cursor: pointer;
-                    border-left: 4px solid ${borderColor};
-                    background: ${bgColor};
-                    color: ${textColor};
+                    animation: slideIn 0.3s;
                 `;
                 
-                notification.textContent = message;
-                notification.onclick = function() {
-                    if (notification.parentNode) {
-                        document.body.removeChild(notification);
-                    }
-                    // Mark notification as shown when user dismisses it
-                    if (notifId) {
-                        shownNotificationIds.add(notifId);
-                        try {
-                            sessionStorage.setItem(SHOWN_NOTIFICATIONS_KEY, JSON.stringify(Array.from(shownNotificationIds)));
-                        } catch (e) {
-                            console.log('[Notification System] Could not save shown notifications');
-                        }
-                        // Also mark as read on the server
-                        markNotificationAsRead(notifId);
-                    }
+                notif.innerHTML = `
+                    <div style="font-weight: 600; margin-bottom: 10px;">${msg}</div>
+                    <button class="close-notif-btn" style="
+                        background: ${border};
+                        color: white;
+                        border: none;
+                        padding: 6px 14px;
+                        border-radius: 3px;
+                        cursor: pointer;
+                        font-size: 13px;
+                        font-weight: 500;
+                    ">Close</button>
+                `;
+                
+                document.body.appendChild(notif);
+                currentNotif = notif;
+                
+                // Save this ID as last seen
+                lastSeenNotifId = id;
+                localStorage.setItem(STORAGE_KEY, id.toString());
+                
+                // Close button handler
+                notif.querySelector('.close-notif-btn').onclick = function() {
+                    notif.style.animation = 'slideOut 0.3s';
+                    setTimeout(() => {
+                        if (notif.parentElement) notif.remove();
+                        currentNotif = null;
+                    }, 300);
                 };
                 
-                document.body.appendChild(notification);
-                
-                // For account verification, show longer (15 seconds) and reload page after
-                const displayTime = status === 'verified' ? 15000 : 10000;
-                
+                // Auto-close after 15 seconds
                 setTimeout(() => {
-                    if (notification.parentNode) {
-                        document.body.removeChild(notification);
+                    if (notif.parentElement) {
+                        notif.style.animation = 'slideOut 0.3s';
+                        setTimeout(() => {
+                            if (notif.parentElement) notif.remove();
+                            currentNotif = null;
+                        }, 300);
                     }
-                    // Mark as shown after display time
-                    if (notifId) {
-                        shownNotificationIds.add(notifId);
-                        try {
-                            sessionStorage.setItem(SHOWN_NOTIFICATIONS_KEY, JSON.stringify(Array.from(shownNotificationIds)));
-                        } catch (e) {
-                            console.log('[Notification System] Could not save shown notifications');
-                        }
-                    }
-                    // Reload page after account verification notification to update UI
-                    if (status === 'verified') {
-                        window.location.reload();
-                    }
-                }, displayTime);
+                }, 15000);
             }
             
-            // Function to mark notification as read on server
-            function markNotificationAsRead(notifId) {
-                fetch('../Process/mark_notification_as_read.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: 'notification_id=' + notifId
-                })
-                .catch(error => console.log('[Notification System] Error marking as read:', error));
-            }
-            
-            
-            // Function to check for updates
-            function checkForStatusUpdates() {
-                const timestamp = Date.now();
-                const apiPath = '../Process/check_status_updates.php?t=' + timestamp;
-                
-                fetch(apiPath, {
-                    method: 'GET',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('[Notification Debug]', data);
-                    
-                    if (!data.success || !data.requests) {
-                        console.warn('[Notification] No success or requests in response');
-                        return;
-                    }
-                    
-                    // Show new notifications from server (database-backed)
-                    if (data.newNotifications && data.newNotifications.length > 0) {
-                        console.log('[Notification] ✓ New notifications received:', data.newNotifications.length);
+            function checkUpdates() {
+                fetch('../Process/check_status_updates.php?_=' + Date.now())
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.success || !data.newNotifications) return;
                         
-                        data.newNotifications.forEach(notification => {
-                            // Only show if we haven't shown this notification before
-                            if (!shownNotificationIds.has(notification.id)) {
-                                console.log('[Notification] Showing:', notification.message, 'ID:', notification.id);
-                                // Mark as shown immediately to prevent duplicate shows in next poll
-                                shownNotificationIds.add(notification.id);
-                                try {
-                                    sessionStorage.setItem(SHOWN_NOTIFICATIONS_KEY, JSON.stringify(Array.from(shownNotificationIds)));
-                                } catch (e) {
-                                    console.log('[Notification System] Could not save shown notifications');
-                                }
-                                // Display the notification
-                                showStatusNotification(notification.message, notification.status, notification.id);
-                            } else {
-                                console.log('[Notification] Skipped (already shown):', notification.message);
+                        // Show only NEW notifications (ID greater than last seen)
+                        data.newNotifications.forEach(n => {
+                            if (n.id > lastSeenNotifId) {
+                                console.log('[NEW NOTIF] Found new:', n.status, n.refno, 'ID:', n.id);
+                                displayNotif(n.message, n.status, n.id, n.refno);
                             }
                         });
-                    } else {
-                        console.log('[Notification] No new notifications');
-                    }
-                })
-                .catch(error => {
-                    console.error('[Notification] Error:', error);
-                });
+                    })
+                    .catch(err => console.error('[NEW NOTIF] Error:', err));
             }
             
-            // Start checking every 5 seconds
-            setInterval(checkForStatusUpdates, CHECK_INTERVAL);
-            setTimeout(checkForStatusUpdates, 1000);
+            // Check every 3 seconds
+            setInterval(checkUpdates, 3000);
+            checkUpdates();
             
-            console.log('[Notification System] ✓ Notification polling started');
-        } else {
-            console.log('[Notification System] ✗ Not starting - User ID:', RESIDENT_USER_ID, 'Role:', RESIDENT_ROLE);
-        }
+            console.log('[NEW NOTIF] Started (last ID:', lastSeenNotifId, ')');
+        })();
+    </script>
     </script>
 
 </body>

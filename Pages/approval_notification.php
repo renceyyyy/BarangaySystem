@@ -407,26 +407,8 @@ function displayApprovalNotifications($approvedRequests) {
     document.head.appendChild(style);
     
     // Add real-time checking functionality
-    function checkForNewApprovals() {
-        fetch('../Process/check_new_approvals.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'check_approvals=1'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.hasNewApprovals && data.displayCount < 3) {
-                // Reload page to show new notifications
-                location.reload();
-            }
-        })
-        .catch(error => console.log('Approval check error:', error));
-    }
-    
-    // Check for new approvals every 30 seconds
-    setInterval(checkForNewApprovals, 30000);
+    // Real-time notification system is now handled by navbar.php
+    // Removed automatic page reload to prevent continuous refreshing
     </script>
     <?php
 }

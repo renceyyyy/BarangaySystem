@@ -1402,8 +1402,13 @@ include 'dashboard.php';
 
             <div class="mb-3">
               <label for="scholar_modal_amount" class="form-label">Scholarship Amount</label>
-              <input type="number" step="1" class="form-control" id="scholar_modal_amount" name="amount"
-                placeholder="Enter scholarship amount" required />
+              <select class="form-control" id="scholar_modal_amount" name="amount" required>
+                <option value="">-- Select Amount --</option>
+                <option value="1000">₱1,000</option>
+                <option value="1200">₱1,200</option>
+                <option value="1500">₱1,500</option>
+                <option value="3000">₱3,000</option>
+              </select>
             </div>
 
             <div class="text-end">
@@ -2127,32 +2132,47 @@ include 'dashboard.php';
         };
 
         document.getElementById('documentTitle').textContent = documentNames[documentType] || 'Document';
-        document.getElementById('documentContainer').innerHTML = '<p style="padding: 20px;">Loading document...</p>';
+        document.getElementById('documentContainer').innerHTML = '<div style="padding: 40px; text-align: center;"><i class="fas fa-spinner fa-spin" style="font-size: 40px; color: #4CAF50;"></i><p style="margin-top: 15px;">Loading document...</p></div>';
         document.getElementById('documentViewerModal').style.display = 'flex';
 
         // Fetch and display the document
         fetch(`view_scholarship_document.php?id=${currentViewApplicationId}&type=${documentType}`)
-          .then(response => response.json())
+          .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+          })
           .then(data => {
+            console.log('Document data:', data);
+            
             if (data.success) {
               if (data.isPdf) {
-                // Display PDF using iframe or embed
+                // Display PDF using iframe
                 document.getElementById('documentContainer').innerHTML =
-                  `<embed src="${data.dataUrl}" type="application/pdf" width="100%" height="600px" style="border: 1px solid #ddd;" />`;
+                  `<iframe src="${data.dataUrl}" type="application/pdf" width="100%" height="600px" style="border: 1px solid #ddd; border-radius: 4px;"></iframe>`;
               } else {
-                // Display image
-                document.getElementById('documentContainer').innerHTML =
-                  `<img src="${data.dataUrl}" alt="${documentNames[documentType]}" style="max-width: 100%; height: auto; border: 1px solid #ddd;" />`;
+                // Display image with better error handling
+                const img = new Image();
+                img.onload = function() {
+                  document.getElementById('documentContainer').innerHTML =
+                    `<div style="text-align: center; padding: 20px;">
+                      <img src="${data.dataUrl}" alt="${documentNames[documentType]}" style="max-width: 100%; max-height: 600px; height: auto; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+                    </div>`;
+                };
+                img.onerror = function() {
+                  document.getElementById('documentContainer').innerHTML =
+                    `<p style="color: red; padding: 20px; text-align: center;"><i class="fas fa-exclamation-triangle"></i> Failed to load image. The file may be corrupted or in an unsupported format.</p>`;
+                };
+                img.src = data.dataUrl;
               }
             } else {
               document.getElementById('documentContainer').innerHTML =
-                `<p style="color: red; padding: 20px;">${data.message || 'Failed to load document'}</p>`;
+                `<p style="color: red; padding: 20px; text-align: center;"><i class="fas fa-exclamation-circle"></i> ${data.message || 'Failed to load document'}</p>`;
             }
           })
           .catch(error => {
             console.error('Error loading document:', error);
             document.getElementById('documentContainer').innerHTML =
-              '<p style="color: red; padding: 20px;">Error loading document. Please try again.</p>';
+              '<p style="color: red; padding: 20px; text-align: center;"><i class="fas fa-exclamation-triangle"></i> Error loading document. Please try again.</p>';
           });
       }
 

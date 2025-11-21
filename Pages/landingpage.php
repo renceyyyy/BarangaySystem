@@ -637,135 +637,16 @@ require_once '../Process/news_handler.php';
             });
         });
 
-        // Enhanced real-time checking for both approvals and declines
+        // Real-time notifications are now handled by navbar.php
+        // Removed automatic page reloads to prevent continuous refreshing
         document.addEventListener('DOMContentLoaded', function() {
-            let isChecking = false;
-            let approvalShown = false;
-            let declinedShown = false;
-
-            // Function to check for new approvals and declines
-            function checkForNewUpdates() {
-                if (isChecking || (approvalShown && declinedShown)) {
-                    return;
-                }
-
-                isChecking = true;
-
-                fetch('../Process/check_new_updates.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: 'check_updates=1&user_id=<?php echo $_SESSION['user_id'] ?? 0; ?>'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.hasNewApprovals && !approvalShown) {
-                            showNewApprovalAlert();
-                            approvalShown = true;
-
-                            setTimeout(() => {
-                                location.reload();
-                            }, 2000);
-                        }
-
-                        if (data.hasNewDeclines && !declinedShown) {
-                            showNewDeclinedAlert();
-                            declinedShown = true;
-
-                            setTimeout(() => {
-                                location.reload();
-                            }, 2000);
-                        }
-                    })
-                    .catch(error => {
-                        console.log('Update check error:', error);
-                    })
-                    .finally(() => {
-                        isChecking = false;
-                    });
-            }
-
-            // Show alert for new approvals
-            function showNewApprovalAlert() {
-                const alertBadge = document.createElement('div');
-                alertBadge.id = 'newApprovalAlert';
-                alertBadge.innerHTML = `
-                    <div style="
-                        position: fixed;
-                        top: 20px;
-                        right: 20px;
-                        background: linear-gradient(135deg, #4CAF50, #45a049);
-                        color: white;
-                        padding: 12px 20px;
-                        border-radius: 25px;
-                        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-                        z-index: 9999;
-                        font-size: 0.9rem;
-                        font-weight: 500;
-                        animation: slideInRight 0.5s ease-out, pulse 1s ease-in-out 2;
-                        cursor: pointer;
-                    ">
-                        <i class="fas fa-bell"></i> New approval received! Refreshing...
-                    </div>
-                `;
-
-                document.body.appendChild(alertBadge);
-
-                setTimeout(() => {
-                    if (alertBadge.parentNode) {
-                        alertBadge.remove();
-                    }
-                }, 2000);
-            }
-
-            // Show alert for new declines
-            function showNewDeclinedAlert() {
-                const alertBadge = document.createElement('div');
-                alertBadge.id = 'newDeclinedAlert';
-                alertBadge.innerHTML = `
-                    <div style="
-                        position: fixed;
-                        top: 80px;
-                        right: 20px;
-                        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-                        color: white;
-                        padding: 12px 20px;
-                        border-radius: 25px;
-                        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
-                        z-index: 9999;
-                        font-size: 0.9rem;
-                        font-weight: 500;
-                        animation: slideInRight 0.5s ease-out, pulse 1s ease-in-out 2;
-                    ">
-                        <i class="fas fa-exclamation-triangle"></i> Request declined! Refreshing...
-                    </div>
-                `;
-
-                document.body.appendChild(alertBadge);
-
-                setTimeout(() => {
-                    if (alertBadge.parentNode) {
-                        alertBadge.remove();
-                    }
-                }, 2000);
-            }
-
-            // Check for updates every 30 seconds if user is logged in
-            <?php if (isset($_SESSION['user_id'])): ?>
-                const updateCheckInterval = setInterval(checkForNewUpdates, 30000);
-
-                document.addEventListener('visibilitychange', function() {
-                    if (!document.hidden) {
-                        setTimeout(checkForNewUpdates, 1000);
-                    }
-                });
-
-                window.addEventListener('beforeunload', function() {
-                    clearInterval(updateCheckInterval);
-                });
-            <?php endif; ?>
+            // Notification system centralized in navbar.php
         });
+
+            // Alert functions removed - notifications now handled by navbar.php
+
+            // No automatic checks - notification system centralized in navbar.php
+        ;
 
         // Function to close decline notification
         function closeDeclineNotification() {

@@ -2313,6 +2313,9 @@ include 'dashboard.php';
                 <button class='action-btn-2 view' data-id='" . $row['blotter_participant_id'] . "' style='font-size:16px; background-color:#28a745; outline:none; border:none;' >
                   <i class='fas fa-eye'></i>
                 </button>
+                <button class='action-btn-2 link-user' onclick=\"openBlotterLinkModal('" . $row['blotter_id'] . "')\" style='font-size:16px; background-color:#1976d2; outline:none; border:none; margin-left:5px;' title='Link to User Account'>
+                  <i class='fas fa-link'></i>
+                </button>
               </td>
             </tr>";
                     }
@@ -5627,6 +5630,10 @@ window.addEventListener("DOMContentLoaded", function() {
   });
 })();
 </script>
+
+<!-- Include Blotter Linking Modal -->
+<?php include 'components/blotter_linking_modal.html'; ?>
+
 </body>
 
 </html>

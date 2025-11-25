@@ -48,6 +48,11 @@ if (isset($_SESSION['user_id'])) {
             $_SESSION['verification_notification'] = 'Your account has been verified! You can now access all services.';
         }
 
+        // Check for profile completion notification
+        if (isset($_SESSION['profile_message']) && strpos($_SESSION['profile_message'], 'Profile completed successfully') !== false) {
+            $_SESSION['profile_completion_notification'] = 'Profile completed! Please visit the barangay office to validate your credentials and complete your verification process.';
+        }
+
         // Always refresh profile picture from database
         $_SESSION['profile_pic'] = !empty($userData['ProfilePic']) ? $userData['ProfilePic'] : '';
     }
@@ -154,11 +159,16 @@ $refNo = $_SESSION['ref_no'] ?? '';
 // Check for verification notification
 $verificationNotification = $_SESSION['verification_notification'] ?? '';
 
+// Check for profile completion notification
+$profileCompletionNotification = $_SESSION['profile_completion_notification'] ?? '';
+
 // Clear the messages after displaying them
 unset($_SESSION['success_message']);
 unset($_SESSION['error_message']);
 unset($_SESSION['ref_no']);
 unset($_SESSION['verification_notification']);
+unset($_SESSION['profile_completion_notification']);
+unset($_SESSION['profile_message']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1006,6 +1016,11 @@ unset($_SESSION['verification_notification']);
             // Show verification notification if available
             <?php if (!empty($verificationNotification)): ?>
                 showNotification('<?php echo $verificationNotification; ?>', 'verification');
+            <?php endif; ?>
+
+            // Show profile completion notification if available
+            <?php if (!empty($profileCompletionNotification)): ?>
+                showNotification('<?php echo $profileCompletionNotification; ?>', 'info');
             <?php endif; ?>
 
             // Change Password Modal functionality

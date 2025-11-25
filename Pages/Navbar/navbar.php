@@ -48,11 +48,6 @@ if (isset($_SESSION['user_id'])) {
             $_SESSION['verification_notification'] = 'Your account has been verified! You can now access all services.';
         }
 
-        // Check for profile completion notification
-        if (isset($_SESSION['profile_message']) && strpos($_SESSION['profile_message'], 'Profile completed successfully') !== false) {
-            $_SESSION['profile_completion_notification'] = 'Profile completed! Please visit the barangay office to validate your credentials and complete your verification process.';
-        }
-
         // Always refresh profile picture from database
         $_SESSION['profile_pic'] = !empty($userData['ProfilePic']) ? $userData['ProfilePic'] : '';
     }
@@ -159,16 +154,11 @@ $refNo = $_SESSION['ref_no'] ?? '';
 // Check for verification notification
 $verificationNotification = $_SESSION['verification_notification'] ?? '';
 
-// Check for profile completion notification
-$profileCompletionNotification = $_SESSION['profile_completion_notification'] ?? '';
-
 // Clear the messages after displaying them
 unset($_SESSION['success_message']);
 unset($_SESSION['error_message']);
 unset($_SESSION['ref_no']);
 unset($_SESSION['verification_notification']);
-unset($_SESSION['profile_completion_notification']);
-unset($_SESSION['profile_message']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -755,6 +745,7 @@ unset($_SESSION['profile_message']);
                         <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Apply for Scholar</a>
                         <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">No fix income/No income</a>
                         <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Guardianship</a>
+                        <a href="#" onclick="showNotification('Please log in or register to access our services.', 'warning'); setTimeout(function(){ window.location.href='../Login/login.php'; }, 2000); return false;">Cohabitation</a>
                     
                     <?php endif; ?>
                 </div>
@@ -835,13 +826,15 @@ unset($_SESSION['profile_message']);
                 right: 20px;
                 background: ${bgColor};
                 color: ${textColor};
-                padding: 15px 20px;
+                padding: 16px 20px;
                 border-radius: 8px;
                 border-left: 4px solid ${borderColor};
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 z-index: 10000;
-                max-width: 350px;
-                font-size: 14px;
+                max-width: 450px;
+                font-size: 15px;
+                font-weight: bold;
+                line-height: 1.6;
                 animation: slideIn 0.3s ease-out;
             `;
             
@@ -849,7 +842,7 @@ unset($_SESSION['profile_message']);
             document.body.appendChild(notification);
             
             setTimeout(() => {
-                notification.style.animation = 'slideOutToRight 0.3s ease-out';
+                notification.style.animation = 'slideOut 0.3s ease-out';
                 setTimeout(() => {
                     if (notification.parentNode) {
                         notification.parentNode.removeChild(notification);
@@ -1018,11 +1011,6 @@ unset($_SESSION['profile_message']);
                 showNotification('<?php echo $verificationNotification; ?>', 'verification');
             <?php endif; ?>
 
-            // Show profile completion notification if available
-            <?php if (!empty($profileCompletionNotification)): ?>
-                showNotification('<?php echo $profileCompletionNotification; ?>', 'info');
-            <?php endif; ?>
-
             // Change Password Modal functionality
             if (changePasswordDesktop) {
                 changePasswordDesktop.addEventListener('click', function(e) {
@@ -1133,122 +1121,129 @@ unset($_SESSION['profile_message']);
         });
     </script>
     
-    <!-- BRAND NEW Real-Time Notification System -->
+    <!-- Notification System - On Page Load -->
     <script>
-        (function() {
-            const userId = '<?php echo $_SESSION['user_id'] ?? ''; ?>';
-            if (!userId) return;
+        // Check for new notifications when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const RESIDENT_USER_ID = '<?php echo $_SESSION['user_id'] ?? ''; ?>';
             
-            console.log('[NEW NOTIF] Starting for user:', userId);
-            
-            const STORAGE_KEY = 'brgy_notif_last_id_' + userId;
-            let lastSeenNotifId = parseInt(localStorage.getItem(STORAGE_KEY) || '0');
-            let currentNotif = null;
-            
-            function displayNotif(msg, status, id, refno) {
-                console.log('[NEW NOTIF] Display:', status, refno, 'ID:', id);
+            if (RESIDENT_USER_ID) {
+                console.log('[Notification System] Checking for notifications on page load...');
                 
-                // Close existing notification
-                if (currentNotif) {
-                    currentNotif.remove();
-                    currentNotif = null;
-                }
-                
-                // Color scheme
-                let bg, text, border;
-                if (status === 'approved' || status === 'completed') {
-                    bg = '#d4edda'; text = '#155724'; border = '#28a745';
-                } else if (status === 'declined') {
-                    bg = '#f8d7da'; text = '#721c24'; border = '#dc3545';
-                } else if (status === 'released') {
-                    bg = '#d1ecf1'; text = '#0c5460'; border = '#17a2b8';
-                } else {
-                    bg = '#fff3cd'; text = '#856404'; border = '#ffc107';
-                }
-                
-                const notif = document.createElement('div');
-                notif.style.cssText = `
-                    position: fixed;
-                    top: 80px;
-                    right: 20px;
-                    max-width: 400px;
-                    padding: 16px;
-                    background: ${bg};
-                    color: ${text};
-                    border-left: 4px solid ${border};
-                    border-radius: 4px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                    z-index: 99999;
-                    font-family: Arial, sans-serif;
-                    animation: slideIn 0.3s;
-                `;
-                
-                notif.innerHTML = `
-                    <div style="font-weight: 600; margin-bottom: 10px;">${msg}</div>
-                    <button class="close-notif-btn" style="
-                        background: ${border};
-                        color: white;
-                        border: none;
-                        padding: 6px 14px;
-                        border-radius: 3px;
-                        cursor: pointer;
-                        font-size: 13px;
-                        font-weight: 500;
-                    ">Close</button>
-                `;
-                
-                document.body.appendChild(notif);
-                currentNotif = notif;
-                
-                // Save this ID as last seen
-                lastSeenNotifId = id;
-                localStorage.setItem(STORAGE_KEY, id.toString());
-                
-                // Close button handler
-                notif.querySelector('.close-notif-btn').onclick = function() {
-                    notif.style.animation = 'slideOut 0.3s';
-                    setTimeout(() => {
-                        if (notif.parentElement) notif.remove();
-                        currentNotif = null;
-                    }, 300);
-                };
-                
-                // Auto-close after 15 seconds
-                setTimeout(() => {
-                    if (notif.parentElement) {
-                        notif.style.animation = 'slideOut 0.3s';
-                        setTimeout(() => {
-                            if (notif.parentElement) notif.remove();
-                            currentNotif = null;
-                        }, 300);
+                // Fetch unread notifications from database
+                fetch('../Process/check_status_updates.php?t=' + Date.now(), {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
                     }
-                }, 15000);
-            }
-            
-            function checkUpdates() {
-                fetch('../Process/check_status_updates.php?_=' + Date.now())
-                    .then(r => r.json())
-                    .then(data => {
-                        if (!data.success || !data.newNotifications) return;
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.newNotifications && data.newNotifications.length > 0) {
+                        console.log('[Notification] Found', data.newNotifications.length, 'unread notification(s)');
                         
-                        // Show only NEW notifications (ID greater than last seen)
-                        data.newNotifications.forEach(n => {
-                            if (n.id > lastSeenNotifId) {
-                                console.log('[NEW NOTIF] Found new:', n.status, n.refno, 'ID:', n.id);
-                                displayNotif(n.message, n.status, n.id, n.refno);
-                            }
+                        // Display each unread notification
+                        data.newNotifications.forEach(notification => {
+                            showStatusNotification(notification.message, notification.status, notification.id);
                         });
-                    })
-                    .catch(err => console.error('[NEW NOTIF] Error:', err));
+                    } else {
+                        console.log('[Notification] No unread notifications');
+                    }
+                })
+                .catch(error => console.error('[Notification] Error:', error));
+            }
+        });
+        
+        // Function to show notification
+        function showStatusNotification(message, status, notifId) {
+            const notification = document.createElement('div');
+            
+            let bgColor, textColor, borderColor;
+            if (status === 'approved' || status === 'completed') {
+                bgColor = '#e8f5e9';
+                textColor = '#2e7d32';
+                borderColor = '#2e7d32';
+            } else if (status === 'declined') {
+                bgColor = '#ffebee';
+                textColor = '#c62828';
+                borderColor = '#c62828';
+            } else if (status === 'released') {
+                bgColor = '#e3f2fd';
+                textColor = '#1565c0';
+                borderColor = '#1565c0';
+            } else if (status === 'verified') {
+                bgColor = '#e8f5e9';
+                textColor = '#1b5e20';
+                borderColor = '#4caf50';
+            } else {
+                bgColor = '#fff3e0';
+                textColor = '#e65100';
+                borderColor = '#e65100';
             }
             
-            // Check every 3 seconds
-            setInterval(checkUpdates, 3000);
-            checkUpdates();
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                z-index: 99999;
+                max-width: 450px;
+                padding: 16px 20px;
+                border-radius: 4px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                font-family: Arial, sans-serif;
+                font-size: 15px;
+                font-weight: bold;
+                line-height: 1.6;
+                cursor: pointer;
+                border-left: 4px solid ${borderColor};
+                background: ${bgColor};
+                color: ${textColor};
+            `;
             
-            console.log('[NEW NOTIF] Started (last ID:', lastSeenNotifId, ')');
-        })();
-    </script>
+            notification.textContent = message;
+            notification.onclick = function() {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+                // Mark as read when user dismisses
+                if (notifId) {
+                    fetch('../Process/mark_notification_as_read.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'notification_id=' + notifId
+                    })
+                    .catch(error => console.log('[Notification] Error marking as read:', error));
+                }
+            };
+            
+            document.body.appendChild(notification);
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+                // Mark as read after display time
+                if (notifId) {
+                    fetch('../Process/mark_notification_as_read.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'notification_id=' + notifId
+                    })
+                    .catch(error => console.log('[Notification] Error marking as read:', error));
+                }
+                // Reload page after verification notification
+                if (status === 'verified') {
+                    window.location.reload();
+                }
+            }, 10000);
+        }
     </script>
 
 </body>

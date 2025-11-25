@@ -820,35 +820,62 @@ unset($_SESSION['verification_notification']);
                     borderColor = '#1565c0';
             }
             
+            // Create close button
+            const closeButton = document.createElement('span');
+            closeButton.innerHTML = '&times;';
+            closeButton.style.cssText = `
+                position: absolute;
+                top: 5px;
+                right: 10px;
+                font-size: 20px;
+                font-weight: bold;
+                cursor: pointer;
+                color: ${textColor};
+                opacity: 0.7;
+                transition: opacity 0.2s;
+            `;
+            closeButton.onmouseover = function() { this.style.opacity = '1'; };
+            closeButton.onmouseout = function() { this.style.opacity = '0.7'; };
+            closeButton.onclick = function() {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            };
+            
             notification.style.cssText = `
                 position: fixed;
-                top: 80px;
-                right: 20px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
                 background: ${bgColor};
                 color: ${textColor};
-                padding: 16px 20px;
+                padding: 20px 40px 20px 20px;
                 border-radius: 8px;
                 border-left: 4px solid ${borderColor};
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
                 z-index: 10000;
                 max-width: 450px;
                 font-size: 15px;
                 font-weight: bold;
                 line-height: 1.6;
-                animation: slideIn 0.3s ease-out;
+                animation: fadeIn 0.3s ease-out;
+                text-align: center;
+                position: relative;
             `;
             
             notification.textContent = message;
+            notification.appendChild(closeButton);
             document.body.appendChild(notification);
             
-            setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease-out';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 300);
-            }, 3000);
+            // Add fadeIn animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translate(-50%, -60%); }
+                    to { opacity: 1; transform: translate(-50%, -50%); }
+                }
+            `;
+            document.head.appendChild(style);
         }
     </script>
 
@@ -1183,27 +1210,23 @@ unset($_SESSION['verification_notification']);
                 borderColor = '#e65100';
             }
             
-            notification.style.cssText = `
-                position: fixed;
-                top: 80px;
-                right: 20px;
-                z-index: 99999;
-                max-width: 450px;
-                padding: 16px 20px;
-                border-radius: 4px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                font-family: Arial, sans-serif;
-                font-size: 15px;
+            // Create close button
+            const closeButton = document.createElement('span');
+            closeButton.innerHTML = '&times;';
+            closeButton.style.cssText = `
+                position: absolute;
+                top: 5px;
+                right: 10px;
+                font-size: 20px;
                 font-weight: bold;
-                line-height: 1.6;
                 cursor: pointer;
-                border-left: 4px solid ${borderColor};
-                background: ${bgColor};
                 color: ${textColor};
+                opacity: 0.7;
+                transition: opacity 0.2s;
             `;
-            
-            notification.textContent = message;
-            notification.onclick = function() {
+            closeButton.onmouseover = function() { this.style.opacity = '1'; };
+            closeButton.onmouseout = function() { this.style.opacity = '0.7'; };
+            closeButton.onclick = function() {
                 if (notification.parentNode) {
                     document.body.removeChild(notification);
                 }
@@ -1218,31 +1241,50 @@ unset($_SESSION['verification_notification']);
                     })
                     .catch(error => console.log('[Notification] Error marking as read:', error));
                 }
-            };
-            
-            document.body.appendChild(notification);
-            
-            // Auto-hide after 10 seconds
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    document.body.removeChild(notification);
-                }
-                // Mark as read after display time
-                if (notifId) {
-                    fetch('../Process/mark_notification_as_read.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: 'notification_id=' + notifId
-                    })
-                    .catch(error => console.log('[Notification] Error marking as read:', error));
-                }
                 // Reload page after verification notification
                 if (status === 'verified') {
                     window.location.reload();
                 }
-            }, 10000);
+            };
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 99999;
+                max-width: 450px;
+                padding: 20px 40px 20px 20px;
+                border-radius: 4px;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+                font-family: Arial, sans-serif;
+                font-size: 15px;
+                font-weight: bold;
+                line-height: 1.6;
+                border-left: 4px solid ${borderColor};
+                background: ${bgColor};
+                color: ${textColor};
+                text-align: center;
+                position: relative;
+                animation: fadeIn 0.3s ease-out;
+            `;
+            
+            notification.textContent = message;
+            notification.appendChild(closeButton);
+            document.body.appendChild(notification);
+            
+            // Add fadeIn animation if not already added
+            if (!document.querySelector('#notificationFadeInStyle')) {
+                const style = document.createElement('style');
+                style.id = 'notificationFadeInStyle';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translate(-50%, -60%); }
+                        to { opacity: 1; transform: translate(-50%, -50%); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
         }
     </script>
 

@@ -3490,7 +3490,32 @@ function reloadItemRequestsPanel(message) {
 
           <!-- NEW: Online Complaints Panel -->
           <div id="onlineComplaintsPanel" class="panel-content">
-            <h1>Online Complaints</h1>
+            <h1>Complaints</h1>
+            <p>Where complaints made online and walk-ins are managed and reviewed.</p>
+
+            <?php
+              // Show success or errors from submit_online_complaint.php and clear them so they don't repeat
+              if (!empty($_SESSION['online_complaint_success'])) {
+                  $msg = htmlspecialchars($_SESSION['online_complaint_success']);
+                  echo "<div class='alert alert-success' role='alert' id='onlineComplaintAlert'>$msg</div>";
+                  unset($_SESSION['online_complaint_success']);
+              }
+
+              if (!empty($_SESSION['online_complaint_errors'])) {
+                  echo "<div class='alert alert-danger' role='alert' id='onlineComplaintAlert'><ul style='margin:0; padding-left:18px;'>";
+                  foreach ($_SESSION['online_complaint_errors'] as $err) {
+                      echo "<li>" . htmlspecialchars($err) . "</li>";
+                  }
+                  echo "</ul></div>";
+                  unset($_SESSION['online_complaint_errors']);
+              }
+
+              // Fallback to GET message (submit redirects with ?message=complaint_added&refno=...)
+              if (isset($_GET['message']) && $_GET['message'] === 'complaint_added') {
+                  $ref = htmlspecialchars($_GET['refno'] ?? '');
+                  echo "<div class='alert alert-success' role='alert' id='onlineComplaintAlert'>Complaint submitted successfully. Reference: {$ref}</div>";
+              }
+              ?>
 
             <!-- Search Form -->
             <form method="GET" action="" class="govdoc-search-form">
@@ -3518,7 +3543,11 @@ function reloadItemRequestsPanel(message) {
                   <option value="Pending" <?php echo ($selectedFilter === 'Pending') ? 'selected' : ''; ?>>Pending</option>
                   <option value="Approved" <?php echo ($selectedFilter === 'Approved') ? 'selected' : ''; ?>>Escalated to blotter</option>
                 </select>
-  
+
+                <button class="add-user" type="button" onclick="openComplaintModal()">
+                  <i class="fa-regular fa-user"></i> Add Complaint
+                </button>
+
               </div>
             </form>
 
@@ -3639,6 +3668,99 @@ function reloadItemRequestsPanel(message) {
             </div>       
           </div> <!-- end of online complaints panel -->
 
+          <!-- Add Online Complaint Modal -->
+          <div id="addComplaintModal" class="popup" style="display:none;">
+            <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
+              <span class="close-btn" onclick="closeComplaintModal()">&times;</span>
+              <div style="text-align: center;">
+                <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+                  style="width: 70%; max-width: 120px; border-radius: 50%;" />
+              </div>
+              <h2 style="text-align:center; margin-bottom:20px;">Create Complaint</h2>
+            
+              <form id="addComplaintForm" method="POST" action="../Process/online_complaints/submit_online_complaint.php" enctype="multipart/form-data" class="modal-form">
+                <!-- Complainant Details -->
+                <h3>Complainant Details</h3>
+                <h6>Full name of the Complainant</h6>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" name="lastname" required>
+                  </div>
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" name="firstname" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Middle Name</label>
+                    <input type="text" name="middlename">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Address</label>
+                  <input type="text" name="address" required>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" name="age" min="1" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Contact No</label>
+                    <input type="number" name="contact_no">
+                  </div>
+                  <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email">
+                  </div>
+                </div>
+                <hr>
+                <!-- Complaint Details -->
+                <h3>Complaint Details</h3>
+                <div class="form-grid" style="grid-template-columns:1.1fr 1.2fr .7fr; gap:10px;">
+                  <div class="form-group">
+                    <label>Date and Time of Incident</label>
+                    <input id="add_incident_datetime" type="datetime-local" name="incident_datetime" required>
+                    <div id="addDateError" style="color:red; display:none; font-size:0.95em; margin-top:6px;">Date and Time of Incident cannot be in the future.</div>
+                  </div>
+                  <div class="form-group">
+                    <label>Location of Incident</label>
+                    <input type="text" name="location" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Type of Incident</label>
+                    <select id="addComplaintIncidentType" name="incident_type" required>
+                      <option value="" disabled selected>Select Incident type</option>
+                      <option value="Theft">Theft</option>
+                      <option value="Assault">Assault</option>
+                      <option value="Vandalism">Vandalism</option>
+                      <option value="Domestic Dispute">Domestic Dispute</option>
+                      <option value="Traffic Violation">Traffic Violation</option>
+                      <option value="Noise Complaint">Noise Complaint</option>
+                      <option value="Grave Threat">Grave Threat</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group" style="display:none;" id="otherIncidentTypeGroup">
+                  <label>Please Specify</label>
+                  <input type="text" name="other_incident_type" placeholder="please specify incident type">
+                </div>
+                <div class="form-group">
+                  <label>Detailed Description of the Complaint</label>
+                  <textarea name="description" rows="7" required></textarea>
+                </div>
+                <div class="form-group">
+                  <label>Upload Image (.jpg, .jpeg, .png, .pdf, .doc, .docx - MAX 5MB) (Optional)</label>
+                  <input type="file" name="evidence_file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                </div>
+                <div style="text-align:right; margin-top:20px;">
+                  <button type="submit" class="btn-save">Submit Complaint</button>
+                </div>
+              </form>
+            </div>
+          </div> <!-- End of Add Complaint Modal -->
+
           <!-- View Online Complaint Modal -->
           <div id="viewComplaintModal" class="popup" style="display:none;">
             <div class="modal-popup" style="max-height: 90vh; overflow-y: auto;">
@@ -3664,6 +3786,7 @@ function reloadItemRequestsPanel(message) {
               <form class="modal-form">
                 <!-- Complainant Details -->
                 <h3>Complainant Details</h3>
+                <h6>Full name of the Complainant</h6>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
                   <div class="form-group">
                     <label>Last Name</label>
@@ -3744,57 +3867,13 @@ function reloadItemRequestsPanel(message) {
                   </table>
                 </div>
 
-                <!-- Convert to Blotter Button -->
-                <div style="margin-top: 20px; text-align: center;">
-                  <button type="button" id="convertToBlotterBtn" class="btn btn-success" style="padding: 12px 30px; font-size: 16px;">
-                    <i class="fas fa-exchange-alt"></i> Convert to Blotter Report
-                  </button>
-                </div>
 
-                <!-- Convert Form (Hidden by default) -->
-                <div id="convertFormSection" style="display:none; margin-top: 30px; border-top: 2px solid #ddd; padding-top: 20px;">
-                  <h2 style="text-align:center;">Convert to Blotter Report</h2>
-                  <p style="text-align:center; color: #666; margin-bottom: 20px; font-size: 16px;">
-                    Please add respondent(s) and witness(es) details to complete the blotter report.
-                  </p>
-
-                  <!-- Accused/Respondent Section -->
-                  <h3>Respondent Details</h3>
-                  <div id="convert_accusedContainer">
-                    <!-- Accused rows will be added here -->
-                  </div>
-                  <button type="button" class="btn btn-success btn-sm" id="convertAddAccusedBtn" style="margin-bottom: 20px;">+ Add Respondent</button>
-                  
-                  <hr>
-
-                  <!-- Witnesses Section -->
-                  <h3>Witnesses Details<p style="color: #666; font-size: 16px; font-style: italic">
-                    (Optional)
-                  </p></h3>
-                  
-                  <div id="convert_witnessesContainer">
-                    <!-- Witness rows will be added here -->
-                  </div>
-                  <button type="button" class="btn btn-success btn-sm" id="convertAddWitnessBtn" style="margin-bottom: 20px;">+ Add Witness</button>
-                  
-                  <hr>
-
-                  <!-- Submit Button -->
-                  <div style="text-align: center; margin-top: 20px;">
-                    <button type="button" id="saveBlotterConversionBtn" class="btn btn-primary" style="padding: 12px 40px; font-size: 16px;">
-                      <i class="fas fa-save"></i> Save as Blotter Report
-                    </button>
-                    <button type="button" id="cancelConversionBtn" class="btn btn-secondary" style="padding: 12px 40px; font-size: 16px; margin-left: 10px;">
-                      <i class="fas fa-times"></i> Cancel
-                    </button>
-                  </div>
-                </div>
-
+          
               </form>
             </div>
           </div> <!-- End of View Online Complaint Modal -->
 
-
+          
 
 
 
@@ -6110,13 +6189,13 @@ function reloadItemRequestsPanel(message) {
             </script>
             <script>
               // Animate stat cards on scroll
-              const observer = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
-                  if (entry.isIntersecting) entry.target.classList.add('visible');
-                });
-              }, { threshold: 0.2 });
+              // const observer = new IntersectionObserver(entries => {
+              //   entries.forEach(entry => {
+              //     if (entry.isIntersecting) entry.target.classList.add('visible');
+              //   });
+              // }, { threshold: 0.2 });
 
-              document.querySelectorAll('.stat-card').forEach(card => observer.observe(card));
+              // document.querySelectorAll('.stat-card').forEach(card => observer.observe(card));
 
               // Fade-in table on load
               window.addEventListener('load', () => {
@@ -8553,6 +8632,112 @@ function releaseNoBirthCertDocument(id) {
             </script>
 
             
+
+            <!-- online complaints panel script -->
+            <script>
+              // Auto-hide the message after 6 seconds (only inside onlineComplaintsPanel)
+            (function () {
+              const el = document.querySelector('#onlineComplaintsPanel #onlineComplaintAlert');
+              if (!el) return;
+              setTimeout(() => {
+                el.style.transition = 'opacity 300ms ease';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 350);
+              }, 6000);
+            })();
+            </script>
+
+            <!-- Add Complaint Modal Script -->
+            <script>
+            function openComplaintModal() {
+              document.getElementById('addComplaintModal').style.display = 'flex';
+            }
+            function closeComplaintModal() {
+              document.getElementById('addComplaintModal').style.display = 'none';
+            }
+
+            // Ensure the add complaint modal shows the "Please Specify" input when "Other" is chosen
+            document.addEventListener('DOMContentLoaded', function () {
+              const addIncident = document.getElementById('addComplaintIncidentType');
+              const otherGroup = document.getElementById('otherIncidentTypeGroup');
+              if (!addIncident || !otherGroup) return;
+
+              //date validation for addComplaintModal
+              const addDateInput = document.getElementById('add_incident_datetime');
+              const addDateError = document.getElementById('addDateError');
+              const addComplaintForm = document.getElementById('addComplaintForm');
+
+              function formatLocalDatetimeForInput(d) {
+                // returns YYYY-MM-DDTHH:MM
+                const pad = n => String(n).padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+              }
+
+              function setMaxDateTime() {
+                if (!addDateInput) return;
+                const now = new Date();
+                addDateInput.max = formatLocalDatetimeForInput(now);
+              }
+
+              function validateAddDate() {
+                if (!addDateInput) return true;
+                const val = addDateInput.value;
+                if (!val) {
+                  addDateError.style.display = 'none';
+                  addDateInput.setCustomValidity('');
+                  return true;
+                }
+                // convert input (local) to Date
+                const selected = new Date(val.replace('T', ' '));
+                const now = new Date();
+                if (selected.getTime() > now.getTime()) {
+                  addDateError.style.display = 'block';
+                  addDateInput.setCustomValidity('Date and Time of Incident cannot be in the future.');
+                  return false;
+                } else {
+                  addDateError.style.display = 'none';
+                  addDateInput.setCustomValidity('');
+                  return true;
+                }
+              }
+
+              // set max initially and update every 15 seconds to keep up with time
+              setMaxDateTime();
+              setInterval(setMaxDateTime, 15000);
+
+              addDateInput?.addEventListener('input', () => { validateAddDate(); });
+              addDateInput?.addEventListener('change', () => { validateAddDate(); });
+
+              addComplaintForm?.addEventListener('submit', function (e) {
+                if (!validateAddDate()) {
+                  e.preventDefault();
+                  alert('Please ensure the Date and Time of Incident is not in the future.');
+                  return false;
+                }
+                return true;
+              });
+
+              function updateOtherField() {
+                if (addIncident.value === 'Other') {
+                  otherGroup.style.display = 'block';
+                  const input = otherGroup.querySelector('input[name="other_incident_type"]');
+                  if (input) input.required = true;
+                } else {
+                  otherGroup.style.display = 'none';
+                  const input = otherGroup.querySelector('input[name="other_incident_type"]');
+                  if (input) {
+                    input.required = false;
+                    input.value = '';
+                  }
+                }
+              }
+
+              addIncident.addEventListener('change', updateOtherField);
+              updateOtherField(); // initial state
+            });
+            </script>
+              
+            
             <!-- View Complaint Modal Script -->
             <script>
             function closeViewComplaintModal() {
@@ -8679,274 +8864,6 @@ function releaseNoBirthCertDocument(id) {
             </script>
 
             
-
-            <!-- Convert Complaint to Blotter Script -->
-            <script>
-            let currentComplaintData = null;
-
-            // Show/Hide conversion form
-            document.addEventListener('DOMContentLoaded', function() {
-              const convertBtn = document.getElementById('convertToBlotterBtn');
-              const convertSection = document.getElementById('convertFormSection');
-              const cancelBtn = document.getElementById('cancelConversionBtn');
-              const saveBtn = document.getElementById('saveBlotterConversionBtn');
-
-              if (convertBtn) {
-                convertBtn.addEventListener('click', function() {
-                  convertSection.style.display = 'block';
-                  convertBtn.style.display = 'none';
-                  
-                  // Add initial accused row
-                  if (document.getElementById('convert_accusedContainer').children.length === 0) {
-                    addConvertAccusedRow();
-                  }
-                });
-              }
-
-              if (cancelBtn) {
-                cancelBtn.addEventListener('click', function() {
-                  convertSection.style.display = 'none';
-                  // convertBtn.style.display = 'block';
-                  //only show Convert button again if the complaint is not Approved
-                  if (!currentComplaintData || currentComplaintData.RequestStatus !== 'Approved') {
-                    convertBtn.style.display = 'block';
-                  } else {
-                    convertBtn.style.display = 'none';
-                  }
-
-                  // Clear forms
-                  document.getElementById('convert_accusedContainer').innerHTML = '';
-                  document.getElementById('convert_witnessesContainer').innerHTML = '';
-                });
-              }
-
-              if (saveBtn) {
-                saveBtn.addEventListener('click', saveBlotterConversion);
-              }
-
-              // Add accused button
-              document.getElementById('convertAddAccusedBtn')?.addEventListener('click', addConvertAccusedRow);
-              
-              // Add witness button
-              document.getElementById('convertAddWitnessBtn')?.addEventListener('click', addConvertWitnessRow);
-            });
-
-            function addConvertAccusedRow() {
-              const container = document.getElementById('convert_accusedContainer');
-              const div = document.createElement('div');
-              div.className = 'accused-fields';
-              div.innerHTML = `
-                <h6>Full name of the Respondent</h6>
-                <div class="form-grid" style="grid-template-columns:1fr 1.3fr 1fr .7fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Last Name *</label>
-                    <input type="text" class="convert-accused-lastname" required>
-                  </div>
-                  <div class="form-group">
-                    <label>First Name *</label>
-                    <input type="text" class="convert-accused-firstname" required>
-                  </div>
-                  <div class="form-group">
-                    <label>Middle Name</label>
-                    <input type="text" class="convert-accused-middlename">
-                  </div>
-                  <div class="form-group">
-                    <label>Alias</label>
-                    <input type="text" class="convert-accused-alias">
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Address *</label>
-                  <input type="text" class="convert-accused-address" required>
-                </div>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Age *</label>
-                    <input type="number" class="convert-accused-age" min="1" step="1" required>
-                  </div>
-                  <div class="form-group">
-                    <label>Contact No</label>
-                    <input type="text" class="convert-accused-contact">
-                  </div>
-                  <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" class="convert-accused-email">
-                  </div>
-                </div>
-                <button type="button" class="btn btn-danger btn-sm remove-convert-accused-btn" style="margin-bottom:10px; margin-top:10px;">Remove</button>
-                <hr>
-              `;
-              container.appendChild(div);
-              
-              // Add remove functionality
-              div.querySelector('.remove-convert-accused-btn').addEventListener('click', function() {
-                const rows = container.querySelectorAll('.accused-fields');
-                if (rows.length > 1) {
-                  div.remove();
-                } else {
-                  alert('At least one respondent is required.');
-                }
-              });
-            }
-
-            function addConvertWitnessRow() {
-              const container = document.getElementById('convert_witnessesContainer');
-              const div = document.createElement('div');
-              div.className = 'witness-fields';
-              div.innerHTML = `
-                <h6>Full name of the Witness</h6>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Last Name</label>
-                    <input type="text" class="convert-witness-lastname">
-                  </div>
-                  <div class="form-group">
-                    <label>First Name</label>
-                    <input type="text" class="convert-witness-firstname">
-                  </div>
-                  <div class="form-group">
-                    <label>Middle Name</label>
-                    <input type="text" class="convert-witness-middlename">
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Address</label>
-                  <input type="text" class="convert-witness-address">
-                </div>
-                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                  <div class="form-group">
-                    <label>Age</label>
-                    <input type="number" class="convert-witness-age">
-                  </div>
-                  <div class="form-group">
-                    <label>Contact No</label>
-                    <input type="text" class="convert-witness-contact">
-                  </div>
-                  <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" class="convert-witness-email">
-                  </div>
-                </div>
-                <button type="button" class="btn btn-danger btn-sm remove-convert-witness-btn" style="margin-bottom:10px; margin-top:10px;">Remove</button>
-                <hr>
-              `;
-              container.appendChild(div);
-              
-              // Add remove functionality
-              div.querySelector('.remove-convert-witness-btn').addEventListener('click', function() {
-                div.remove();
-              });
-            }
-
-            function saveBlotterConversion() {
-              const complaintId = document.getElementById('view_complaint_id').textContent;
-              
-              if (!complaintId) {
-                alert('Invalid complaint ID');
-                return;
-              }
-
-              // Collect accused data
-              const accusedRows = document.querySelectorAll('#convert_accusedContainer .accused-fields');
-              const accused = [];
-              
-              let hasErrors = false;
-              let invalidMsg = '';
-              accusedRows.forEach((row, i) => {
-                const lastname = row.querySelector('.convert-accused-lastname').value.trim();
-                const firstname = row.querySelector('.convert-accused-firstname').value.trim();
-                const address = row.querySelector('.convert-accused-address').value.trim();
-                const ageStr = row.querySelector('.convert-accused-age').value.trim();
-
-                if (!lastname || !firstname) {
-                  hasErrors = true;
-                  invalidMsg = 'Please fill Last Name and First Name for all respondents.';
-                  return;
-                }
-
-                const age = parseInt(ageStr, 10);
-                if (!address || !ageStr || isNaN(age) || age <= 0) {
-                  hasErrors = true;
-                  invalidMsg = 'Please add a valid Address and Age for all respondents.';
-                  return;
-                }
-
-                accused.push({
-                  lastname: lastname,
-                  firstname: firstname,
-                  middlename: row.querySelector('.convert-accused-middlename').value.trim(),
-                  alias: row.querySelector('.convert-accused-alias').value.trim(),
-                  address: address,
-                  age: age, // integer
-                  contact_no: row.querySelector('.convert-accused-contact').value.trim(),
-                  email: row.querySelector('.convert-accused-email').value.trim()
-                });
-              });
-
-              if (hasErrors) {
-                alert(invalidMsg);
-                return;
-              }
-
-              if (accused.length === 0) {
-                alert('At least one respondent is required.');
-                return;
-              }
-
-              // Collect witness data
-              const witnessRows = document.querySelectorAll('#convert_witnessesContainer .witness-fields');
-              const witnesses = [];
-              
-              witnessRows.forEach(row => {
-                const lastname = row.querySelector('.convert-witness-lastname').value.trim();
-                const firstname = row.querySelector('.convert-witness-firstname').value.trim();
-                
-                if (lastname || firstname) { // Only add if at least name is provided
-                  witnesses.push({
-                    lastname: lastname,
-                    firstname: firstname,
-                    middlename: row.querySelector('.convert-witness-middlename').value.trim(),
-                    address: row.querySelector('.convert-witness-address').value.trim(),
-                    age: row.querySelector('.convert-witness-age').value.trim(),
-                    contact_no: row.querySelector('.convert-witness-contact').value.trim(),
-                    email: row.querySelector('.convert-witness-email').value.trim()
-                  });
-                }
-              });
-
-              // Send to server
-              const data = {
-                complaint_id: parseInt(complaintId),
-                accused: accused,
-                witnesses: witnesses
-              };
-
-              fetch('../Process/online_complaints/convert_to_blotter.php', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-              })
-              .then(response => response.json())
-              .then(result => {
-                if (result.success) {
-                  alert('Complaint successfully converted to blotter report!\nBlotter ID: ' + result.blotter_id);
-                  closeViewComplaintModal();
-                  // Reload page to refresh data
-                  window.location.href = window.location.pathname + '?panel=onlineComplaintsPanel';
-                } else {
-                  alert('Error: ' + result.error);
-                }
-              })
-              .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to convert complaint. Please try again.');
-              });
-            }
-            </script>
-
 
 
 

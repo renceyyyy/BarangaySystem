@@ -4,6 +4,7 @@
 
 // Include database connection module
 require_once '../Process/db_connection.php';
+require_once '../Process/blotter_validation.php';
 
 // Check if user is logged in - if not, redirect to login
 function checkAuth()
@@ -54,6 +55,9 @@ if (isset($_SESSION['user_id'])) {
 
     $stmt->close();
     // Don't close the connection here as it might be needed elsewhere
+    
+    // Check for blotter records
+    refreshBlotterStatus($conn, $userId);
     
     // REFRESH pending request types on each navbar load
     // This ensures we always have current pending status
@@ -499,6 +503,35 @@ unset($_SESSION['verification_notification']);
             text-decoration: underline;
         }
 
+        /* Blotter notice style */
+        .blotter-notice {
+            background: linear-gradient(135deg, #ffcdd2 0%, #ef9a9a 100%);
+            color: #c62828;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: 500;
+            border-bottom: 2px solid #d32f2f;
+            display: block !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .blotter-notice i {
+            margin-right: 8px;
+            color: #b71c1c;
+        }
+
+        .blotter-notice a {
+            color: #c62828;
+            font-weight: bold;
+            text-decoration: underline;
+            transition: all 0.3s ease;
+        }
+
+        .blotter-notice a:hover {
+            color: #b71c1c;
+            text-decoration: underline;
+        }
+
         @media screen and (max-width: 768px) {
             .verification-notice {
                 display: block !important;
@@ -650,6 +683,14 @@ unset($_SESSION['verification_notification']);
         </div>
     <?php endif; ?>
 
+    <!-- Blotter Notice (shown only for users with active blotter records) -->
+    <?php if (isset($_SESSION['has_blotter_record']) && $_SESSION['has_blotter_record'] === true): ?>
+        <div class="blotter-notice">
+            <i class="fas fa-ban"></i>
+            <span><strong>⚠️ Account Restricted:</strong> Your account has an active record in the barangay blotter. You cannot access services at this time. Please <a href="#" onclick="showBlotterModal(); return false;" style="color: #c62828;">contact the barangay office</a> to validate and resolve this matter.</span>
+        </div>
+    <?php endif; ?>
+
     <nav class="navbar">
         <a href="landingpage.php">
             <img src="../Assets/sampaguitalogo.png" alt="Logo" class="logo" />
@@ -696,7 +737,27 @@ unset($_SESSION['verification_notification']);
                 </button>
                 <div class="dropdown-content">
                     <?php if (isset($_SESSION['user_id'])): ?>
-                        <?php if (($_SESSION['AccountStatus'] ?? 'unverified') === 'verified'): ?>
+                        <?php if (isset($_SESSION['has_blotter_record']) && $_SESSION['has_blotter_record'] === true): ?>
+                            <!-- Blotter users cannot access services -->
+                            <a href="#"
+                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Request
+                                Government Documents</a>
+                            <a href="#"
+                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Request
+                                Business Permit</a>
+                            <a href="#"
+                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Complain</a>
+                            <a href="#"
+                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Apply
+                                for Scholar</a>
+                            <a href="#"
+                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">No
+                                fix income/No income</a>
+                            <a href="#"
+                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Guardianship</a>
+                            <a href="#"
+                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Cohabitation</a>
+                        <?php elseif (($_SESSION['AccountStatus'] ?? 'unverified') === 'verified'): ?>
                             <!-- Government Documents -->
                             <a href="../NewRequests/NewGovernmentDocs.php">Request Government Documents</a>
 
@@ -790,6 +851,128 @@ unset($_SESSION['verification_notification']);
 
     <script src="../Script.js"></script>
 
+    <!-- Blotter Modal -->
+    <style>
+        .blotter-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .blotter-modal.active {
+            display: flex;
+        }
+        
+        .blotter-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideUp 0.3s ease;
+        }
+        
+        .blotter-modal-header {
+            background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .blotter-modal-header i {
+            font-size: 2rem;
+            opacity: 0.9;
+        }
+        
+        .blotter-modal-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .blotter-modal-body {
+            padding: 2rem;
+            color: #2c3e50;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        
+        .blotter-modal-footer {
+            padding: 1rem 2rem 1.5rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        
+        .blotter-modal-btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .blotter-modal-btn-primary {
+            background: #d32f2f;
+            color: white;
+        }
+        
+        .blotter-modal-btn-primary:hover {
+            background: #c62828;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+
+    <div class="blotter-modal" id="blotterModal">
+        <div class="blotter-modal-content">
+            <div class="blotter-modal-header">
+                <i class="fas fa-ban"></i>
+                <h3>Account Restricted</h3>
+            </div>
+            <div class="blotter-modal-body">
+                <p><strong>Your account has an active record in the barangay blotter.</strong></p>
+                <p>Services are currently unavailable for your account. You are required to visit the barangay office to:</p>
+                <ul style="margin: 1rem 0;">
+                    <li>Discuss the matter with barangay officials</li>
+                    <li>Provide necessary clarifications or documents</li>
+                    <li>Obtain validation or clearance</li>
+                </ul>
+                <p><strong>Please contact the barangay office during business hours.</strong></p>
+            </div>
+            <div class="blotter-modal-footer">
+                <button class="blotter-modal-btn blotter-modal-btn-primary" onclick="closeBlotterModal()">
+                    Understood
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Global Notification Function -->
     <script>
         // Show notification function - must be global to be used in inline onclick handlers
@@ -820,62 +1003,33 @@ unset($_SESSION['verification_notification']);
                     borderColor = '#1565c0';
             }
             
-            // Create close button
-            const closeButton = document.createElement('span');
-            closeButton.innerHTML = '&times;';
-            closeButton.style.cssText = `
-                position: absolute;
-                top: 5px;
-                right: 10px;
-                font-size: 20px;
-                font-weight: bold;
-                cursor: pointer;
-                color: ${textColor};
-                opacity: 0.7;
-                transition: opacity 0.2s;
-            `;
-            closeButton.onmouseover = function() { this.style.opacity = '1'; };
-            closeButton.onmouseout = function() { this.style.opacity = '0.7'; };
-            closeButton.onclick = function() {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            };
-            
             notification.style.cssText = `
                 position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
+                top: 80px;
+                right: 20px;
                 background: ${bgColor};
                 color: ${textColor};
-                padding: 20px 40px 20px 20px;
+                padding: 15px 20px;
                 border-radius: 8px;
                 border-left: 4px solid ${borderColor};
-                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 z-index: 10000;
-                max-width: 450px;
-                font-size: 15px;
-                font-weight: bold;
-                line-height: 1.6;
-                animation: fadeIn 0.3s ease-out;
-                text-align: center;
-                position: relative;
+                max-width: 350px;
+                font-size: 14px;
+                animation: slideIn 0.3s ease-out;
             `;
             
             notification.textContent = message;
-            notification.appendChild(closeButton);
             document.body.appendChild(notification);
             
-            // Add fadeIn animation
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translate(-50%, -60%); }
-                    to { opacity: 1; transform: translate(-50%, -50%); }
-                }
-            `;
-            document.head.appendChild(style);
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
         }
     </script>
 
@@ -1210,23 +1364,27 @@ unset($_SESSION['verification_notification']);
                 borderColor = '#e65100';
             }
             
-            // Create close button
-            const closeButton = document.createElement('span');
-            closeButton.innerHTML = '&times;';
-            closeButton.style.cssText = `
-                position: absolute;
-                top: 5px;
-                right: 10px;
-                font-size: 20px;
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                z-index: 99999;
+                max-width: 450px;
+                padding: 16px 20px;
+                border-radius: 4px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                font-family: Arial, sans-serif;
+                font-size: 15px;
                 font-weight: bold;
+                line-height: 1.6;
                 cursor: pointer;
+                border-left: 4px solid ${borderColor};
+                background: ${bgColor};
                 color: ${textColor};
-                opacity: 0.7;
-                transition: opacity 0.2s;
             `;
-            closeButton.onmouseover = function() { this.style.opacity = '1'; };
-            closeButton.onmouseout = function() { this.style.opacity = '0.7'; };
-            closeButton.onclick = function() {
+            
+            notification.textContent = message;
+            notification.onclick = function() {
                 if (notification.parentNode) {
                     document.body.removeChild(notification);
                 }
@@ -1241,51 +1399,63 @@ unset($_SESSION['verification_notification']);
                     })
                     .catch(error => console.log('[Notification] Error marking as read:', error));
                 }
+            };
+            
+            document.body.appendChild(notification);
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+                // Mark as read after display time
+                if (notifId) {
+                    fetch('../Process/mark_notification_as_read.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'notification_id=' + notifId
+                    })
+                    .catch(error => console.log('[Notification] Error marking as read:', error));
+                }
                 // Reload page after verification notification
                 if (status === 'verified') {
                     window.location.reload();
                 }
-            };
-            
-            notification.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                z-index: 99999;
-                max-width: 450px;
-                padding: 20px 40px 20px 20px;
-                border-radius: 4px;
-                box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-                font-family: Arial, sans-serif;
-                font-size: 15px;
-                font-weight: bold;
-                line-height: 1.6;
-                border-left: 4px solid ${borderColor};
-                background: ${bgColor};
-                color: ${textColor};
-                text-align: center;
-                position: relative;
-                animation: fadeIn 0.3s ease-out;
-            `;
-            
-            notification.textContent = message;
-            notification.appendChild(closeButton);
-            document.body.appendChild(notification);
-            
-            // Add fadeIn animation if not already added
-            if (!document.querySelector('#notificationFadeInStyle')) {
-                const style = document.createElement('style');
-                style.id = 'notificationFadeInStyle';
-                style.textContent = `
-                    @keyframes fadeIn {
-                        from { opacity: 0; transform: translate(-50%, -60%); }
-                        to { opacity: 1; transform: translate(-50%, -50%); }
-                    }
-                `;
-                document.head.appendChild(style);
+            }, 10000);
+        }
+    </script>
+
+    <!-- Blotter Modal Functions -->
+    <script>
+        function showBlotterModal() {
+            const modal = document.getElementById('blotterModal');
+            if (modal) {
+                modal.classList.add('active');
             }
         }
+        
+        function closeBlotterModal() {
+            const modal = document.getElementById('blotterModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('blotterModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeBlotterModal();
+            }
+        });
+        
+        // Close on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeBlotterModal();
+            }
+        });
     </script>
 
 </body>

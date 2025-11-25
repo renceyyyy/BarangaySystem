@@ -20,12 +20,17 @@ if (!$cmpId) {
 }
 
 // Fetch complaint details with complainant info from userloginfo
-$sql = "SELECT c.CmpID, c.Firstname, c.Lastname, c.Middlename, c.Complain, c.Evidencepic, c.refno, 
-        c.DateComplained, c.DateTimeofIncident, c.LocationofIncident, c.IncidentType, c.RequestStatus, c.Reason,
-        u.Address, u.Age, u.ContactNo, u.Email
-        FROM complaintbl c 
-        LEFT JOIN userloginfo u ON c.UserId = u.UserID 
-        WHERE c.CmpID = ?";
+$sql = "SELECT 
+    c.CmpID, c.Firstname, c.Lastname, c.Middlename, c.Complain, c.Evidencepic, c.refno, 
+    c.DateComplained, c.DateTimeofIncident, c.LocationofIncident, c.IncidentType, c.RequestStatus, c.Reason,
+    -- prefer complaintbl values, fallback to userloginfo
+    COALESCE(NULLIF(TRIM(c.address), ''), NULLIF(TRIM(u.Address), '')) AS Address,
+    COALESCE(NULLIF(TRIM(c.age), ''), u.Age) AS Age,
+    COALESCE(NULLIF(TRIM(c.contact_no), ''), NULLIF(TRIM(CAST(u.ContactNo AS CHAR)), '')) AS ContactNo,
+    COALESCE(NULLIF(TRIM(c.email), ''), NULLIF(TRIM(u.Email), '')) AS Email
+FROM complaintbl c 
+LEFT JOIN userloginfo u ON c.UserId = u.UserID 
+WHERE c.CmpID = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $cmpId);
 $stmt->execute();
@@ -69,4 +74,3 @@ echo json_encode([
 
 $stmt->close();
 $conn->close();
-?>

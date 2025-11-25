@@ -20,7 +20,7 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $user_data = [];
 
-$user_sql = "SELECT Firstname, Lastname, Middlename FROM userloginfo WHERE UserID = ?";
+$user_sql = "SELECT Firstname, Lastname, Middlename, Address, Age, ContactNo, Email FROM userloginfo WHERE UserID = ?";
 $user_stmt = $conn->prepare($user_sql);
 if ($user_stmt) {
     $user_stmt->bind_param("i", $user_id);
@@ -129,9 +129,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
         // Sanitize input data
         $firstname = mysqli_real_escape_string($conn, trim($_POST['firstname']));
         $lastname = mysqli_real_escape_string($conn, trim($_POST['lastname']));
-        $middlename = mysqli_real_escape_string($conn, trim($_POST['middlename']));
+        $middlename = mysqli_real_escape_string($conn, trim($_POST['middlename'] ?? '')) ?: null;
         $complain = mysqli_real_escape_string($conn, trim($_POST['complain']));
         $dateOfIncident = mysqli_real_escape_string($conn, trim($_POST['date_of_incident']));
+
+        // Normalize datetime format
+        if ($dateOfIncident !== '') {
+            $dateOfIncident = str_replace('T', ' ', $dateOfIncident);
+            if (!preg_match('/:\d{2}$/', $dateOfIncident)) {
+                $dateOfIncident .= ':00';
+            }
+        }
+
+
         $locationOfIncident = mysqli_real_escape_string($conn, trim($_POST['location_of_incident']));
         $incidentType = mysqli_real_escape_string($conn, trim($_POST['incident_type']));
 
@@ -140,8 +150,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             $incidentType = mysqli_real_escape_string($conn, trim($_POST['other_incident_type']));
         }
 
+        // Get user's additional info from userloginfo
+        $userAddress = $user_data['Address'] ?? null;
+        $userAge = $user_data['Age'] ?? null;
+        $userContactNo = $user_data['ContactNo'] ?? null;
+        $userEmail = $user_data['Email'] ?? null;
+        
+        // Replace 'uncompleted' or '0' values with NULL
+        if ($userAddress === 'uncompleted' || empty($userAddress)) $userAddress = null;
+        if ($userAge === 0 || empty($userAge)) $userAge = null;
+        if ($userContactNo === 0 || empty($userContactNo)) $userContactNo = null;
+        if ($userEmail === 'uncompleted' || empty($userEmail)) $userEmail = null;
+
         // Insert into database
-        $sql = "INSERT INTO complaintbl (Firstname, Lastname, Middlename, Complain, Evidencepic, refno, Userid, DateTimeofIncident, LocationofIncident, IncidentType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO complaintbl (Firstname, Lastname, Middlename, address, age, contact_no, email, Complain, Evidencepic, refno, Userid, DateTimeofIncident, LocationofIncident, IncidentType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
 
         if ($stmt === false) {
@@ -151,10 +173,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             $null = null;
             if ($evidencePicData !== null) {
                 $stmt->bind_param(
-                    "ssssbiisss",
+                    "ssssisssbiisss",
                     $firstname,
                     $lastname,
                     $middlename,
+                    $userAddress,
+                    $userAge,
+                    $userContactNo,
+                    $userEmail,
                     $complain,
                     $null,
                     $refno,
@@ -163,13 +189,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                     $locationOfIncident,
                     $incidentType
                 );
-                $stmt->send_long_data(4, $evidencePicData); // Parameter index 4 is Evidencepic
+                $stmt->send_long_data(8, $evidencePicData); // Parameter index 8 is Evidencepic
             } else {
                 $stmt->bind_param(
-                    "sssssiisss",
+                    "ssssissssiisss",
                     $firstname,
                     $lastname,
                     $middlename,
+                    $userAddress,
+                    $userAge,
+                    $userContactNo,
+                    $userEmail,
                     $complain,
                     $null,
                     $refno,

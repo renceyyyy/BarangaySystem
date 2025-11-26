@@ -3541,7 +3541,9 @@ function reloadItemRequestsPanel(message) {
                 <select name="online_status_filter" class="govdoc-status-filter" onchange="this.form.submit()" style="margin-left:10px; padding:8px 10px;">
                   <option value="all" <?php echo ($selectedFilter === 'all') ? 'selected' : ''; ?>>All</option>
                   <option value="Pending" <?php echo ($selectedFilter === 'Pending') ? 'selected' : ''; ?>>Pending</option>
-                  <option value="Approved" <?php echo ($selectedFilter === 'Approved') ? 'selected' : ''; ?>>Escalated to blotter</option>
+                  <option value="in_progress" <?php echo ($selectedFilter === 'in_progress') ? 'selected' : ''; ?>>In progress</option>
+                  <option value="awaiting_verification" <?php echo ($selectedFilter === 'awaiting_verification') ? 'selected' : ''; ?>>Awaiting Verification</option>
+                  <option value="resolved" <?php echo ($selectedFilter === 'resolved') ? 'selected' : ''; ?>>Resolved</option>
                 </select>
 
                 <button class="add-user" type="button" onclick="openComplaintModal()">
@@ -3617,7 +3619,7 @@ function reloadItemRequestsPanel(message) {
                     $statusFilter = isset($_GET['online_status_filter']) ? $conn->real_escape_string($_GET['online_status_filter']) : 'Pending';
                     if ($statusFilter !== 'all') {
                       // Only allow expected values to avoid injection
-                      if (in_array($statusFilter, ['Pending', 'Approved'], true)) {
+                      if (in_array($statusFilter, ['Pending', 'in_progress', 'awaiting_verification', 'resolved'], true)) {
                         $whereClauses[] = "RequestStatus = '$statusFilter'";
                       }
                     }
@@ -3679,8 +3681,17 @@ function reloadItemRequestsPanel(message) {
               <h2 style="text-align:center; margin-bottom:20px;">Create Complaint</h2>
             
               <form id="addComplaintForm" method="POST" action="../Process/online_complaints/submit_online_complaint.php" enctype="multipart/form-data" class="modal-form">
+                
                 <!-- Complainant Details -->
                 <h3>Complainant Details</h3>
+                <!-- Optional Resident Search -->
+                <div class="form-group" style="position: relative;">
+                  <label>Search by Name (e.g., Firstname, Lastname) <i>(optional)</i></label>
+                  <input type="text" id="residentSearch" placeholder="Type to search residents..." autocomplete="off">
+                  <div id="residentDropdown" class="dropdown-list" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto; z-index: 1000;">
+                    <!-- Dropdown items will be populated here -->
+                  </div>
+                </div>
                 <h6>Full name of the Complainant</h6>
                 <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr; gap:10px;">
                   <div class="form-group">
@@ -3867,7 +3878,31 @@ function reloadItemRequestsPanel(message) {
                   </table>
                 </div>
 
+                <!-- NEW: Process Complaint Button (shown only for Pending status) -->
+                <div id="processComplaintSection" style="display:none; margin-bottom:20px;">
+                  <button type="button" id="processComplaintBtn" class="btn-save" style="width:100%;">
+                    <i class="fas fa-tasks"></i> Process Complaint
+                  </button>
+                </div>
 
+                <!-- NEW: Solution Form Section (shown after processing starts) -->
+                <div id="solutionFormSection" style="display:none;">
+                  <h3>Barangay Solution</h3>
+                  <div class="form-group">
+                    <label>Performed By <span style="color:red;">*</span></label>
+                    <input type="text" id="performed_by" placeholder="Enter name of staff handling this complaint" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Solution Details <span style="color:red;">*</span></label>
+                    <textarea id="brgy_solution_logs" rows="6" placeholder="Describe the actions taken to resolve this complaint..." required></textarea>
+                  </div>
+                  <div style="text-align:right; margin-top:15px;">
+                    <button type="button" id="submitSolutionBtn" class="btn-save">
+                      <i class="fas fa-check-circle"></i> Submit Solution
+                    </button>
+                  </div>
+                  <hr>
+                </div>
           
               </form>
             </div>
@@ -8654,6 +8689,10 @@ function releaseNoBirthCertDocument(id) {
             }
             function closeComplaintModal() {
               document.getElementById('addComplaintModal').style.display = 'none';
+              // Clear search and dropdown on close
+              document.getElementById('residentSearch').value = '';
+              document.getElementById('residentDropdown').innerHTML = '';
+              document.getElementById('residentDropdown').style.display = 'none';
             }
 
             // Ensure the add complaint modal shows the "Please Specify" input when "Other" is chosen
@@ -8662,7 +8701,7 @@ function releaseNoBirthCertDocument(id) {
               const otherGroup = document.getElementById('otherIncidentTypeGroup');
               if (!addIncident || !otherGroup) return;
 
-              //date validation for addComplaintModal
+              // Date validation for addComplaintModal
               const addDateInput = document.getElementById('add_incident_datetime');
               const addDateError = document.getElementById('addDateError');
               const addComplaintForm = document.getElementById('addComplaintForm');
@@ -8734,14 +8773,83 @@ function releaseNoBirthCertDocument(id) {
 
               addIncident.addEventListener('change', updateOtherField);
               updateOtherField(); // initial state
+
+              // New: Resident search functionality
+              const searchInput = document.getElementById('residentSearch');
+              const dropdown = document.getElementById('residentDropdown');
+              let debounceTimer;
+
+              function performSearch(query) {
+                if (query.length < 2) {
+                  dropdown.style.display = 'none';
+                  return;
+                }
+                fetch('../Process/online_complaints/search_residents.php?q=' + encodeURIComponent(query))
+                  .then(response => response.json())
+                  .then(data => {
+                    dropdown.innerHTML = '';
+                    if (data.length > 0) {
+                      data.forEach(resident => {
+                        const item = document.createElement('div');
+                        item.className = 'dropdown-item';
+                        // item.textContent = `${resident.Lastname}, ${resident.Firstname} ${resident.Middlename || ''} (Age: ${resident.Age}, Address: ${resident.Address})`.trim();
+                        item.innerHTML = `${resident.Lastname}, ${resident.Firstname} ${resident.Middlename || ''}<br>(Age: ${resident.Age}, Address: ${resident.Address})`;
+                        item.style.padding = '8px';
+                        item.style.cursor = 'pointer';
+                        item.style.borderBottom = '1px solid #eee';
+
+                        item.style.whiteSpace = 'normal'; // Allow text wrapping for long addresses
+                        item.style.overflow = 'visible'; // Ensure full content is visible
+                        item.style.wordWrap = 'break-word'; // Break long words if needed
+                        item.addEventListener('click', () => {
+                          // Populate form fields
+                          // Populate form fields (scoped to #addComplaintForm to avoid conflicts with other modals)
+                          document.querySelector('#addComplaintForm input[name="lastname"]').value = resident.Lastname;
+                          document.querySelector('#addComplaintForm input[name="firstname"]').value = resident.Firstname;
+                          document.querySelector('#addComplaintForm input[name="middlename"]').value = resident.Middlename || '';
+                          document.querySelector('#addComplaintForm input[name="address"]').value = resident.Address;
+                          document.querySelector('#addComplaintForm input[name="age"]').value = resident.Age;
+                          document.querySelector('#addComplaintForm input[name="contact_no"]').value = resident.ContactNo;
+                          document.querySelector('#addComplaintForm input[name="email"]').value = resident.Email;
+                          // Clear search and hide dropdown
+                          searchInput.value = '';
+                          dropdown.style.display = 'none';
+                        });
+                        dropdown.appendChild(item);
+                      });
+                      dropdown.style.display = 'block';
+                    } else {
+                      dropdown.style.display = 'none';
+                    }
+                  })
+                  .catch(error => console.error('Error fetching residents:', error));
+              }
+
+              searchInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => performSearch(this.value), 300); // 300ms debounce
+              });
+
+              // Hide dropdown when clicking outside
+              document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                  dropdown.style.display = 'none';
+                }
+              });
             });
             </script>
               
             
             <!-- View Complaint Modal Script -->
+            <!-- filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Pages\Adminpage.php -->
             <script>
+            let currentComplaintData = null;
+
             function closeViewComplaintModal() {
               document.getElementById('viewComplaintModal').style.display = 'none';
+              // Reset solution form
+              document.getElementById('performed_by').value = '';
+              document.getElementById('brgy_solution_logs').value = '';
             }
 
             document.querySelectorAll('.view-complaint').forEach(btn => {
@@ -8757,6 +8865,7 @@ function releaseNoBirthCertDocument(id) {
                     }
 
                     const complaint = data.complaint;
+                    currentComplaintData = complaint;
                     
                     // Fill complaint basic info
                     document.getElementById('view_complaint_id').textContent = complaint.CmpID;
@@ -8785,27 +8894,29 @@ function releaseNoBirthCertDocument(id) {
                         year: 'numeric', month: 'long', day: 'numeric', 
                         hour: '2-digit', minute: '2-digit'
                       }) : 'N/A';
-                    // document.getElementById('view_complaint_status').value = complaint.RequestStatus || 'Pending';
-                    // show friendly label in the modal (Approved => Escalated to blotter)
-                    const statusLabel = (complaint.RequestStatus === 'Approved') ? 'Escalated to blotter' : (complaint.RequestStatus || 'Pending');
+
+                    // Show friendly status label
+                    let statusLabel = complaint.RequestStatus || 'Pending';
+                    if (statusLabel === 'Approved') statusLabel = 'Escalated to blotter';
                     document.getElementById('view_complaint_status').value = statusLabel;
 
-                    currentComplaintData = complaint;
-
-                    const convertBtnEl = document.getElementById('convertToBlotterBtn'); 
-                    const convertSectionEl = document.getElementById('convertFormSection');
-                    if (complaint.RequestStatus === 'Approved'){
-                      if (convertBtnEl) convertBtnEl.style.display = 'none';
-                      if (convertSectionEl) convertSectionEl.style.display = 'none';
+                    // Control visibility based on status
+                    const processSection = document.getElementById('processComplaintSection');
+                    const solutionSection = document.getElementById('solutionFormSection');
+                    
+                    if (complaint.RequestStatus === 'Pending') {
+                      // Show "Process Complaint" button
+                      processSection.style.display = 'block';
+                      solutionSection.style.display = 'none';
+                    } else if (complaint.RequestStatus === 'in_progress') {
+                      // Show solution form
+                      processSection.style.display = 'none';
+                      solutionSection.style.display = 'block';
                     } else {
-
-                      // default: allow Convert button unless the conversion form is already visible
-                      const formVisible = convertSectionEl && window.getComputedStyle(convertSectionEl).display !== 'none';
-                      if (convertBtnEl) convertBtnEl.style.display = formVisible ? 'none' : 'block';
+                      // Hide both for other statuses (Approved, Rejected, etc.)
+                      processSection.style.display = 'none';
+                      solutionSection.style.display = 'none';
                     }
-
-
-
 
                     // Handle evidence files
                     const filesContainer = document.getElementById('view_complaint_filesContainer');
@@ -8844,6 +8955,85 @@ function releaseNoBirthCertDocument(id) {
               });
             });
 
+            // Handle "Process Complaint" button click
+            document.getElementById('processComplaintBtn')?.addEventListener('click', function() {
+              if (!currentComplaintData) return;
+              
+              if (!confirm('Start processing this complaint? This will notify the resident that their complaint is being handled.')) {
+                return;
+              }
+
+              // Update status to "in_progress"
+              fetch('../Process/online_complaints/process_complaint.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `complaint_id=${encodeURIComponent(currentComplaintData.CmpID)}`
+              })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  alert('Complaint is now being processed. Please provide solution details.');
+                  // Update UI
+                  document.getElementById('processComplaintSection').style.display = 'none';
+                  document.getElementById('solutionFormSection').style.display = 'block';
+                  document.getElementById('view_complaint_status').value = 'In Progress';
+                  currentComplaintData.RequestStatus = 'in_progress';
+                } else {
+                  alert('Error: ' + (data.message || 'Failed to process complaint'));
+                }
+              })
+              .catch(err => {
+                console.error('Error:', err);
+                alert('An error occurred while processing the complaint.');
+              });
+            });
+
+            // Handle "Submit Solution" button click
+            document.getElementById('submitSolutionBtn')?.addEventListener('click', function() {
+              if (!currentComplaintData) return;
+
+              const performedBy = document.getElementById('performed_by').value.trim();
+              const solutionLogs = document.getElementById('brgy_solution_logs').value.trim();
+
+              if (!performedBy) {
+                alert('Please enter the name of the staff member handling this complaint.');
+                document.getElementById('performed_by').focus();
+                return;
+              }
+
+              if (!solutionLogs) {
+                alert('Please describe the solution/actions taken.');
+                document.getElementById('brgy_solution_logs').focus();
+                return;
+              }
+
+              if (!confirm('Submit this solution for resident verification?')) {
+                return;
+              }
+
+              // Submit solution
+              fetch('../Process/online_complaints/submit_solution.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `complaint_id=${encodeURIComponent(currentComplaintData.CmpID)}&performed_by=${encodeURIComponent(performedBy)}&solution_logs=${encodeURIComponent(solutionLogs)}`
+              })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  alert('Solution submitted successfully! The resident will be notified to verify.');
+                  closeViewComplaintModal();
+                  // Reload page to refresh complaint list
+                  location.reload();
+                } else {
+                  alert('Error: ' + (data.message || 'Failed to submit solution'));
+                }
+              })
+              .catch(err => {
+                console.error('Error:', err);
+                alert('An error occurred while submitting the solution.');
+              });
+            });
+
             function viewComplaintImage(src) {
               document.getElementById('viewerImg').src = src;
               document.getElementById('imageViewer').style.display = 'flex';
@@ -8853,7 +9043,7 @@ function releaseNoBirthCertDocument(id) {
             document.getElementById('view_complaint_files_table')?.addEventListener('click', function (e) {
               const btn = e.target.closest('.view-complaint-image');
               if (!btn) return;
-              e.preventDefault(); // avoid any form submission
+              e.preventDefault();
               const src = btn.getAttribute('data-src');
               if (src) viewComplaintImage(src);
             });

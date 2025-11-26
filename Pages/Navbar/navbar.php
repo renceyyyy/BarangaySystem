@@ -613,6 +613,113 @@ unset($_SESSION['verification_notification']);
             margin-top: 5px;
         }
     </style>
+
+    <!-- /* Verification notification banner styles  -->
+    <style>
+        .verification-notification-banner {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            max-width: 420px;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-left: 5px solid #4CAF50;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            z-index: 99999;
+            padding: 20px;
+            animation: slideInRight 0.4s ease-out;
+        }
+        
+        .verification-notification-banner h4 {
+            color: #2e7d32;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        
+        .verification-notification-banner p {
+            color: #555;
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .verification-notification-banner .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .verification-notification-banner .btn-approve {
+            flex: 1;
+            padding: 10px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .verification-notification-banner .btn-approve:hover {
+            background: #388E3C;
+        }
+        
+        .verification-notification-banner .btn-reject {
+            flex: 1;
+            padding: 10px 15px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .verification-notification-banner .btn-reject:hover {
+            background: #d32f2f;
+        }
+        
+        .verification-notification-banner .btn-view {
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px 15px;
+            background: transparent;
+            color: #1976D2;
+            border: 1px solid #1976D2;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .verification-notification-banner .btn-view:hover {
+            background: #1976D2;
+            color: white;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -774,6 +881,37 @@ unset($_SESSION['verification_notification']);
             <?php endif; ?>
         </div>
     </nav>
+
+    <!-- Complaint Verification Modal -->
+    <div id="complaintVerificationModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 550px;">
+            <span class="close" onclick="closeVerificationModal()">&times;</span>
+            <h2 style="color: #2e7d32; margin-bottom: 15px;">
+                <i class="fas fa-check-circle"></i> Complaint Resolution Verification
+            </h2>
+            <div id="verificationDetails">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Rejection Reason Modal -->
+    <div id="rejectionReasonModal" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <span class="close" onclick="closeRejectionModal()">&times;</span>
+            <h2 style="color: #c62828; margin-bottom: 15px;">
+                <i class="fas fa-times-circle"></i> Rejection Reason
+            </h2>
+            <p style="margin-bottom: 15px; color: #666;">Please explain why the solution is not satisfactory:</p>
+            <textarea id="rejectionReasonText" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;" placeholder="Enter your reason here..."></textarea>
+            <input type="hidden" id="rejectComplaintId" value="">
+            <input type="hidden" id="rejectLogId" value="">
+            <div style="margin-top: 15px; text-align: right;">
+                <button onclick="closeRejectionModal()" style="padding: 10px 20px; margin-right: 10px; background: #ccc; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                <button onclick="submitRejection()" style="padding: 10px 20px; background: #c62828; color: white; border: none; border-radius: 4px; cursor: pointer;">Submit</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Request Pages (no popups needed - using main pages directly) -->
     <!-- All service requests are handled through dedicated pages:
@@ -1116,6 +1254,257 @@ unset($_SESSION['verification_notification']);
                 });
             }
         });
+    </script>
+
+    <!-- Complaint Verification Notification System -->
+    <script>
+    (function() {
+        const userId = '<?php echo $_SESSION['user_id'] ?? ''; ?>';
+        if (!userId) return;
+        
+        console.log('[COMPLAINT VERIFY] Starting verification check for user:', userId);
+        
+        let currentBanner = null;
+        let pendingVerifications = [];
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+        
+        function showVerificationBanner(data) {
+            // Remove existing banner
+            if (currentBanner) {
+                currentBanner.remove();
+                currentBanner = null;
+            }
+            
+            const banner = document.createElement('div');
+            banner.className = 'verification-notification-banner';
+            banner.id = 'verificationBanner_' + data.complaint_id;
+            
+            banner.innerHTML = `
+                <h4><i class="fas fa-gavel"></i> Complaint Resolution Awaiting Your Approval</h4>
+                <p>
+                    <strong>Reference No:</strong> ${data.refno}<br>
+                    <strong>Incident:</strong> ${data.incident_type || 'N/A'}<br>
+                    <strong>Handled by:</strong> ${data.performed_by || 'Barangay Staff'}
+                </p>
+                <div class="btn-group">
+                    <button class="btn-approve" onclick="approveComplaint(${data.complaint_id}, '${data.log_id}')">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button class="btn-reject" onclick="openRejectionModal(${data.complaint_id}, '${data.log_id}')">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </div>
+                <button class="btn-view" onclick="viewComplaintDetails(${data.complaint_id}, '${data.log_id}')">
+                    <i class="fas fa-eye"></i> View Full Details
+                </button>
+            `;
+            
+            document.body.appendChild(banner);
+            currentBanner = banner;
+        }
+        
+        function checkPendingVerifications() {
+            fetch('../Process/online_complaints/check_pending_verifications.php?_=' + Date.now())
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) return;
+                    
+                    pendingVerifications = data.pending || [];
+                    
+                    if (pendingVerifications.length > 0) {
+                        // Show the first pending verification
+                        showVerificationBanner(pendingVerifications[0]);
+                    } else {
+                        // No pending verifications, remove banner if exists
+                        if (currentBanner) {
+                            currentBanner.style.animation = 'slideOutRight 0.4s';
+                            setTimeout(() => {
+                                if (currentBanner) {
+                                    currentBanner.remove();
+                                    currentBanner = null;
+                                }
+                            }, 400);
+                        }
+                    }
+                })
+                .catch(err => console.error('[COMPLAINT VERIFY] Error:', err));
+        }
+        
+        // Global functions for button handlers
+        window.approveComplaint = function(complaintId, logId) {
+            if (!confirm('Are you sure you want to approve this resolution? This confirms that your complaint has been satisfactorily resolved.')) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'approve');
+            formData.append('complaint_id', complaintId);
+            formData.append('log_id', logId);
+            
+            fetch('../Process/online_complaints/verify_complaint_solution.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    // Remove banner
+                    if (currentBanner) {
+                        currentBanner.style.animation = 'slideOutRight 0.4s';
+                        setTimeout(() => {
+                            if (currentBanner) {
+                                currentBanner.remove();
+                                currentBanner = null;
+                            }
+                            // Check for more pending
+                            checkPendingVerifications();
+                        }, 400);
+                    }
+                } else {
+                    showNotification(data.message || 'Failed to approve', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                showNotification('An error occurred', 'error');
+            });
+        };
+        
+        window.openRejectionModal = function(complaintId, logId) {
+            document.getElementById('rejectComplaintId').value = complaintId;
+            document.getElementById('rejectLogId').value = logId;
+            document.getElementById('rejectionReasonText').value = '';
+            document.getElementById('rejectionReasonModal').style.display = 'block';
+        };
+        
+        window.closeRejectionModal = function() {
+            document.getElementById('rejectionReasonModal').style.display = 'none';
+        };
+        
+        window.submitRejection = function() {
+            const complaintId = document.getElementById('rejectComplaintId').value;
+            const logId = document.getElementById('rejectLogId').value;
+            const reason = document.getElementById('rejectionReasonText').value.trim();
+            
+            if (!reason) {
+                alert('Please provide a reason for rejection.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'reject');
+            formData.append('complaint_id', complaintId);
+            formData.append('log_id', logId);
+            formData.append('rejection_reason', reason);
+            
+            fetch('../Process/online_complaints/verify_complaint_solution.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    closeRejectionModal();
+                    // Remove banner
+                    if (currentBanner) {
+                        currentBanner.style.animation = 'slideOutRight 0.4s';
+                        setTimeout(() => {
+                            if (currentBanner) {
+                                currentBanner.remove();
+                                currentBanner = null;
+                            }
+                            // Check for more pending
+                            checkPendingVerifications();
+                        }, 400);
+                    }
+                } else {
+                    showNotification(data.message || 'Failed to reject', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                showNotification('An error occurred', 'error');
+            });
+        };
+        
+        window.viewComplaintDetails = function(complaintId, logId) {
+            // Find the complaint data
+            const complaint = pendingVerifications.find(p => p.complaint_id == complaintId);
+            if (!complaint) return;
+            
+            const modal = document.getElementById('complaintVerificationModal');
+            const details = document.getElementById('verificationDetails');
+            
+            details.innerHTML = `
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="margin: 5px 0;"><strong>Reference No:</strong> ${complaint.refno}</p>
+                    <p style="margin: 5px 0;"><strong>Complainant:</strong> ${complaint.firstname} ${complaint.lastname}</p>
+                    <p style="margin: 5px 0;"><strong>Incident Type:</strong> ${complaint.incident_type || 'N/A'}</p>
+                    <p style="margin: 5px 0;"><strong>Location:</strong> ${complaint.location || 'N/A'}</p>
+                    <p style="margin: 5px 0;"><strong>Date Complained:</strong> ${formatDate(complaint.date_complained)}</p>
+                </div>
+                
+                <h3 style="color: #1976D2; margin-bottom: 10px;"><i class="fas fa-clipboard-check"></i> Barangay Solution</h3>
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="margin: 5px 0;"><strong>Handled By:</strong> ${complaint.performed_by || 'Barangay Staff'}</p>
+                    <p style="margin: 5px 0;"><strong>Solution Date:</strong> ${formatDate(complaint.solution_date)}</p>
+                    <p style="margin: 10px 0 5px 0;"><strong>Solution Details:</strong></p>
+                    <p style="margin: 0; padding: 10px; background: white; border-radius: 4px; white-space: pre-wrap;">${complaint.solution || 'No details provided'}</p>
+                </div>
+                
+                <p style="color: #666; font-style: italic; margin-bottom: 15px;">
+                    Please verify if this solution satisfactorily resolves your complaint.
+                </p>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="approveComplaint(${complaint.complaint_id}, '${complaint.log_id}')" 
+                            style="flex: 1; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-check"></i> Approve Resolution
+                    </button>
+                    <button onclick="closeVerificationModal(); openRejectionModal(${complaint.complaint_id}, '${complaint.log_id}')" 
+                            style="flex: 1; padding: 12px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-times"></i> Reject Resolution
+                    </button>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        };
+        
+        window.closeVerificationModal = function() {
+            document.getElementById('complaintVerificationModal').style.display = 'none';
+        };
+        
+        // Close modals when clicking outside
+        window.addEventListener('click', function(e) {
+            const verifyModal = document.getElementById('complaintVerificationModal');
+            const rejectModal = document.getElementById('rejectionReasonModal');
+            if (e.target === verifyModal) {
+                verifyModal.style.display = 'none';
+            }
+            if (e.target === rejectModal) {
+                rejectModal.style.display = 'none';
+            }
+        });
+        
+        // Check every 5 seconds for pending verifications
+        setInterval(checkPendingVerifications, 5000);
+        
+        // Initial check
+        setTimeout(checkPendingVerifications, 1000);
+        
+        console.log('[COMPLAINT VERIFY] System initialized');
+    })();
     </script>
     
     <!-- BRAND NEW Real-Time Notification System -->

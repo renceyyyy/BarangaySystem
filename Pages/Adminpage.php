@@ -120,6 +120,39 @@ require_once '../Process/db_connection.php';
       <!-- Main Content -->
       <div class="col-12 col-md-10 p-0">
         <div class="main-content-scroll p-3">
+          <!-- User Info Header -->
+          <div class="user-info-header" style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); padding: 20px 30px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <div style="width: 50px; height: 50px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <i class="fas fa-user-shield" style="font-size: 24px; color: #4CAF50;"></i>
+              </div>
+              <div>
+                <h4 style="margin: 0; color: white; font-size: 20px; font-weight: 600;">
+                  <?php echo isset($_SESSION['fullname']) ? htmlspecialchars($_SESSION['fullname']) : 'Administrator'; ?>
+                </h4>
+                <div style="display: flex; align-items: center; gap: 15px; margin-top: 5px; flex-wrap: wrap;">
+                  <span style="color: rgba(255,255,255,0.9); font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-id-badge"></i>
+                    <strong>Role:</strong> <?php echo isset($_SESSION['role']) ? ucfirst(htmlspecialchars($_SESSION['role'])) : 'Admin'; ?>
+                  </span>
+                  <span style="color: rgba(255,255,255,0.9); font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-calendar-day"></i>
+                    <strong>Date:</strong> <?php echo date('M d, Y'); ?>
+                  </span>
+                  <span style="color: rgba(255,255,255,0.9); font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-clock"></i>
+                    <strong>Time:</strong> <span id="currentTime"><?php echo date('h:i:s A'); ?></span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">
+                <i class="fas fa-circle" style="color: #4ade80; animation: pulse 2s infinite;"></i> ONLINE
+              </span>
+            </div>
+          </div>
+          
           <div class="admin-header">
 
           </div>
@@ -186,7 +219,7 @@ require_once '../Process/db_connection.php';
           </div>
 
          <div id="residencePanel" class="panel-content">
-  <h1>Residence Information</h1>
+  <h1>Account Management</h1>
 
   <!-- Tab Navigation -->
   <div class="tabs-container">
@@ -549,7 +582,7 @@ function switchTab(event, tabName) {
 
 
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
-                 $sql = "SELECT ReqId, Firstname, Lastname, Gender, ReqPurpose, ContactNo, Address, refno, Docutype, DateRequested, RequestStatus,ReleasedBy, CertificateImage 
+                 $sql = "SELECT ReqId, UserId, Firstname, Lastname, Gender, ReqPurpose, ContactNo, Address, refno, Docutype, DateRequested, RequestStatus,ReleasedBy, CertificateImage 
 FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
 
                   
@@ -648,7 +681,7 @@ elseif ($row["RequestStatus"] === "Approved") {
 
 // ✅ If Pending — show Approve + View + Decline
 elseif ($row["RequestStatus"] === "Pending") {
-  echo "<a href='approve.php?id=" . htmlspecialchars($row["ReqId"]) . "' 
+  echo "<a href='approve.php?id=" . htmlspecialchars($row["ReqId"]) . "&user_id=" . htmlspecialchars($row["UserId"]) . "&refno=" . htmlspecialchars($row["refno"]) . "' 
           class='action-btn-2 approve' 
           onclick=\"showCustomConfirm(event, this.href);\">
           <i class='fas fa-check'></i>
@@ -761,6 +794,55 @@ function alertNotPaid() {
 
 
 
+
+          <!-- User Request History Modal -->
+          <div id="userRequestHistoryModal" class="custom-confirm-overlay" style="display:none;">
+            <div class="custom-confirm-box" style="max-width: 1200px; width: 95%; max-height: 85vh; overflow: hidden; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+              <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); padding: 20px; margin: -20px -20px 20px -20px; border-radius: 12px 12px 0 0;">
+                <h3 style="margin: 0; color: white; font-size: 22px; display: flex; align-items: center; gap: 10px;">
+                  <i class="fas fa-history"></i> User Request History
+                </h3>
+              </div>
+              
+              <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #4CAF50;">
+                <p style="margin: 0 0 10px 0; font-weight: bold; color: #2e7d32; font-size: 15px;">
+                  <i class="fas fa-file-alt"></i> Current Request Details:
+                </p>
+                <div id="currentRequestDetails" style="margin-top: 10px; font-size: 14px;"></div>
+              </div>
+              
+              <!-- Filter Section -->
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <label style="font-weight: 600; color: #333; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                  <i class="fas fa-filter"></i> Filter by Document Type:
+                </label>
+                <select id="historyDocTypeFilter" style="padding: 8px 12px; border: 2px solid #4CAF50; border-radius: 6px; font-size: 14px; min-width: 200px; cursor: pointer;">
+                  <option value="all">All Document Types</option>
+                </select>
+                <span id="historyFilterCount" style="margin-left: auto; font-size: 13px; color: #666; font-weight: 500;"></span>
+              </div>
+              
+              <div id="userRequestHistoryContent" style="margin-bottom: 20px; background: white;">
+                <p style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading...</p>
+              </div>
+              
+              <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ff9800;">
+                <p style="margin: 0; font-size: 14px; color: #666; display: flex; align-items: center; gap: 8px;">
+                  <i class="fas fa-info-circle" style="color: #ff9800;"></i>
+                  <span>Review the user's request history before approving this request.</span>
+                </p>
+              </div>
+              
+              <div class="custom-confirm-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="cancelApproveBtn" class="custom-confirm-btn no" style="background: #f44336; padding: 12px 30px; border-radius: 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                  <i class="fas fa-times"></i> Cancel
+                </button>
+                <button id="proceedApproveBtn" class="custom-confirm-btn yes" style="background: #4CAF50; padding: 12px 30px; border-radius: 6px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                  <i class="fas fa-check"></i> Proceed to Approve
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div id="customConfirm" class="custom-confirm-overlay" style="display:none;">
             <div class="custom-confirm-box">
@@ -953,7 +1035,7 @@ function alertNotPaid() {
                   }
 
                   // Build SQL with filters (using prepared statement for safety) - Always exclude Declined
-                  $sql = "SELECT BsnssID, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus, ReleasedBy 
+                  $sql = "SELECT BsnssID, UserId, BusinessName, BusinessLoc, OwnerName, RequestType, refno, RequestedDate, RequestStatus, ReleasedBy 
                 FROM businesstbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -1047,7 +1129,7 @@ elseif ($row["RequestStatus"] === "Printed") {
 
 // ✅ If Pending — show Approve + View + Decline
 elseif ($row["RequestStatus"] === "Pending") {
-                      echo "<a href='approvebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "' 
+                      echo "<a href='approvebusiness.php?id=" . htmlspecialchars($row["BsnssID"]) . "&user_id=" . htmlspecialchars($row["UserId"]) . "&refno=" . htmlspecialchars($row["refno"]) . "&type=business' 
               class='action-btn-2 approve' 
               onclick=\"showCustomConfirm(event, this.href);\">
               <i class='fas fa-check'></i>
@@ -1253,7 +1335,7 @@ elseif ($row["RequestStatus"] === "Pending") {
                     $insertStmt->close();
                   }
 
-                  $sql = "SELECT id, fullname, certificate_type, refno, request_date, RequestStatus, ReleasedBy 
+                  $sql = "SELECT id, user_id, fullname, certificate_type, refno, request_date, RequestStatus, ReleasedBy 
                         FROM unemploymenttbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   
                   $params = [];
@@ -1339,7 +1421,7 @@ elseif ($row["RequestStatus"] === "Printed") {
 
                     // ✅ If Pending — show Approve + View + Decline
                     elseif ($row["RequestStatus"] === "Pending") {
-                      echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "'
+                      echo "<a href='approveunemployement.php?id=" . htmlspecialchars($row["id"]) . "&user_id=" . htmlspecialchars($row["user_id"]) . "&refno=" . htmlspecialchars($row["refno"]) . "&type=unemployment'
                               class='action-btn-2 approve'
                               onclick=\"showCustomConfirm(event, this.href);\">
                               <i class='fas fa-check'></i>
@@ -1586,7 +1668,7 @@ elseif ($row["RequestStatus"] === "Printed") {
                       }
                     }
                   }
-                  $sql = "SELECT id, applicant_name, request_type, refno, request_date, RequestStatus, ReleasedBy 
+                  $sql = "SELECT id, user_id, applicant_name, request_type, refno, request_date, RequestStatus, ReleasedBy 
                           FROM guardianshiptbl WHERE RequestStatus != 'Declined' AND 1=1"; // Base query: Exclude Declined always
                   $params = [];
                   $types = "";
@@ -1671,7 +1753,7 @@ elseif ($row["RequestStatus"] === "Printed") {
 // ✅ If Pending — show Approve + View + Decline
         elseif ($row["RequestStatus"] === "Pending") {
                       // Show APPROVE button
-                      echo "<a href='approveguardianship.php?id=" . $row["id"] . "'
+                      echo "<a href='approveguardianship.php?id=" . $row["id"] . "&user_id=" . htmlspecialchars($row["user_id"]) . "&refno=" . htmlspecialchars($row["refno"]) . "&type=guardianship'
     class='action-btn-2 approve'
     onclick=\"showCustomConfirm(event, this.href);\">
     <i class='fas fa-check'></i></a>
@@ -2717,7 +2799,7 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
             $message = "Invalid quantity. Please enter a positive number.";
           }
           
-          echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+          echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
         }
 
         // 2) NEW REQUEST
@@ -2728,11 +2810,23 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
           $purpose = trim($_POST['purpose']);
           $eventDT = $_POST['eventDatetime'];
 
-          $stmt = $conn->prepare("SELECT total_stock, on_loan FROM inventory WHERE item_name=?");
-          $stmt->bind_param("s", $item);
-          $stmt->execute();
-          $inv = $stmt->get_result()->fetch_assoc();
-          $stmt->close();
+          // Check for duplicate request on same date (unless previous request is Returned)
+          $eventDate = date('Y-m-d', strtotime($eventDT));
+          $duplicateCheck = $conn->prepare("SELECT COUNT(*) as count FROM tblitemrequest WHERE name=? AND DATE(event_datetime)=? AND RequestStatus != 'Returned'");
+          $duplicateCheck->bind_param("ss", $name, $eventDate);
+          $duplicateCheck->execute();
+          $dupResult = $duplicateCheck->get_result()->fetch_assoc();
+          $duplicateCheck->close();
+
+          if ($dupResult['count'] > 0) {
+            $message = "Request denied: You already have an active request for this date. Please wait until your previous request is returned before making a new request for the same date.";
+            echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
+          } else {
+            $stmt = $conn->prepare("SELECT total_stock, on_loan FROM inventory WHERE item_name=?");
+            $stmt->bind_param("s", $item);
+            $stmt->execute();
+            $inv = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
 
           $reserved = 0;
           $rs = $conn->prepare("SELECT SUM(quantity) AS r FROM tblitemrequest WHERE item=? AND RequestStatus IN ('Pending','Approved','On Loan') AND event_datetime=?");
@@ -2741,20 +2835,21 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
           if ($row = $rs->get_result()->fetch_assoc()) $reserved = $row['r'] ?? 0;
           $rs->close();
 
-          $available = $inv['total_stock'] - $inv['on_loan'] - $reserved;
+            $available = $inv['total_stock'] - $inv['on_loan'] - $reserved;
 
-          if ($quantity > $available) {
-            $message = "Request denied: Only $available $item(s) available.";
-          } else {
-            $status = 'Pending';
-            $ins = $conn->prepare("INSERT INTO tblitemrequest (name,Purpose,item,quantity,event_datetime,date,RequestStatus) VALUES (?,?,?,?,?,NOW(),?)");
-            $ins->bind_param("sssiss", $name, $purpose, $item, $quantity, $eventDT, $status);
-            $ins->execute();
-            $ins->close();
-            $message = "Request submitted successfully.";
+            if ($quantity > $available) {
+              $message = "Request denied: Only $available $item(s) available.";
+            } else {
+              $status = 'Pending';
+              $ins = $conn->prepare("INSERT INTO tblitemrequest (name,Purpose,item,quantity,event_datetime,date,RequestStatus) VALUES (?,?,?,?,?,NOW(),?)");
+              $ins->bind_param("sssiss", $name, $purpose, $item, $quantity, $eventDT, $status);
+              $ins->execute();
+              $ins->close();
+              $message = "Request submitted successfully.";
+            }
+
+            echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
           }
-
-          echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
         }
 
         // 3) PROCESS RETURN
@@ -2777,7 +2872,7 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
             $message = "Error: Invalid return request.";
           }
 
-          echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+          echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
         }
 
         // 4) OTHER ACTION BUTTONS
@@ -2807,14 +2902,14 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
                 $message = "Request approved successfully.";
               }
 
-              echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+              echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
               break;
 
             case 'reject':
               $reason = $conn->real_escape_string($_POST['reason'] ?? 'Not specified');
               $conn->query("UPDATE tblitemrequest SET RequestStatus='Cancelled', Reason='$reason' WHERE id=$id");
               $message = "Cancel Request.";
-              echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+              echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
               break;
 
             case 'release':
@@ -2822,7 +2917,7 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
               $conn->query("UPDATE inventory SET on_loan = on_loan + {$q['quantity']} WHERE item_name = '{$q['item']}'");
               $conn->query("UPDATE tblitemrequest SET RequestStatus='On Loan' WHERE id=$id");
               $message = "Item released successfully.";
-              echo "<script>document.addEventListener('DOMContentLoaded', function() { reloadItemRequestsPanel(" . json_encode($message) . "); });</script>";
+              echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
               break;
           }
         }
@@ -2873,7 +2968,48 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
     </table>
   </div>
 </div>
+<style>
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Responsive adjustments for user info header */
+@media (max-width: 768px) {
+  .user-info-header {
+    flex-direction: column !important;
+    text-align: center;
+  }
+  .user-info-header > div {
+    width: 100%;
+    justify-content: center !important;
+  }
+}
+</style>
+
 <script>
+// Update time in real-time
+function updateTime() {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const timeString = `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`;
+  const timeElement = document.getElementById('currentTime');
+  if (timeElement) {
+    timeElement.textContent = timeString;
+  }
+}
+
+// Update time every second
+setInterval(updateTime, 7000);
+
 // Fetch verified residents from the database
 // CONSOLIDATED JAVASCRIPT - Replace ALL your script tags with this single script
 
@@ -2882,6 +3018,7 @@ let verifiedResidents = [];
 
 // Load verified residents on page load
 document.addEventListener('DOMContentLoaded', function() {
+  updateTime(); // Initialize time immediately
   fetchVerifiedResidents();
   initializeModalControls();
   initializeAddQuantityCalculation();
@@ -3483,7 +3620,7 @@ function reloadItemRequestsPanel(message) {
   modal.style.display = 'block';
   setTimeout(function () {
     window.location.href = window.location.pathname + "?panel=itemrequestsPanel";
-  }, 1000);
+  }, 7000);
 }
 </script>
 
@@ -5189,12 +5326,12 @@ function reloadItemRequestsPanel(message) {
             <p>Generate and view system reports for residents, documents, blotters, and more.</p>
 
             <!-- Filters Form -->
-            <form method="GET" class="mb-4 search-form">
+            <form method="GET" class="mb-4 search-form" id="reportsFilterForm">
               <input type="hidden" name="panel" value="reportsPanel">
               <div class="row g-3 align-items-end">
                 <div class="col-md-3">
                   <label for="reportType" class="form-label">Report Type</label>
-                  <select name="report_type" id="reportType" class="form-select" required>
+                  <select name="report_type" id="reportType" class="form-select" required onchange="this.form.submit();">
                     <option value="">Select a report</option>
                     <?php
                     $reportOptions = [
@@ -5224,24 +5361,60 @@ function reloadItemRequestsPanel(message) {
                 <div class="col-md-2">
                   <label for="startDate" class="form-label">Start Date</label>
                   <input type="date" name="start_date" id="startDate" class="form-control"
-                    value="<?= htmlspecialchars($_GET['start_date'] ?? date('Y-m-01')) ?>">
+                    value="<?= htmlspecialchars($_GET['start_date'] ?? date('Y-m-01')) ?>"
+                    onchange="if(document.getElementById('reportType').value) this.form.submit();">
                 </div>
 
                 <div class="col-md-2">
                   <label for="endDate" class="form-label">End Date</label>
                   <input type="date" name="end_date" id="endDate" class="form-control"
-                    value="<?= htmlspecialchars($_GET['end_date'] ?? date('Y-m-d')) ?>">
+                    value="<?= htmlspecialchars($_GET['end_date'] ?? date('Y-m-d')) ?>"
+                    onchange="if(document.getElementById('reportType').value) this.form.submit();">
                 </div>
 
                 <div class="col-md-2">
-                  <button type="submit" class="btn btn-primary w-100">Generate Report</button>
+                  <label for="statusFilter" class="form-label">Status Filter</label>
+                  <select name="status_filter" id="statusFilter" class="form-select" onchange="if(document.getElementById('reportType').value) this.form.submit();">
+                    <option value="">All Status</option>
+                    <?php
+                    $reportType = $_GET['report_type'] ?? '';
+                    $selectedStatus = $_GET['status_filter'] ?? '';
+                    
+                    // Define status options based on report type
+                    $statusOptions = [];
+                    if ($reportType === 'blotters') {
+                      $statusOptions = ['Pending', 'active', 'closed', 'closed_resolved', 'closed_unresolved', 'hearing_scheduled'];
+                    } elseif ($reportType === 'items') {
+                      $statusOptions = ['Pending', 'Approved', 'On Loan', 'Returned', 'Cancelled'];
+                    } elseif (in_array($reportType, ['documents', 'business', 'unemployment', 'guardianship'])) {
+                      $statusOptions = ['Pending', 'Approved', 'Released', 'Declined', 'Printed'];
+                    } elseif ($reportType === 'complaints') {
+                      $statusOptions = ['Pending', 'Approved', 'Rejected'];
+                    } else {
+                      $statusOptions = ['Pending', 'Approved', 'Released', 'Declined', 'Printed'];
+                    }
+                    
+                    foreach ($statusOptions as $status) {
+                      $isSelected = $selectedStatus === $status ? 'selected' : '';
+                      echo "<option value='$status' $isSelected>$status</option>";
+                    }
+                    ?>
+                  </select>
                 </div>
 
-                <div class="col-md-3 d-flex gap-2">
-                  <button type="button" id="exportCsv" class="btn btn-secondary flex-fill" style="display:none;">Export
-                    CSV</button>
-                  <button type="button" id="exportPdf" class="btn btn-secondary flex-fill" style="display:none;">Export
-                    PDF</button>
+                <div class="col-md-1">
+                  <button type="submit" class="btn btn-primary w-100" style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); border: none; padding: 10px;">
+                    <i class="fas fa-filter"></i>
+                  </button>
+                </div>
+
+                <div class="col-md-2 d-flex gap-2">
+                  <button type="button" id="exportCsv" class="btn btn-secondary flex-fill" style="display:none;">
+                    <i class="fas fa-file-csv"></i> CSV
+                  </button>
+                  <button type="button" id="exportPdf" class="btn btn-secondary flex-fill" style="display:none;">
+                    <i class="fas fa-file-pdf"></i> PDF
+                  </button>
                 </div>
               </div>
             </form>
@@ -5253,6 +5426,7 @@ function reloadItemRequestsPanel(message) {
             $reportType = $_GET['report_type'] ?? '';
             $startDate = $_GET['start_date'] ?? date('Y-m-01');
             $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            $statusFilter = $_GET['status_filter'] ?? '';
 
             if (empty($reportType)) {
               echo '<div class="alert alert-info">Please select a report type and date range to generate a report.</div>';
@@ -5306,11 +5480,24 @@ function reloadItemRequestsPanel(message) {
             
                 case 'documents':
                   echo '<h3>Document Requests Report</h3>';
-                  $stmt = $connection->prepare("SELECT RequestStatus, COUNT(*) as count 
+                  
+                  $statusSql = "SELECT RequestStatus, COUNT(*) as count 
                                       FROM docsreqtbl 
-                                      WHERE DateRequested BETWEEN ? AND ? 
-                                      GROUP BY RequestStatus");
-                  $stmt->bind_param("ss", $startDate, $endDate);
+                                      WHERE DateRequested BETWEEN ? AND ?";
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $statusSql .= " AND RequestStatus = ?";
+                  }
+                  
+                  $statusSql .= " GROUP BY RequestStatus";
+                  
+                  $stmt = $connection->prepare($statusSql);
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                  } else {
+                    $stmt->bind_param("ss", $startDate, $endDate);
+                  }
                   $stmt->execute();
                   $result = $stmt->get_result();
 
@@ -5324,12 +5511,24 @@ function reloadItemRequestsPanel(message) {
                     }
                     echo '</div>';
 
-                    $stmt = $connection->prepare("SELECT ReqID, CONCAT(Firstname, ' ', Lastname) AS Name, DocuType, 
+                    $detailsSql = "SELECT ReqID, CONCAT(Firstname, ' ', Lastname) AS Name, DocuType, 
                                                  Address, DateRequested, RequestStatus, ReleasedBy
                                           FROM docsreqtbl 
-                                          WHERE DateRequested BETWEEN ? AND ? 
-                                          ORDER BY DateRequested DESC");
-                    $stmt->bind_param("ss", $startDate, $endDate);
+                                          WHERE DateRequested BETWEEN ? AND ?";
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $detailsSql .= " AND RequestStatus = ?";
+                    }
+                    
+                    $detailsSql .= " ORDER BY DateRequested DESC";
+                    
+                    $stmt = $connection->prepare($detailsSql);
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                    } else {
+                      $stmt->bind_param("ss", $startDate, $endDate);
+                    }
                     $stmt->execute();
                     $details = $stmt->get_result();
 
@@ -5370,11 +5569,23 @@ function reloadItemRequestsPanel(message) {
                 case 'business':
                   echo '<h3>Business Permits Report</h3>';
 
-                  $stmt = $connection->prepare("SELECT RequestStatus, COUNT(*) as count 
+                  $statusSql = "SELECT RequestStatus, COUNT(*) as count 
                                       FROM businesstbl 
-                                      WHERE RequestedDate BETWEEN ? AND ? 
-                                      GROUP BY RequestStatus");
-                  $stmt->bind_param("ss", $startDate, $endDate);
+                                      WHERE RequestedDate BETWEEN ? AND ?";
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $statusSql .= " AND RequestStatus = ?";
+                  }
+                  
+                  $statusSql .= " GROUP BY RequestStatus";
+                  
+                  $stmt = $connection->prepare($statusSql);
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                  } else {
+                    $stmt->bind_param("ss", $startDate, $endDate);
+                  }
                   $stmt->execute();
                   $result = $stmt->get_result();
 
@@ -5388,12 +5599,24 @@ function reloadItemRequestsPanel(message) {
                     }
                     echo '</div>';
 
-                    $stmt = $connection->prepare("SELECT BsnssID, BusinessName, OwnerName, RequestType, 
+                    $detailsSql = "SELECT BsnssID, BusinessName, OwnerName, RequestType, 
                                                  BusinessLoc, RequestedDate, RequestStatus, ReleasedBy 
                                           FROM businesstbl 
-                                          WHERE RequestedDate BETWEEN ? AND ? 
-                                          ORDER BY RequestedDate DESC");
-                    $stmt->bind_param("ss", $startDate, $endDate);
+                                          WHERE RequestedDate BETWEEN ? AND ?";
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $detailsSql .= " AND RequestStatus = ?";
+                    }
+                    
+                    $detailsSql .= " ORDER BY RequestedDate DESC";
+                    
+                    $stmt = $connection->prepare($detailsSql);
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                    } else {
+                      $stmt->bind_param("ss", $startDate, $endDate);
+                    }
                     $stmt->execute();
                     $details = $stmt->get_result();
 
@@ -5436,11 +5659,23 @@ function reloadItemRequestsPanel(message) {
                 case 'unemployment':
                   echo '<h3>Unemployment Certificates Report</h3>';
 
-                  $stmt = $connection->prepare("SELECT RequestStatus, COUNT(*) as count 
+                  $statusSql = "SELECT RequestStatus, COUNT(*) as count 
                                       FROM unemploymenttbl 
-                                      WHERE request_date BETWEEN ? AND ? 
-                                      GROUP BY RequestStatus");
-                  $stmt->bind_param("ss", $startDate, $endDate);
+                                      WHERE request_date BETWEEN ? AND ?";
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $statusSql .= " AND RequestStatus = ?";
+                  }
+                  
+                  $statusSql .= " GROUP BY RequestStatus";
+                  
+                  $stmt = $connection->prepare($statusSql);
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                  } else {
+                    $stmt->bind_param("ss", $startDate, $endDate);
+                  }
                   $stmt->execute();
                   $result = $stmt->get_result();
 
@@ -5454,12 +5689,24 @@ function reloadItemRequestsPanel(message) {
                     }
                     echo '</div>';
 
-                    $stmt = $connection->prepare("SELECT id, refno, fullname, age, purpose, 
+                    $detailsSql = "SELECT id, refno, fullname, age, purpose, 
                                                  request_date, RequestStatus, ReleasedBy
                                           FROM unemploymenttbl 
-                                          WHERE request_date BETWEEN ? AND ? 
-                                          ORDER BY request_date DESC");
-                    $stmt->bind_param("ss", $startDate, $endDate);
+                                          WHERE request_date BETWEEN ? AND ?";
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $detailsSql .= " AND RequestStatus = ?";
+                    }
+                    
+                    $detailsSql .= " ORDER BY request_date DESC";
+                    
+                    $stmt = $connection->prepare($detailsSql);
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                    } else {
+                      $stmt->bind_param("ss", $startDate, $endDate);
+                    }
                     $stmt->execute();
                     $details = $stmt->get_result();
 
@@ -5503,11 +5750,23 @@ function reloadItemRequestsPanel(message) {
                   echo '<h3>Guardianship Documents Report</h3>';
 
                   // Summary cards
-                  $stmt = $connection->prepare("SELECT RequestStatus, COUNT(*) as count 
+                  $statusSql = "SELECT RequestStatus, COUNT(*) as count 
                                   FROM guardianshiptbl 
-                                  WHERE request_date BETWEEN ? AND ? 
-                                  GROUP BY RequestStatus");
-                  $stmt->bind_param("ss", $startDate, $endDate);
+                                  WHERE request_date BETWEEN ? AND ?";
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $statusSql .= " AND RequestStatus = ?";
+                  }
+                  
+                  $statusSql .= " GROUP BY RequestStatus";
+                  
+                  $stmt = $connection->prepare($statusSql);
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                  } else {
+                    $stmt->bind_param("ss", $startDate, $endDate);
+                  }
                   $stmt->execute();
                   $result = $stmt->get_result();
 
@@ -5522,12 +5781,24 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     // Full details table
-                    $stmt = $connection->prepare("SELECT id, refno, request_type, child_name, child_age,  applicant_name, 
+                    $detailsSql = "SELECT id, refno, request_type, child_name, child_age,  applicant_name, 
                                            request_date, RequestStatus, ReleasedBy
                                       FROM guardianshiptbl 
-                                      WHERE request_date BETWEEN ? AND ? 
-                                      ORDER BY request_date DESC");
-                    $stmt->bind_param("ss", $startDate, $endDate);
+                                      WHERE request_date BETWEEN ? AND ?";
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $detailsSql .= " AND RequestStatus = ?";
+                    }
+                    
+                    $detailsSql .= " ORDER BY request_date DESC";
+                    
+                    $stmt = $connection->prepare($detailsSql);
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                    } else {
+                      $stmt->bind_param("ss", $startDate, $endDate);
+                    }
                     $stmt->execute();
                     $details = $stmt->get_result();
 
@@ -5572,11 +5843,23 @@ function reloadItemRequestsPanel(message) {
                   echo '<h3>Item Requests Report</h3>';
 
                   // Summary cards: count per status
-                  $stmt = $connection->prepare("SELECT RequestStatus, COUNT(*) as count 
+                  $statusSql = "SELECT RequestStatus, COUNT(*) as count 
                                   FROM tblitemrequest 
-                                  WHERE date BETWEEN ? AND ? 
-                                  GROUP BY RequestStatus");
-                  $stmt->bind_param("ss", $startDate, $endDate);
+                                  WHERE date BETWEEN ? AND ?";
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $statusSql .= " AND RequestStatus = ?";
+                  }
+                  
+                  $statusSql .= " GROUP BY RequestStatus";
+                  
+                  $stmt = $connection->prepare($statusSql);
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                  } else {
+                    $stmt->bind_param("ss", $startDate, $endDate);
+                  }
                   $stmt->execute();
                   $result = $stmt->get_result();
 
@@ -5591,11 +5874,23 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     // Full details table
-                    $stmt = $connection->prepare("SELECT id, name, item, quantity, event_datetime, date, RequestStatus, damage_status
+                    $detailsSql = "SELECT id, name, item, quantity, event_datetime, date, RequestStatus, damage_status
                                       FROM tblitemrequest 
-                                      WHERE date BETWEEN ? AND ? 
-                                      ORDER BY id ");
-                    $stmt->bind_param("ss", $startDate, $endDate);
+                                      WHERE date BETWEEN ? AND ?";
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $detailsSql .= " AND RequestStatus = ?";
+                    }
+                    
+                    $detailsSql .= " ORDER BY id";
+                    
+                    $stmt = $connection->prepare($detailsSql);
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                    } else {
+                      $stmt->bind_param("ss", $startDate, $endDate);
+                    }
                     $stmt->execute();
                     $details = $stmt->get_result();
 
@@ -5715,11 +6010,25 @@ function reloadItemRequestsPanel(message) {
                   echo '<h3>Blotter Report</h3>';
 
                   // Summary cards: count per status
-                  $stmt = $connection->prepare("SELECT status, COUNT(*) as count 
+                  $statusSql = "SELECT status, COUNT(*) as count 
                                   FROM blottertbl 
-                                  WHERE created_at BETWEEN ? AND ? 
-                                  GROUP BY status");
-                  $stmt->bind_param("ss", $startDate, $endDate);
+                                  WHERE DATE(created_at) BETWEEN ? AND ?";
+                  
+                  // Apply status filter if set
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $statusSql .= " AND status = ?";
+                  }
+                  
+                  $statusSql .= " GROUP BY status";
+                  
+                  $stmt = $connection->prepare($statusSql);
+                  
+                  if ($statusFilter && $statusFilter !== 'All Status') {
+                    $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                  } else {
+                    $stmt->bind_param("ss", $startDate, $endDate);
+                  }
+                  
                   $stmt->execute();
                   $result = $stmt->get_result();
 
@@ -5735,13 +6044,27 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     // Full details table
-                    $stmt = $connection->prepare("SELECT blotter_id, reported_by, datetime_of_incident, 
+                    $detailsSql = "SELECT blotter_id, reported_by, datetime_of_incident, 
                                            location_of_incident, incident_type, created_at, 
                                            closed_at, status
                                       FROM blottertbl 
-                                      WHERE created_at BETWEEN ? AND ? 
-                                      ORDER BY created_at DESC");
-                    $stmt->bind_param("ss", $startDate, $endDate);
+                                      WHERE DATE(created_at) BETWEEN ? AND ?";
+                    
+                    // Apply status filter if set
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $detailsSql .= " AND status = ?";
+                    }
+                    
+                    $detailsSql .= " ORDER BY created_at DESC";
+                    
+                    $stmt = $connection->prepare($detailsSql);
+                    
+                    if ($statusFilter && $statusFilter !== 'All Status') {
+                      $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+                    } else {
+                      $stmt->bind_param("ss", $startDate, $endDate);
+                    }
+                    
                     $stmt->execute();
                     $details = $stmt->get_result();
 
@@ -5784,11 +6107,23 @@ function reloadItemRequestsPanel(message) {
   echo '<h3>Complaints Report</h3>';
 
   // Summary cards: count per status
-  $stmt = $connection->prepare("SELECT RequestStatus, COUNT(*) as count 
+  $statusSql = "SELECT RequestStatus, COUNT(*) as count 
                   FROM complaintbl 
-                  WHERE DateComplained BETWEEN ? AND ? 
-                  GROUP BY RequestStatus");
-  $stmt->bind_param("ss", $startDate, $endDate);
+                  WHERE DateComplained BETWEEN ? AND ?";
+  
+  if ($statusFilter && $statusFilter !== 'All Status') {
+    $statusSql .= " AND RequestStatus = ?";
+  }
+  
+  $statusSql .= " GROUP BY RequestStatus";
+  
+  $stmt = $connection->prepare($statusSql);
+  
+  if ($statusFilter && $statusFilter !== 'All Status') {
+    $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+  } else {
+    $stmt->bind_param("ss", $startDate, $endDate);
+  }
   $stmt->execute();
   $result = $stmt->get_result();
 
@@ -5804,12 +6139,24 @@ function reloadItemRequestsPanel(message) {
     echo '</div>';
 
     // Full details table - FIXED QUERY
-    $stmt = $connection->prepare("SELECT CmpID, Firstname, Lastname, Middlename, Complain, 
+    $detailsSql = "SELECT CmpID, Firstname, Lastname, Middlename, Complain, 
                            DateComplained, DateTimeofIncident, LocationofIncident, IncidentType, RequestStatus 
                       FROM complaintbl 
-                      WHERE DateComplained BETWEEN ? AND ? 
-                      ORDER BY DateComplained DESC");
-    $stmt->bind_param("ss", $startDate, $endDate);
+                      WHERE DateComplained BETWEEN ? AND ?";
+    
+    if ($statusFilter && $statusFilter !== 'All Status') {
+      $detailsSql .= " AND RequestStatus = ?";
+    }
+    
+    $detailsSql .= " ORDER BY DateComplained DESC";
+    
+    $stmt = $connection->prepare($detailsSql);
+    
+    if ($statusFilter && $statusFilter !== 'All Status') {
+      $stmt->bind_param("sss", $startDate, $endDate, $statusFilter);
+    } else {
+      $stmt->bind_param("ss", $startDate, $endDate);
+    }
     $stmt->execute();
     $details = $stmt->get_result();
 
@@ -8020,8 +8367,521 @@ document.getElementById("printForm").addEventListener("submit", function (event)
               function showCustomConfirm(event, url) {
                 event.preventDefault();
                 approveUrl = url;
-                document.getElementById("customConfirm").style.display = "flex";
+                
+                // Extract user_id, refno, and type from URL
+                const urlParams = new URLSearchParams(url.split('?')[1]);
+                const userId = urlParams.get('user_id');
+                const refno = urlParams.get('refno');
+                const type = urlParams.get('type'); // 'business', 'unemployment', 'guardianship', or undefined (default to document)
+                
+                console.log('showCustomConfirm called with:', { url, userId, refno, type });
+                
+                if (!userId || userId === '' || userId === 'null') {
+                  // If no user_id in URL or empty, show regular confirm
+                  console.log('No userId found (empty or null), showing regular confirm');
+                  document.getElementById("customConfirm").style.display = "flex";
+                  return;
+                }
+                
+                // Show appropriate request history modal
+                if (type === 'business') {
+                  console.log('Calling showUserBusinessHistory');
+                  showUserBusinessHistory(userId, refno);
+                } else if (type === 'unemployment') {
+                  console.log('Calling showUserUnemploymentHistory');
+                  showUserUnemploymentHistory(userId, refno);
+                } else if (type === 'guardianship') {
+                  console.log('Calling showUserGuardianshipHistory');
+                  showUserGuardianshipHistory(userId, refno);
+                } else {
+                  console.log('Calling showUserRequestHistory');
+                  showUserRequestHistory(userId, refno);
+                }
               }
+
+              let allRequestsData = []; // Store all requests globally for filtering
+              let currentRefnoGlobal = null;
+
+              function showUserRequestHistory(userId, currentRefno) {
+                const modal = document.getElementById("userRequestHistoryModal");
+                const content = document.getElementById("userRequestHistoryContent");
+                const currentDetails = document.getElementById("currentRequestDetails");
+                
+                currentRefnoGlobal = currentRefno;
+                modal.style.display = "flex";
+                content.innerHTML = '<p style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading request history...</p>';
+                
+                // Fetch user request history
+                fetch(`get_user_request_history.php?user_id=${userId}`)
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success && data.requests.length > 0) {
+                      allRequestsData = data.requests; // Store for filtering
+                      
+                      // Populate filter dropdown with unique document types
+                      const docTypes = [...new Set(data.requests.map(r => r.doctype))].sort();
+                      const filterSelect = document.getElementById('historyDocTypeFilter');
+                      filterSelect.innerHTML = '<option value="all">All Document Types</option>';
+                      docTypes.forEach(docType => {
+                        filterSelect.innerHTML += `<option value="${docType}">${docType}</option>`;
+                      });
+                      
+                      // Set up filter change event
+                      filterSelect.onchange = function() {
+                        renderRequestHistory(this.value);
+                      };
+                      
+                      // Initial render with all requests
+                      renderRequestHistory('all');
+                      
+                      // Store current request details
+                      const currentReq = data.requests.find(r => r.refno === currentRefno);
+                      if (currentReq) {
+                        currentDetails.innerHTML = `
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Name:</strong> ${currentReq.firstname} ${currentReq.lastname}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Document:</strong> ${currentReq.doctype}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Reference No:</strong> ${currentReq.refno}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Date:</strong> ${currentReq.date_requested}</p>
+                          </div>
+                        `;
+                      }
+
+                    } else {
+                      content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i><p style="color: #999; font-size: 16px;">No previous requests found for this user.</p></div>';
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error:', error);
+                    content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #dc3545; margin-bottom: 10px;"></i><p style="color: #dc3545; font-size: 16px;">Error loading request history. Please try again.</p></div>';
+                  });
+              }
+
+              function renderRequestHistory(filterDocType) {
+                const content = document.getElementById("userRequestHistoryContent");
+                const filterCount = document.getElementById("historyFilterCount");
+                
+                // Filter requests based on selected document type
+                const filteredRequests = filterDocType === 'all' 
+                  ? allRequestsData 
+                  : allRequestsData.filter(r => r.doctype === filterDocType);
+                
+                // Update filter count
+                if (filterDocType === 'all') {
+                  filterCount.textContent = `Showing all ${filteredRequests.length} requests`;
+                } else {
+                  filterCount.textContent = `Showing ${filteredRequests.length} request(s)`;
+                }
+                
+                if (filteredRequests.length === 0) {
+                  content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i><p style="color: #999; font-size: 16px;">No requests found for this filter.</p></div>';
+                  return;
+                }
+                
+                let html = '<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;">';
+                html += '<thead style="position: sticky; top: 0; background: #4CAF50; color: white; z-index: 1;">';
+                html += '<tr><th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 15%;">Ref No</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 20%;">Document Type</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 13%;">Date Requested</th>';
+                html += '<th style="padding: 12px 8px; text-align: center; border-bottom: 2px solid #45a049; width: 12%;">Status</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 40%;">Decline Reason</th></tr></thead><tbody>';
+                
+                filteredRequests.forEach(req => {
+                  const isCurrent = req.refno === currentRefnoGlobal;
+                  const rowBg = isCurrent ? '#fff9c4' : '';
+                  
+                  // Status badge with colors
+                  let statusBadge = '';
+                  if (req.status === 'Approved') {
+                    statusBadge = '<span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Approved</span>';
+                  } else if (req.status === 'Declined') {
+                    statusBadge = '<span style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Declined</span>';
+                  } else if (req.status === 'Pending') {
+                    statusBadge = '<span style="background: #ffc107; color: #333; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Pending</span>';
+                  } else if (req.status === 'Released') {
+                    statusBadge = '<span style="background: #17a2b8; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Released</span>';
+                  } else if (req.status === 'Printed') {
+                    statusBadge = '<span style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Printed</span>';
+                  }
+                  
+                  html += `<tr style="background: ${rowBg}; border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 10px 8px; word-wrap: break-word;">${req.refno}${isCurrent ? '<br><span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: bold;">CURRENT</span>' : ''}</td>
+                    <td style="padding: 10px 8px; font-weight: 500; word-wrap: break-word;">${req.doctype}</td>
+                    <td style="padding: 10px 8px; color: #666; font-size: 12px;">${req.date_requested}</td>
+                    <td style="padding: 10px 8px; text-align: center;">${statusBadge}</td>
+                    <td style="padding: 10px 8px; color: ${req.decline_reason ? '#dc3545' : '#999'}; font-style: ${req.decline_reason ? 'normal' : 'italic'}; word-wrap: break-word;">${req.decline_reason || 'N/A'}</td>
+                  </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+              }
+
+              // Business History Variables
+              let allBusinessRequestsData = [];
+              let currentBusinessRefnoGlobal = null;
+
+              function showUserBusinessHistory(userId, currentRefno) {
+                const modal = document.getElementById("userRequestHistoryModal");
+                const content = document.getElementById("userRequestHistoryContent");
+                const currentDetails = document.getElementById("currentRequestDetails");
+                
+                currentBusinessRefnoGlobal = currentRefno;
+                modal.style.display = "flex";
+                content.innerHTML = '<p style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading business request history...</p>';
+                
+                // Fetch user business request history
+                fetch(`get_user_business_history.php?user_id=${userId}`)
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success && data.requests.length > 0) {
+                      allBusinessRequestsData = data.requests;
+                      
+                      // Populate filter dropdown with unique request types
+                      const requestTypes = [...new Set(data.requests.map(r => r.request_type))].sort();
+                      const filterSelect = document.getElementById('historyDocTypeFilter');
+                      filterSelect.innerHTML = '<option value="all">All Request Types</option>';
+                      requestTypes.forEach(type => {
+                        filterSelect.innerHTML += `<option value="${type}">${type}</option>`;
+                      });
+                      
+                      // Set up filter change event
+                      filterSelect.onchange = function() {
+                        renderBusinessHistory(this.value);
+                      };
+                      
+                      // Initial render with all requests
+                      renderBusinessHistory('all');
+                      
+                      // Store current request details
+                      const currentReq = data.requests.find(r => r.refno === currentRefno);
+                      if (currentReq) {
+                        currentDetails.innerHTML = `
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Owner:</strong> ${currentReq.owner_name}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Business:</strong> ${currentReq.business_name}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Reference No:</strong> ${currentReq.refno}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Type:</strong> ${currentReq.request_type}</p>
+                          </div>
+                        `;
+                      }
+                    } else {
+                      content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i><p style="color: #999; font-size: 16px;">No previous business requests found for this user.</p></div>';
+                      document.getElementById('historyDocTypeFilter').innerHTML = '<option value="all">All Request Types</option>';
+                      document.getElementById('historyFilterCount').textContent = '';
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error:', error);
+                    content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #dc3545; margin-bottom: 10px;"></i><p style="color: #dc3545; font-size: 16px;">Error loading business request history. Please try again.</p></div>';
+                  });
+              }
+
+              function renderBusinessHistory(filterType) {
+                const content = document.getElementById("userRequestHistoryContent");
+                const filterCount = document.getElementById("historyFilterCount");
+                
+                // Filter requests based on selected type
+                const filteredRequests = filterType === 'all' 
+                  ? allBusinessRequestsData 
+                  : allBusinessRequestsData.filter(r => r.request_type === filterType);
+                
+                // Update filter count
+                if (filterType === 'all') {
+                  filterCount.textContent = `Showing all ${filteredRequests.length} requests`;
+                } else {
+                  filterCount.textContent = `Showing ${filteredRequests.length} request(s)`;
+                }
+                
+                if (filteredRequests.length === 0) {
+                  content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i><p style="color: #999; font-size: 16px;">No requests found for this filter.</p></div>';
+                  return;
+                }
+                
+                let html = '<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;">';
+                html += '<thead style="position: sticky; top: 0; background: #4CAF50; color: white; z-index: 1;">';
+                html += '<tr><th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 13%;">Ref No</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 20%;">Business Name</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 12%;">Type</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 13%;">Date Requested</th>';
+                html += '<th style="padding: 12px 8px; text-align: center; border-bottom: 2px solid #45a049; width: 12%;">Status</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 30%;">Decline Reason</th></tr></thead><tbody>';
+                
+                filteredRequests.forEach(req => {
+                  const isCurrent = req.refno === currentBusinessRefnoGlobal;
+                  const rowBg = isCurrent ? '#fff9c4' : '';
+                  
+                  // Status badge with colors
+                  let statusBadge = '';
+                  if (req.status === 'Approved') {
+                    statusBadge = '<span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Approved</span>';
+                  } else if (req.status === 'Declined') {
+                    statusBadge = '<span style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Declined</span>';
+                  } else if (req.status === 'Pending') {
+                    statusBadge = '<span style="background: #ffc107; color: #333; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Pending</span>';
+                  } else if (req.status === 'Released') {
+                    statusBadge = '<span style="background: #17a2b8; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Released</span>';
+                  } else if (req.status === 'Printed') {
+                    statusBadge = '<span style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Printed</span>';
+                  }
+                  
+                  html += `<tr style="background: ${rowBg}; border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 10px 8px; word-wrap: break-word; font-size: 12px;">${req.refno}${isCurrent ? '<br><span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: bold;">CURRENT</span>' : ''}</td>
+                    <td style="padding: 10px 8px; font-weight: 500; word-wrap: break-word;">${req.business_name}</td>
+                    <td style="padding: 10px 8px; font-size: 12px;">${req.request_type}</td>
+                    <td style="padding: 10px 8px; color: #666; font-size: 12px;">${req.date_requested}</td>
+                    <td style="padding: 10px 8px; text-align: center;">${statusBadge}</td>
+                    <td style="padding: 10px 8px; color: ${req.decline_reason ? '#dc3545' : '#999'}; font-style: ${req.decline_reason ? 'normal' : 'italic'}; word-wrap: break-word; font-size: 12px;">${req.decline_reason || 'N/A'}</td>
+                  </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+              }
+
+              // Unemployment History Variables
+              let allUnemploymentRequestsData = [];
+              let currentUnemploymentRefnoGlobal = null;
+
+              function showUserUnemploymentHistory(userId, currentRefno) {
+                const modal = document.getElementById("userRequestHistoryModal");
+                const content = document.getElementById("userRequestHistoryContent");
+                const currentDetails = document.getElementById("currentRequestDetails");
+                
+                currentUnemploymentRefnoGlobal = currentRefno;
+                modal.style.display = "flex";
+                content.innerHTML = '<p style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading unemployment request history...</p>';
+                
+                fetch(`get_user_unemployment_history.php?user_id=${userId}`)
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success && data.requests.length > 0) {
+                      allUnemploymentRequestsData = data.requests;
+                      
+                      const certTypes = [...new Set(data.requests.map(r => r.certificate_type))].sort();
+                      const filterSelect = document.getElementById('historyDocTypeFilter');
+                      filterSelect.innerHTML = '<option value="all">All Certificate Types</option>';
+                      certTypes.forEach(type => {
+                        filterSelect.innerHTML += `<option value="${type}">${type}</option>`;
+                      });
+                      
+                      filterSelect.onchange = function() {
+                        renderUnemploymentHistory(this.value);
+                      };
+                      
+                      renderUnemploymentHistory('all');
+                      
+                      const currentReq = data.requests.find(r => r.refno === currentRefno);
+                      if (currentReq) {
+                        currentDetails.innerHTML = `
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Name:</strong> ${currentReq.fullname}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Certificate Type:</strong> ${currentReq.certificate_type}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Reference No:</strong> ${currentReq.refno}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Date:</strong> ${currentReq.date_requested}</p>
+                          </div>
+                        `;
+                      }
+                    } else {
+                      content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i><p style="color: #999; font-size: 16px;">No previous unemployment requests found for this user.</p></div>';
+                      document.getElementById('historyDocTypeFilter').innerHTML = '<option value="all">All Certificate Types</option>';
+                      document.getElementById('historyFilterCount').textContent = '';
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error:', error);
+                    content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #dc3545; margin-bottom: 10px;"></i><p style="color: #dc3545; font-size: 16px;">Error loading unemployment request history. Please try again.</p></div>';
+                  });
+              }
+
+              function renderUnemploymentHistory(filterType) {
+                const content = document.getElementById("userRequestHistoryContent");
+                const filterCount = document.getElementById("historyFilterCount");
+                
+                const filteredRequests = filterType === 'all' 
+                  ? allUnemploymentRequestsData 
+                  : allUnemploymentRequestsData.filter(r => r.certificate_type === filterType);
+                
+                if (filterType === 'all') {
+                  filterCount.textContent = `Showing all ${filteredRequests.length} requests`;
+                } else {
+                  filterCount.textContent = `Showing ${filteredRequests.length} request(s)`;
+                }
+                
+                if (filteredRequests.length === 0) {
+                  content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i><p style="color: #999; font-size: 16px;">No requests found for this filter.</p></div>';
+                  return;
+                }
+                
+                let html = '<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;">';
+                html += '<thead style="position: sticky; top: 0; background: #4CAF50; color: white; z-index: 1;">';
+                html += '<tr><th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 13%;">Ref No</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 18%;">Full Name</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 15%;">Certificate Type</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 12%;">Date Requested</th>';
+                html += '<th style="padding: 12px 8px; text-align: center; border-bottom: 2px solid #45a049; width: 12%;">Status</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 30%;">Decline Reason</th></tr></thead><tbody>';
+                
+                filteredRequests.forEach(req => {
+                  const isCurrent = req.refno === currentUnemploymentRefnoGlobal;
+                  const rowBg = isCurrent ? '#fff9c4' : '';
+                  
+                  let statusBadge = '';
+                  if (req.status === 'Approved') {
+                    statusBadge = '<span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Approved</span>';
+                  } else if (req.status === 'Declined') {
+                    statusBadge = '<span style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Declined</span>';
+                  } else if (req.status === 'Pending') {
+                    statusBadge = '<span style="background: #ffc107; color: #333; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Pending</span>';
+                  } else if (req.status === 'Released') {
+                    statusBadge = '<span style="background: #17a2b8; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Released</span>';
+                  } else if (req.status === 'Printed') {
+                    statusBadge = '<span style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Printed</span>';
+                  }
+                  
+                  html += `<tr style="background: ${rowBg}; border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 10px 8px; word-wrap: break-word; font-size: 12px;">${req.refno}${isCurrent ? '<br><span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: bold;">CURRENT</span>' : ''}</td>
+                    <td style="padding: 10px 8px; font-weight: 500; word-wrap: break-word;">${req.fullname}</td>
+                    <td style="padding: 10px 8px; font-size: 12px;">${req.certificate_type}</td>
+                    <td style="padding: 10px 8px; color: #666; font-size: 12px;">${req.date_requested}</td>
+                    <td style="padding: 10px 8px; text-align: center;">${statusBadge}</td>
+                    <td style="padding: 10px 8px; color: ${req.decline_reason ? '#dc3545' : '#999'}; font-style: ${req.decline_reason ? 'normal' : 'italic'}; word-wrap: break-word; font-size: 12px;">${req.decline_reason || 'N/A'}</td>
+                  </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+              }
+
+              // Guardianship History Variables
+              let allGuardianshipRequestsData = [];
+              let currentGuardianshipRefnoGlobal = null;
+
+              function showUserGuardianshipHistory(userId, currentRefno) {
+                const modal = document.getElementById("userRequestHistoryModal");
+                const content = document.getElementById("userRequestHistoryContent");
+                const currentDetails = document.getElementById("currentRequestDetails");
+                
+                currentGuardianshipRefnoGlobal = currentRefno;
+                modal.style.display = "flex";
+                content.innerHTML = '<p style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading guardianship request history...</p>';
+                
+                fetch(`get_user_guardianship_history.php?user_id=${userId}`)
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success && data.requests.length > 0) {
+                      allGuardianshipRequestsData = data.requests;
+                      
+                      const requestTypes = [...new Set(data.requests.map(r => r.request_type))].sort();
+                      const filterSelect = document.getElementById('historyDocTypeFilter');
+                      filterSelect.innerHTML = '<option value="all">All Request Types</option>';
+                      requestTypes.forEach(type => {
+                        filterSelect.innerHTML += `<option value="${type}">${type}</option>`;
+                      });
+                      
+                      filterSelect.onchange = function() {
+                        renderGuardianshipHistory(this.value);
+                      };
+                      
+                      renderGuardianshipHistory('all');
+                      
+                      const currentReq = data.requests.find(r => r.refno === currentRefno);
+                      if (currentReq) {
+                        currentDetails.innerHTML = `
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Applicant:</strong> ${currentReq.applicant_name}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Type:</strong> ${currentReq.request_type}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Reference No:</strong> ${currentReq.refno}</p>
+                            <p style="margin: 0;"><strong style="color: #4CAF50;">Date:</strong> ${currentReq.date_requested}</p>
+                          </div>
+                        `;
+                      }
+                    } else {
+                      content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i><p style="color: #999; font-size: 16px;">No previous guardianship requests found for this user.</p></div>';
+                      document.getElementById('historyDocTypeFilter').innerHTML = '<option value="all">All Request Types</option>';
+                      document.getElementById('historyFilterCount').textContent = '';
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error:', error);
+                    content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #dc3545; margin-bottom: 10px;"></i><p style="color: #dc3545; font-size: 16px;">Error loading guardianship request history. Please try again.</p></div>';
+                  });
+              }
+
+              function renderGuardianshipHistory(filterType) {
+                const content = document.getElementById("userRequestHistoryContent");
+                const filterCount = document.getElementById("historyFilterCount");
+                
+                const filteredRequests = filterType === 'all' 
+                  ? allGuardianshipRequestsData 
+                  : allGuardianshipRequestsData.filter(r => r.request_type === filterType);
+                
+                if (filterType === 'all') {
+                  filterCount.textContent = `Showing all ${filteredRequests.length} requests`;
+                } else {
+                  filterCount.textContent = `Showing ${filteredRequests.length} request(s)`;
+                }
+                
+                if (filteredRequests.length === 0) {
+                  content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i><p style="color: #999; font-size: 16px;">No requests found for this filter.</p></div>';
+                  return;
+                }
+                
+                let html = '<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;">';
+                html += '<thead style="position: sticky; top: 0; background: #4CAF50; color: white; z-index: 1;">';
+                html += '<tr><th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 13%;">Ref No</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 18%;">Applicant Name</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 13%;">Type</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 12%;">Date Requested</th>';
+                html += '<th style="padding: 12px 8px; text-align: center; border-bottom: 2px solid #45a049; width: 12%;">Status</th>';
+                html += '<th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #45a049; width: 32%;">Decline Reason</th></tr></thead><tbody>';
+                
+                filteredRequests.forEach(req => {
+                  const isCurrent = req.refno === currentGuardianshipRefnoGlobal;
+                  const rowBg = isCurrent ? '#fff9c4' : '';
+                  
+                  let statusBadge = '';
+                  if (req.status === 'Approved') {
+                    statusBadge = '<span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Approved</span>';
+                  } else if (req.status === 'Declined') {
+                    statusBadge = '<span style="background: #dc3545; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Declined</span>';
+                  } else if (req.status === 'Pending') {
+                    statusBadge = '<span style="background: #ffc107; color: #333; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Pending</span>';
+                  } else if (req.status === 'Released') {
+                    statusBadge = '<span style="background: #17a2b8; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Released</span>';
+                  } else if (req.status === 'Printed') {
+                    statusBadge = '<span style="background: #6c757d; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Printed</span>';
+                  }
+                  
+                  html += `<tr style="background: ${rowBg}; border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 10px 8px; word-wrap: break-word; font-size: 12px;">${req.refno}${isCurrent ? '<br><span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: bold;">CURRENT</span>' : ''}</td>
+                    <td style="padding: 10px 8px; font-weight: 500; word-wrap: break-word;">${req.applicant_name}</td>
+                    <td style="padding: 10px 8px; font-size: 12px;">${req.request_type}</td>
+                    <td style="padding: 10px 8px; color: #666; font-size: 12px;">${req.date_requested}</td>
+                    <td style="padding: 10px 8px; text-align: center;">${statusBadge}</td>
+                    <td style="padding: 10px 8px; color: ${req.decline_reason ? '#dc3545' : '#999'}; font-style: ${req.decline_reason ? 'normal' : 'italic'}; word-wrap: break-word; font-size: 12px;">${req.decline_reason || 'N/A'}</td>
+                  </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+              }
+
+              // Proceed to approve after viewing history
+              document.getElementById("proceedApproveBtn").addEventListener("click", function() {
+                document.getElementById("userRequestHistoryModal").style.display = "none";
+                document.getElementById("customConfirm").style.display = "flex";
+              });
+
+              // Cancel approve from history modal
+              document.getElementById("cancelApproveBtn").addEventListener("click", function() {
+                document.getElementById("userRequestHistoryModal").style.display = "none";
+                approveUrl = null;
+              });
 
               document.getElementById("customConfirmYes").addEventListener("click", function () {
                 if (approveUrl) {

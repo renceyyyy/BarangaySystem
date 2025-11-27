@@ -73,7 +73,7 @@ require_once '../Process/db_connection.php';
 
 
         <button class="sidebar-btn" type="button" onclick="showPanel('onlineComplaintsPanel')">
-          <i class="fas fa-comments"></i> Resident Complaints
+          <i class="fas fa-comments"></i> Incident Reporting
         </button>
 
         <!-- <button class="sidebar-btn" type="button" onclick="showPanel('blotterComplaintPanel')">
@@ -3627,8 +3627,8 @@ function reloadItemRequestsPanel(message) {
 
           <!-- NEW: Online Complaints Panel -->
           <div id="onlineComplaintsPanel" class="panel-content">
-            <h1>Complaints</h1>
-            <p>Where complaints made online and walk-ins are managed and reviewed.</p>
+            <h1>Incident reporting</h1>
+            <p>Where incident reports made online and walk-ins are managed and reviewed.</p>
 
             <?php
               // Show success or errors from submit_online_complaint.php and clear them so they don't repeat
@@ -3815,7 +3815,7 @@ function reloadItemRequestsPanel(message) {
                 <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
                   style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
-              <h2 style="text-align:center; margin-bottom:20px;">Create Complaint</h2>
+              <h2 style="text-align:center; margin-bottom:20px;">Create Incident Report</h2>
             
               <form id="addComplaintForm" method="POST" action="../Process/online_complaints/submit_online_complaint.php" enctype="multipart/form-data" class="modal-form">
                 
@@ -3863,8 +3863,8 @@ function reloadItemRequestsPanel(message) {
                   </div>
                 </div>
                 <hr>
-                <!-- Complaint Details -->
-                <h3>Complaint Details</h3>
+                <!-- Incident Details -->
+                <h3>Incident Details</h3>
                 <div class="form-grid" style="grid-template-columns:1.1fr 1.2fr .7fr; gap:10px;">
                   <div class="form-group">
                     <label>Date and Time of Incident</label>
@@ -3917,9 +3917,9 @@ function reloadItemRequestsPanel(message) {
                 <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
                   style="width: 70%; max-width: 120px; border-radius: 50%;" />
               </div>
-              <h1 style="text-align:center;">Online Complaint Details</h1>
+              <h1 style="text-align:center;">Incident Report Details</h1>
               <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
-                Complaint ID: <span id="view_complaint_id"></span>
+                Incident Report ID: <span id="view_complaint_id"></span>
               </div>
               <div style="font-size:16px; font-weight:bold; margin-bottom:10px;">
                 Reference No: <span id="view_complaint_refno"></span>
@@ -3987,7 +3987,7 @@ function reloadItemRequestsPanel(message) {
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Detailed Description of the Complaint</label>
+                  <label>Detailed Description of the Incident</label>
                   <textarea id="view_complaint_description" rows="7" readonly></textarea>
                 </div>
                 
@@ -3999,7 +3999,7 @@ function reloadItemRequestsPanel(message) {
                 
                 <!-- Complaint Logs History Section -->
                 <hr id="complaintLogsHrBefore" style="display: none;">
-                <h3 id="complaintLogsHeader" style="display: none;">Complaint Logs History</h3>
+                <h3 id="complaintLogsHeader" style="display: none;">Incident Report Logs History</h3>
                 <div id="complaint_logs_container" style="display:none; flex-direction:column; gap:20px;">
                   <!-- Logs will be loaded here as form-style sections -->
                 </div>
@@ -4026,7 +4026,7 @@ function reloadItemRequestsPanel(message) {
                 <!-- NEW: Process Complaint Button (shown only for Pending status) -->
                 <div id="processComplaintSection" style="display:none; margin-bottom:20px;">
                   <button type="button" id="processComplaintBtn" class="btn-save" style="width:100%;">
-                    <i class="fas fa-tasks"></i> Process Complaint
+                    <i class="fas fa-tasks"></i> Process Incident Report
                   </button>
                 </div>
 
@@ -9886,7 +9886,7 @@ function releaseNoBirthCertDocument(id) {
                     let html = `
                       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
                         <div>
-                          <label style="font-weight: 600; color: #333; font-size: 14px; display: block; margin-bottom: 5px;">Complaint Log ID</label>
+                          <label style="font-weight: 600; color: #333; font-size: 14px; display: block; margin-bottom: 5px;">Incident Report Log ID</label>
                           <input type="text" value="${log.Cmp_log_id || 'N/A'}" readonly style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background-color: #fff; font-size: 14px;">
                         </div>
                         <div>
@@ -9946,7 +9946,7 @@ function releaseNoBirthCertDocument(id) {
             document.getElementById('processComplaintBtn')?.addEventListener('click', function() {
               if (!currentComplaintData) return;
               
-              if (!confirm('Start processing this complaint? This will notify the resident that their complaint is being handled.')) {
+              if (!confirm('Start processing this Incident Report? This will notify the resident that their incident report is being handled.')) {
                 return;
               }
 
@@ -9959,7 +9959,7 @@ function releaseNoBirthCertDocument(id) {
               .then(res => res.json())
               .then(data => {
                 if (data.success) {
-                  alert('Complaint is now being processed. Please provide solution details.');
+                  alert('Incident Report is now being processed. Please provide solution details.');
                   // Update UI
                   document.getElementById('processComplaintSection').style.display = 'none';
                   document.getElementById('solutionFormSection').style.display = 'block';
@@ -9983,7 +9983,7 @@ function releaseNoBirthCertDocument(id) {
               const solutionLogs = document.getElementById('brgy_solution_logs').value.trim();
 
               if (!performedBy) {
-                alert('Please enter the name of the staff member handling this complaint.');
+                alert('Please enter the name of the staff member handling this Incident Report.');
                 document.getElementById('performed_by').focus();
                 return;
               }
@@ -10009,7 +10009,7 @@ function releaseNoBirthCertDocument(id) {
                 if (data.success) {
                   // Show different messages depending on whether a matching resident can verify
                   if (data.auto_resolved) {
-                    alert('Solution submitted successfully and the complaint is set as resolved.');
+                    alert('Solution submitted successfully and the incident report is set as resolved.');
                   } else {
                     alert('Solution submitted successfully! The resident will be notified to verify.');
                   }

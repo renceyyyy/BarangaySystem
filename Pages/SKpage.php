@@ -36,6 +36,28 @@ include 'dashboard.php';
     #global-alerts .alert-close {
       color: #fff !important;
     }
+
+    /* Pulse animation for online indicator */
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    /* Responsive adjustments for user info header */
+    @media (max-width: 768px) {
+      .user-info-header {
+        flex-direction: column !important;
+        text-align: center;
+      }
+      .user-info-header > div {
+        width: 100%;
+        justify-content: center !important;
+      }
+    }
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -46,41 +68,33 @@ include 'dashboard.php';
     .status-badge {
       padding: 6px 12px;
       border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 800;
       display: inline-block;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      background-color: transparent;
+      border: none;
     }
 
     .status-pending {
-      background-color: #E3F2FD;
       color: #1976D2;
-      border: 1px solid #90CAF9;
     }
 
     .status-approved {
-      background-color: #FFF3E0;
       color: #F57C00;
-      border: 1px solid #FFB74D;
     }
 
     .status-for-examination {
-      background-color: #E8F5E9;
       color: #388E3C;
-      border: 1px solid #81C784;
     }
 
     .status-final-approved {
-      background-color: #4CAF50;
-      color: #fff;
-      border: 1px solid #388E3C;
+      color: #2E7D32;
     }
 
     .status-rejected {
-      background-color: #FFEBEE;
       color: #C62828;
-      border: 1px solid #E57373;
     }
 
     .action-btn-2 {
@@ -786,8 +800,48 @@ include 'dashboard.php';
       <!-- Main Content -->
       <div class="col-12 col-md-10 p-0">
         <div class="main-content-scroll p-3">
-          <div class="admin-header">
-            <h1>SANGGUNIANG KABATAAN SCHOLARSHIP MANAGEMENT</h1>
+          <!-- User Info Header -->
+          <div class="user-info-header" style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); padding: 25px 30px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);">
+            <!-- Top Section: Title -->
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 15px;">
+              <h1 style="margin: 0; color: white; font-size: 26px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">
+                <i class="fas fa-graduation-cap" style="margin-right: 10px;"></i>
+                Sangguniang Kabataan Scholarship Management
+              </h1>
+            </div>
+            
+            <!-- Bottom Section: User Info -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+              <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="width: 50px; height: 50px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                  <i class="fas fa-user-circle" style="font-size: 24px; color: #4CAF50;"></i>
+                </div>
+                <div>
+                  <h4 style="margin: 0; color: white; font-size: 18px; font-weight: 600;">
+                    <?php echo isset($_SESSION['fullname']) ? htmlspecialchars($_SESSION['fullname']) : 'SK Administrator'; ?>
+                  </h4>
+                  <div style="display: flex; align-items: center; gap: 15px; margin-top: 5px; flex-wrap: wrap;">
+                    <span style="color: rgba(255,255,255,0.9); font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                      <i class="fas fa-id-badge"></i>
+                      <strong>Role:</strong> <?php echo isset($_SESSION['role']) ? ucfirst(htmlspecialchars($_SESSION['role'])) : 'SK'; ?>
+                    </span>
+                    <span style="color: rgba(255,255,255,0.9); font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                      <i class="fas fa-calendar-day"></i>
+                      <strong>Date:</strong> <?php echo date('M d, Y'); ?>
+                    </span>
+                    <span style="color: rgba(255,255,255,0.9); font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                      <i class="fas fa-clock"></i>
+                      <strong>Time:</strong> <span id="currentTime"><?php echo date('h:i:s A'); ?></span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px;">
+                  <i class="fas fa-circle" style="color: #4ade80; animation: pulse 2s infinite;"></i> ONLINE
+                </span>
+              </div>
+            </div>
           </div>
 
           <?php
@@ -1111,7 +1165,7 @@ include 'dashboard.php';
           <div id="reportsPanel" class="panel-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
               <div>
-                <h3 style="margin: 0;">SANGGUNIANG KABATAAN SCHOLARSHIP MANAGEMENT</h3>
+                
                 <p style="font-size: 14px; color: #666; margin: 5px 0 0 0;">Reports Dashboard</p>
               </div>
               <button onclick="printReport()" class="btn btn-success no-print" style="display: flex; align-items: center; gap: 8px;">
@@ -1143,105 +1197,136 @@ include 'dashboard.php';
                 </div>
               </div>
 
-              <!-- Three Tables by Education Level -->
-              <div class="row" style="margin-bottom: 30px;">
-                <!-- Junior High School Table -->
-                <div class="col-md-4">
-                  <div style="background: white; padding: 15px; border-radius: 8px; height: 100%;">
-                    <h5 style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">Junior High School</h5>
-                    <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
-                      <table class="table table-sm table-striped">
-                        <thead style="position: sticky; top: 0; background: white;">
-                          <tr>
-                            <th>Name</th>
-                            <th>Status</th>
-                            <th>Education Level</th>
-                            <th>Date Applied</th>
-                            <th>Date of Resubmitting</th>
-                            <th style="text-align: center;">Action</th>
+              <!-- Education Level Tabs -->
+              <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                <h5 style="margin-bottom: 20px; color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">Scholarship Applications Overview</h5>
+                
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs" id="educationLevelTabs" role="tablist" style="margin-bottom: 20px;">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="jhs-tab" data-bs-toggle="tab" data-bs-target="#jhs-panel" type="button" role="tab" 
+                      style="color: #4CAF50; border-color: #4CAF50;" 
+                      onmouseover="this.style.backgroundColor='#f0f8f0'" 
+                      onmouseout="this.style.backgroundColor='white'">
+                      <i class="fas fa-graduation-cap"></i> Junior High School
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="shs-tab" data-bs-toggle="tab" data-bs-target="#shs-panel" type="button" role="tab"
+                      style="color: #4CAF50; border-color: #4CAF50;"
+                      onmouseover="this.style.backgroundColor='#f0f8f0'" 
+                      onmouseout="this.style.backgroundColor='white'">
+                      <i class="fas fa-graduation-cap"></i> Senior High School
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="college-tab" data-bs-toggle="tab" data-bs-target="#college-panel" type="button" role="tab"
+                      style="color: #4CAF50; border-color: #4CAF50;"
+                      onmouseover="this.style.backgroundColor='#f0f8f0'" 
+                      onmouseout="this.style.backgroundColor='white'">
+                      <i class="fas fa-university"></i> College
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="scholars-tab" data-bs-toggle="tab" data-bs-target="#scholars-panel" type="button" role="tab"
+                      style="color: #4CAF50; border-color: #4CAF50;"
+                      onmouseover="this.style.backgroundColor='#f0f8f0'" 
+                      onmouseout="this.style.backgroundColor='white'">
+                      <i class="fas fa-calendar-alt"></i> Scholars (Sept - Feb)
+                    </button>
+                  </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="educationLevelTabContent">
+                  <!-- Junior High School Tab -->
+                  <div class="tab-pane fade show active" id="jhs-panel" role="tabpanel">
+                    <div style="overflow-x: auto; max-height: 500px; overflow-y: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                      <table class="modern-table" style="margin-bottom: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                          <tr style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);">
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Name</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Status</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Education Level</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Date Applied</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Date of Resubmitting</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: center; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Action</th>
                           </tr>
                         </thead>
-                        <tbody id="jhsTableBody">
-                          <tr>
-                            <td colspan="6" class="text-center">Loading...</td>
+                        <tbody id="jhsTableBody" style="background: white;">
+                          <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td colspan="6" class="text-center" style="padding: 24px; color: #666; font-size: 14px;">Loading...</td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
                   </div>
-                </div>
 
-                <!-- Senior High School Table -->
-                <div class="col-md-4">
-                  <div style="background: white; padding: 15px; border-radius: 8px; height: 100%;">
-                    <h5 style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">Senior High School</h5>
-                    <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
-                      <table class="table table-sm table-striped">
-                        <thead style="position: sticky; top: 0; background: white;">
-                          <tr>
-                            <th>Name</th>
-                            <th>Status</th>
-                            <th>Education Level</th>
-                            <th>Date Applied</th>
-                            <th>Date of Resubmitting</th>
-                            <th style="text-align: center;">Action</th>
+                  <!-- Senior High School Tab -->
+                  <div class="tab-pane fade" id="shs-panel" role="tabpanel">
+                    <div style="overflow-x: auto; max-height: 500px; overflow-y: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                      <table class="modern-table" style="margin-bottom: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                          <tr style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);">
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Name</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Status</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Education Level</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Date Applied</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Date of Resubmitting</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: center; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Action</th>
                           </tr>
                         </thead>
-                        <tbody id="shsTableBody">
-                          <tr>
-                            <td colspan="6" class="text-center">Loading...</td>
+                        <tbody id="shsTableBody" style="background: white;">
+                          <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td colspan="6" class="text-center" style="padding: 24px; color: #666; font-size: 14px;">Loading...</td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
                   </div>
-                </div>
 
-                <!-- College Table -->
-                <div class="col-md-4">
-                  <div style="background: white; padding: 15px; border-radius: 8px; height: 100%;">
-                    <h5 style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">College</h5>
-                    <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
-                      <table class="table table-sm table-striped">
-                        <thead style="position: sticky; top: 0; background: white;">
-                          <tr>
-                            <th>Name</th>
-                            <th>Status</th>
-                            <th>Education Level</th>
-                            <th>Date Applied</th>
-                            <th>Date of Resubmitting</th>
-                            <th style="text-align: center;">Action</th>
+                  <!-- College Tab -->
+                  <div class="tab-pane fade" id="college-panel" role="tabpanel">
+                    <div style="overflow-x: auto; max-height: 500px; overflow-y: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                      <table class="modern-table" style="margin-bottom: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                          <tr style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);">
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Name</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Status</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Education Level</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Date Applied</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Date of Resubmitting</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: center; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Action</th>
                           </tr>
                         </thead>
-                        <tbody id="collegeTableBody">
-                          <tr>
-                            <td colspan="6" class="text-center">Loading...</td>
+                        <tbody id="collegeTableBody" style="background: white;">
+                          <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td colspan="6" class="text-center" style="padding: 24px; color: #666; font-size: 14px;">Loading...</td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <!-- Scholars from September to February -->
-              <div style="background: white; padding: 20px; border-radius: 8px;">
-                <h5 style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">Scholars from September to February</h5>
-                <div style="overflow-x: auto;">
-                  <table class="table table-striped">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Status</th>
-                        <th>Education Level</th>
-                      </tr>
-                    </thead>
-                    <tbody id="scholarsTableBody">
-                      <tr>
-                        <td colspan="3" class="text-center">Loading...</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <!-- Scholars from September to February Tab -->
+                  <div class="tab-pane fade" id="scholars-panel" role="tabpanel">
+                    <div style="overflow-x: auto; max-height: 500px; overflow-y: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                      <table class="modern-table" style="margin-bottom: 0; width: 100%; border-collapse: separate; border-spacing: 0;">
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                          <tr style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);">
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Name</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Status</th>
+                            <th style="padding: 16px; color: white; font-weight: 600; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #1B5E20;">Education Level</th>
+                          </tr>
+                        </thead>
+                        <tbody id="scholarsTableBody" style="background: white;">
+                          <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td colspan="3" class="text-center" style="padding: 24px; color: #666; font-size: 14px;">Loading...</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1718,8 +1803,27 @@ include 'dashboard.php';
         }
       }
 
+      // Update time in real-time
+      function updateTime() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        const timeString = `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`;
+        const timeElement = document.getElementById('currentTime');
+        if (timeElement) {
+          timeElement.textContent = timeString;
+        }
+      }
+
+      // Update time every second
+      setInterval(updateTime, 1000);
+
       // Initialize charts when DOM is ready
       document.addEventListener('DOMContentLoaded', function() {
+        updateTime(); // Initialize time immediately
         console.log('DOM Content Loaded - Initializing charts...');
 
         // Debug: Log the data
@@ -3039,7 +3143,7 @@ include 'dashboard.php';
         if (!tbody) return;
 
         if (data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="text-center">No records found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding:24px; color:#666; font-size:14px;">No records found</td></tr>';
           return;
         }
 
@@ -3048,27 +3152,33 @@ include 'dashboard.php';
           const statusClass = getStatusClass(row.Status);
           const resubmitDate = row.DateOfResubmitting || '';
           html += `
-            <tr>
-              <td style="font-size: 12px;">${escapeHtml(row.Name)}</td>
-              <td><span class="badge ${statusClass}" style="font-size: 10px;">${escapeHtml(row.Status)}</span></td>
-              <td style="font-size: 11px;">${escapeHtml(row.EducationLevel)}</td>
-              <td style="font-size: 11px;">${row.DateApplied}</td>
-              <td style="font-size: 11px;">
+            <tr style="border-bottom: 1px solid #f0f0f0; transition: all 0.2s;" 
+                onmouseover="this.style.backgroundColor='#f8fdf9'; this.style.transform='scale(1.01)'" 
+                onmouseout="this.style.backgroundColor='white'; this.style.transform='scale(1)'">
+              <td style="padding: 14px 16px; font-size: 14px; color: #333; font-weight: 500;">${escapeHtml(row.Name)}</td>
+              <td style="padding: 14px 16px;"><span class="badge ${statusClass}" style="padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;">${escapeHtml(row.Status)}</span></td>
+              <td style="padding: 14px 16px; font-size: 14px; color: #555;">${escapeHtml(row.EducationLevel)}</td>
+              <td style="padding: 14px 16px; font-size: 13px; color: #666;">${row.DateApplied}</td>
+              <td style="padding: 14px 16px;">
                 <input type="date"
                   class="form-control form-control-sm"
                   value="${resubmitDate}"
                   min="2025-09-01"
                   max="2026-02-28"
                   onchange="updateResubmitDate(${row.ApplicationID}, this.value)"
-                  style="font-size: 10px; padding: 2px 4px;">
+                  style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 13px; width: 150px; transition: all 0.2s; background: white;"
+                  onfocus="this.style.borderColor='#4CAF50'; this.style.boxShadow='0 0 0 3px rgba(76, 175, 80, 0.1)'"
+                  onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
               </td>
-              <td style="text-align: center;">
+              <td style="text-align: center; padding: 14px 16px;">
                 ${resubmitDate ? `<button onclick="printKatunayanForm(${row.ApplicationID}, '${escapeHtml(row.Name)}', '${resubmitDate}')"
-                  class="btn btn-sm btn-success no-print"
-                  style="padding: 4px 8px; font-size: 11px;"
+                  class="btn btn-sm no-print"
+                  style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); color: white; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);"
+                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(76, 175, 80, 0.4)'"
+                  onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(76, 175, 80, 0.3)'"
                   title="Print Katunayan Form">
-                  <i class="fas fa-print"></i>
-                </button>` : '<span style="color: #999; font-size: 10px;">No date set</span>'}
+                  <i class="fas fa-print"></i> Print
+                </button>` : '<span style="color: #999; font-size: 12px;">No date set</span>'}
               </td>
             </tr>
           `;
@@ -3118,7 +3228,7 @@ include 'dashboard.php';
         if (!tbody) return;
 
         if (data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="3" class="text-center">No scholars found for September to February</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="3" class="text-center" style="padding:24px; color:#666; font-size:14px;">No scholars found for September to February</td></tr>';
           return;
         }
 
@@ -3126,10 +3236,12 @@ include 'dashboard.php';
         data.forEach(row => {
           const statusClass = getStatusClass(row.Status);
           html += `
-            <tr>
-              <td>${escapeHtml(row.Name)}</td>
-              <td><span class="badge ${statusClass}">${escapeHtml(row.Status)}</span></td>
-              <td>${escapeHtml(row.EducationLevel)}</td>
+            <tr style="border-bottom: 1px solid #f0f0f0; transition: all 0.2s;" 
+                onmouseover="this.style.backgroundColor='#f8fdf9'; this.style.transform='scale(1.01)'" 
+                onmouseout="this.style.backgroundColor='white'; this.style.transform='scale(1)'">
+              <td style="padding: 14px 16px; font-size: 14px; color: #333; font-weight: 500;">${escapeHtml(row.Name)}</td>
+              <td style="padding: 14px 16px;"><span class="badge ${statusClass}" style="padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;">${escapeHtml(row.Status)}</span></td>
+              <td style="padding: 14px 16px; font-size: 14px; color: #555;">${escapeHtml(row.EducationLevel)}</td>
             </tr>
           `;
         });

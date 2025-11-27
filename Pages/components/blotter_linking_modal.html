@@ -1,0 +1,527 @@
+<!-- Blotter User Linking Modal and Interface -->
+<style>
+    .blotter-link-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .blotter-link-modal.active {
+        display: flex;
+    }
+    
+    .blotter-link-content {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .blotter-link-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e3f2fd;
+    }
+    
+    .blotter-link-header h2 {
+        margin: 0;
+        color: #1976d2;
+        font-size: 1.5rem;
+    }
+    
+    .blotter-close-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #666;
+    }
+    
+    .blotter-close-btn:hover {
+        color: #000;
+    }
+    
+    .link-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .link-section label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .link-section input,
+    .link-section select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        box-sizing: border-box;
+    }
+    
+    .match-list {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 0.5rem;
+    }
+    
+    .match-item {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .match-item:last-child {
+        border-bottom: none;
+    }
+    
+    .match-item:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .match-item.selected {
+        background-color: #e3f2fd;
+        border-left: 4px solid #1976d2;
+    }
+    
+    .match-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .match-name {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .match-email {
+        color: #666;
+        font-size: 0.85rem;
+    }
+    
+    .match-status {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .match-status.verified {
+        background-color: #c8e6c9;
+        color: #1b5e20;
+    }
+    
+    .match-status.unverified {
+        background-color: #fff9c4;
+        color: #f57f17;
+    }
+    
+    .confirmation-section {
+        background-color: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 1rem;
+        border-radius: 4px;
+        margin: 1rem 0;
+    }
+    
+    .confirmation-section h4 {
+        margin-top: 0;
+        color: #e65100;
+    }
+    
+    .confirmation-section input[type="checkbox"] {
+        margin-right: 0.5rem;
+    }
+    
+    .confirmation-text {
+        font-size: 0.9rem;
+        color: #555;
+        margin: 0.5rem 0;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+    }
+    
+    .btn-search,
+    .btn-link,
+    .btn-cancel {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-search {
+        background-color: #2196f3;
+        color: white;
+    }
+    
+    .btn-search:hover {
+        background-color: #1976d2;
+    }
+    
+    .btn-search:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+    
+    .btn-link {
+        background-color: #4caf50;
+        color: white;
+    }
+    
+    .btn-link:hover {
+        background-color: #388e3c;
+    }
+    
+    .btn-link:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+    
+    .btn-cancel {
+        background-color: #f44336;
+        color: white;
+    }
+    
+    .btn-cancel:hover {
+        background-color: #d32f2f;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 1rem;
+        color: #666;
+    }
+    
+    .loading::after {
+        content: '';
+        animation: dots 1.5s steps(4, end) infinite;
+    }
+    
+    @keyframes dots {
+        0%, 20% { content: ''; }
+        40% { content: '.'; }
+        60% { content: '..'; }
+        80%, 100% { content: '...'; }
+    }
+    
+    .alert {
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+    
+    .alert-success {
+        background-color: #c8e6c9;
+        color: #1b5e20;
+        border: 1px solid #81c784;
+    }
+    
+    .alert-error {
+        background-color: #ffcdd2;
+        color: #c62828;
+        border: 1px solid #ef5350;
+    }
+    
+    .alert-warning {
+        background-color: #fff9c4;
+        color: #f57f17;
+        border: 1px solid #fbc02d;
+    }
+    
+    .blotter-link-btn {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #1976d2;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: background-color 0.2s;
+    }
+    
+    .blotter-link-btn:hover {
+        background-color: #1565c0;
+    }
+</style>
+
+<!-- Modal -->
+<div id="blotterLinkModal" class="blotter-link-modal">
+    <div class="blotter-link-content">
+        <div class="blotter-link-header">
+            <h2>Link Blotter to User Account</h2>
+            <button class="blotter-close-btn" onclick="closeBlotterLinkModal()">&times;</button>
+        </div>
+        
+        <div id="blotterLinkAlert"></div>
+        
+        <div class="link-section">
+            <label for="blotterId">Blotter ID:</label>
+            <input type="text" id="blotterId" placeholder="Enter Blotter ID" />
+            <small style="color: #666;">The ID of the blotter record you want to link</small>
+        </div>
+        
+        <button class="btn-search" onclick="searchBlotterMatches()">Search for Matching Users</button>
+        
+        <div id="matchesContainer" style="display: none; margin-top: 1.5rem;">
+            <label>Matching Users:</label>
+            <div id="matchesList" class="match-list"></div>
+        </div>
+        
+        <div id="selectedUserInfo" style="display: none; margin-top: 1.5rem; padding: 1rem; background-color: #f5f5f5; border-radius: 4px;">
+            <p><strong>Selected User:</strong></p>
+            <p id="selectedUserName" style="margin: 0; font-size: 1.1rem;"></p>
+            <p id="selectedUserDetails" style="margin: 0.5rem 0 0 0; color: #666; font-size: 0.9rem;"></p>
+        </div>
+        
+        <div class="confirmation-section" id="confirmationSection" style="display: none;">
+            <h4><i class="fas fa-exclamation-circle"></i> Link Confirmation</h4>
+            <p class="confirmation-text">This will link the blotter record to the user's account. The user will:</p>
+            <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.9rem;">
+                <li>Not be able to access services until the blotter is cleared</li>
+                <li>See a restriction notice on their dashboard</li>
+                <li>Be required to contact the barangay office</li>
+            </ul>
+            <label style="font-weight: normal; margin-top: 1rem;">
+                <input type="checkbox" id="confirmLink" />
+                <span class="confirmation-text">I confirm this is the correct user and I want to link this blotter record</span>
+            </label>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="btn-cancel" onclick="closeBlotterLinkModal()">Cancel</button>
+            <button class="btn-link" id="linkButton" onclick="confirmBlotterLink()" disabled>Link Blotter to User</button>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Functions -->
+<script>
+let selectedUserId = null;
+let selectedBlotterId = null;
+
+function openBlotterLinkModal(blotterId = null) {
+    const modal = document.getElementById('blotterLinkModal');
+    if (modal) {
+        modal.classList.add('active');
+        if (blotterId) {
+            document.getElementById('blotterId').value = blotterId;
+            selectedBlotterId = blotterId;
+            searchBlotterMatches();
+        }
+    }
+}
+
+function closeBlotterLinkModal() {
+    const modal = document.getElementById('blotterLinkModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    resetBlotterForm();
+}
+
+function resetBlotterForm() {
+    document.getElementById('blotterId').value = '';
+    document.getElementById('matchesList').innerHTML = '';
+    document.getElementById('matchesContainer').style.display = 'none';
+    document.getElementById('selectedUserInfo').style.display = 'none';
+    document.getElementById('confirmationSection').style.display = 'none';
+    document.getElementById('confirmLink').checked = false;
+    document.getElementById('linkButton').disabled = true;
+    document.getElementById('blotterLinkAlert').innerHTML = '';
+    selectedUserId = null;
+    selectedBlotterId = null;
+}
+
+function showAlert(message, type = 'success') {
+    const alertDiv = document.getElementById('blotterLinkAlert');
+    alertDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+}
+
+function searchBlotterMatches() {
+    const blotterId = document.getElementById('blotterId').value.trim();
+    
+    if (!blotterId) {
+        showAlert('Please enter a Blotter ID', 'error');
+        return;
+    }
+    
+    const matchesList = document.getElementById('matchesList');
+    matchesList.innerHTML = '<div class="loading">Searching...</div>';
+    document.getElementById('matchesContainer').style.display = 'block';
+    
+    fetch('../Process/blotter_user_linking.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=search_matches&blotter_id=' + encodeURIComponent(blotterId)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            selectedBlotterId = blotterId;
+            
+            if (data.matches.length === 0) {
+                matchesList.innerHTML = '<div style="padding: 1rem; text-align: center; color: #666;">No matching users found</div>';
+                showAlert('No users found with matching name. You may need to create this record manually.', 'warning');
+            } else {
+                matchesList.innerHTML = data.matches.map(user => `
+                    <div class="match-item" onclick="selectUser(${user.user_id}, '${user.name}', '${user.email}', '${user.contact}', '${user.status}')">
+                        <div class="match-name">${user.name}</div>
+                        <div class="match-info">
+                            <div><strong>Email:</strong> ${user.email || 'N/A'}</div>
+                            <div><strong>Contact:</strong> ${user.contact || 'N/A'}</div>
+                        </div>
+                        <div style="margin-top: 0.5rem;">
+                            <span class="match-status ${user.status === 'verified' ? 'verified' : 'unverified'}">
+                                ${user.status === 'verified' ? 'Verified' : 'Unverified'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+                
+                showAlert(`Found ${data.matches.length} matching user(s). Select one to continue.`, 'success');
+            }
+        } else {
+            matchesList.innerHTML = '';
+            document.getElementById('matchesContainer').style.display = 'none';
+            showAlert(data.error || 'Search failed', 'error');
+        }
+    })
+    .catch(error => {
+        matchesList.innerHTML = '';
+        document.getElementById('matchesContainer').style.display = 'none';
+        showAlert('Error: ' + error.message, 'error');
+    });
+}
+
+function selectUser(userId, name, email, contact, status) {
+    selectedUserId = userId;
+    
+    // Update selected item styling
+    document.querySelectorAll('.match-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    event.target.closest('.match-item').classList.add('selected');
+    
+    // Show selected user info
+    document.getElementById('selectedUserName').textContent = name;
+    document.getElementById('selectedUserDetails').innerHTML = `
+        <strong>Email:</strong> ${email || 'N/A'}<br>
+        <strong>Contact:</strong> ${contact || 'N/A'}<br>
+        <strong>Status:</strong> <span class="match-status ${status === 'verified' ? 'verified' : 'unverified'}">
+            ${status === 'verified' ? 'Verified' : 'Unverified'}
+        </span>
+    `;
+    
+    document.getElementById('selectedUserInfo').style.display = 'block';
+    document.getElementById('confirmationSection').style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheckbox = document.getElementById('confirmLink');
+    const linkButton = document.getElementById('linkButton');
+    
+    if (confirmCheckbox) {
+        confirmCheckbox.addEventListener('change', function() {
+            linkButton.disabled = !this.checked || !selectedUserId;
+        });
+    }
+});
+
+function confirmBlotterLink() {
+    if (!selectedUserId || !selectedBlotterId) {
+        showAlert('Please select a user and blotter', 'error');
+        return;
+    }
+    
+    if (!document.getElementById('confirmLink').checked) {
+        showAlert('Please confirm the link', 'error');
+        return;
+    }
+    
+    const linkButton = document.getElementById('linkButton');
+    linkButton.disabled = true;
+    linkButton.textContent = 'Linking...';
+    
+    fetch('../Process/blotter_user_linking.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=link_blotter_to_user&blotter_id=' + encodeURIComponent(selectedBlotterId) + 
+              '&user_id=' + selectedUserId + 
+              '&confirm=1'
+    })
+    .then(response => response.json())
+    .then(data => {
+        linkButton.disabled = false;
+        linkButton.textContent = 'Link Blotter to User';
+        
+        if (data.success) {
+            showAlert(data.message, 'success');
+            setTimeout(() => {
+                closeBlotterLinkModal();
+                if (window.location.reload) {
+                    window.location.reload();
+                }
+            }, 2000);
+        } else {
+            showAlert(data.error || 'Failed to link blotter', 'error');
+        }
+    })
+    .catch(error => {
+        linkButton.disabled = false;
+        linkButton.textContent = 'Link Blotter to User';
+        showAlert('Error: ' + error.message, 'error');
+    });
+}
+
+// Close modal on outside click
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('blotterLinkModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeBlotterLinkModal();
+            }
+        });
+    }
+});
+</script>

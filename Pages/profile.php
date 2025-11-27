@@ -7,6 +7,7 @@ error_reporting(E_ALL);
 require_once __DIR__ . '/../config/session_resident.php';
 
 require_once '../Process/db_connection.php';
+require_once '../Process/notification_modal.php';
 
 if (!isset($_SESSION['user_id'])) {
   header("Location: ../Login/login.php");
@@ -282,6 +283,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["update_profile"])) {
     $_SESSION['profile_message_type'] = "success";
     $_SESSION['firstname'] = $firstname;
     $_SESSION['lastname'] = $lastname;
+
+        // Show verification modal
+    showNotificationModal(
+        "To complete your verification, please proceed to the barangay office to validate all your credentials. Thank you!",
+        "info",
+        "Next Steps"
+    );
+
   } else {
     $_SESSION['profile_message'] = "Error updating profile: " . $stmt->error;
     $_SESSION['profile_message_type'] = "error";
@@ -1677,6 +1686,7 @@ $stmt->close();
       validateForm();
     }
   </script>
+  <?php renderNotificationModal(); ?>
 </body>
 
 </html>

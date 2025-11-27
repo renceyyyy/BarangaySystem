@@ -44,7 +44,7 @@ require_once '../Process/db_connection.php';
     <div class="row">
       <!-- Sidebar -->
       <div class="col-12 col-md-2 sidebar">
-        <img src="/Capstone/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
+        <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
         <button class="sidebar-btn" type="button" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
@@ -73,7 +73,7 @@ require_once '../Process/db_connection.php';
 
 
         <button class="sidebar-btn" type="button" onclick="showPanel('onlineComplaintsPanel')">
-          <i class="fas fa-comments"></i> Online Complaints
+          <i class="fas fa-comments"></i> Resident Complaints
         </button>
 
         <!-- <button class="sidebar-btn" type="button" onclick="showPanel('blotterComplaintPanel')">
@@ -10007,7 +10007,13 @@ function releaseNoBirthCertDocument(id) {
               .then(res => res.json())
               .then(data => {
                 if (data.success) {
-                  alert('Solution submitted successfully! The resident will be notified to verify.');
+                  // Show different messages depending on whether a matching resident can verify
+                  if (data.auto_resolved) {
+                    alert('Solution submitted successfully and the complaint is set as resolved.');
+                  } else {
+                    alert('Solution submitted successfully! The resident will be notified to verify.');
+                  }
+
                   closeViewComplaintModal();
                   // Reload page to refresh complaint list
                   location.reload();

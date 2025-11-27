@@ -1459,8 +1459,38 @@ unset($_SESSION['verification_notification']);
                 hour: '2-digit', minute: '2-digit'
             });
         }
+
+
+        // Helper - are any modals open?
+        function areModalsOpen() {
+            const vModal = document.getElementById('complaintVerificationModal');
+            const rModal = document.getElementById('rejectionReasonModal');
+            return (vModal && vModal.style.display !== 'none') || (rModal && rModal.style.display !== 'none');
+        }
+
+        // Helper - remove banner with animation
+        function removeBanner() {
+            if (!currentBanner) return;
+            currentBanner.style.animation = 'slideOutRight 0.4s';
+            setTimeout(() => {
+                if (currentBanner && currentBanner.parentNode) {
+                    currentBanner.parentNode.removeChild(currentBanner);
+                }
+                currentBanner = null;
+            }, 400);
+        }
         
         function showVerificationBanner(data) {
+
+            // Don't show banner while modal open
+            if (areModalsOpen()) {
+                // ensure banner is hidden if modals appear
+                if (currentBanner) removeBanner();
+                console.debug('[COMPLAINT VERIFY] Modal open - skipping banner');
+                return;
+            }
+
+
             // Remove existing banner
             if (currentBanner) {
                 currentBanner.remove();
@@ -1504,19 +1534,16 @@ unset($_SESSION['verification_notification']);
                     pendingVerifications = data.pending || [];
                     
                     if (pendingVerifications.length > 0) {
-                        // Show the first pending verification
-                        showVerificationBanner(pendingVerifications[0]);
+                        // Show the first pending verification only if modals are not open
+                        if (!areModalsOpen()) {
+                            showVerificationBanner(pendingVerifications[0]);
+                        } else {
+                            // If modals are open, ensure banner removed
+                            if (currentBanner) removeBanner();
+                        }
                     } else {
                         // No pending verifications, remove banner if exists
-                        if (currentBanner) {
-                            currentBanner.style.animation = 'slideOutRight 0.4s';
-                            setTimeout(() => {
-                                if (currentBanner) {
-                                    currentBanner.remove();
-                                    currentBanner = null;
-                                }
-                            }, 400);
-                        }
+                        if (currentBanner) removeBanner();
                     }
                 })
                 .catch(err => console.error('[COMPLAINT VERIFY] Error:', err));
@@ -1540,20 +1567,19 @@ unset($_SESSION['verification_notification']);
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
+                    // Close verification modal only after server confirms success
+                    const verifyModal = document.getElementById('complaintVerificationModal');
+                    if (verifyModal) verifyModal.style.display = 'none';
+
+                    // Remove banner on success
+                    if (currentBanner) removeBanner();
+
+                    // Refresh pending checks
+                    checkPendingVerifications();
+
                     showNotification(data.message, 'success');
-                    // Remove banner
-                    if (currentBanner) {
-                        currentBanner.style.animation = 'slideOutRight 0.4s';
-                        setTimeout(() => {
-                            if (currentBanner) {
-                                currentBanner.remove();
-                                currentBanner = null;
-                            }
-                            // Check for more pending
-                            checkPendingVerifications();
-                        }, 400);
-                    }
                 } else {
+                    // Keep modal open on error; show error message
                     showNotification(data.message || 'Failed to approve', 'error');
                 }
             })
@@ -1564,6 +1590,9 @@ unset($_SESSION['verification_notification']);
         };
         
         window.openRejectionModal = function(complaintId, logId) {
+            // Hide banner when showing rejection modal
+            if (currentBanner) removeBanner();
+
             document.getElementById('rejectComplaintId').value = complaintId;
             document.getElementById('rejectLogId').value = logId;
             document.getElementById('rejectionReasonText').value = '';
@@ -1572,6 +1601,8 @@ unset($_SESSION['verification_notification']);
         
         window.closeRejectionModal = function() {
             document.getElementById('rejectionReasonModal').style.display = 'none';
+            // Recheck pending verifications and show banner if there are any
+            setTimeout(checkPendingVerifications, 200);
         };
         
         window.submitRejection = function() {
@@ -1598,19 +1629,11 @@ unset($_SESSION['verification_notification']);
             .then(data => {
                 if (data.success) {
                     showNotification(data.message, 'success');
-                    closeRejectionModal();
-                    // Remove banner
-                    if (currentBanner) {
-                        currentBanner.style.animation = 'slideOutRight 0.4s';
-                        setTimeout(() => {
-                            if (currentBanner) {
-                                currentBanner.remove();
-                                currentBanner = null;
-                            }
-                            // Check for more pending
-                            checkPendingVerifications();
-                        }, 400);
-                    }
+                    // Close rejection modal and remove banner if present
+                    document.getElementById('rejectionReasonModal').style.display = 'none';
+                    if (currentBanner) removeBanner();
+                    // Check for more pending
+                    setTimeout(checkPendingVerifications, 200);
                 } else {
                     showNotification(data.message || 'Failed to reject', 'error');
                 }
@@ -1625,6 +1648,9 @@ unset($_SESSION['verification_notification']);
             // Find the complaint data
             const complaint = pendingVerifications.find(p => p.complaint_id == complaintId);
             if (!complaint) return;
+
+            // Hide banner when showing the modal
+            if (currentBanner) removeBanner();
             
             const modal = document.getElementById('complaintVerificationModal');
             const details = document.getElementById('verificationDetails');
@@ -1667,6 +1693,8 @@ unset($_SESSION['verification_notification']);
         
         window.closeVerificationModal = function() {
             document.getElementById('complaintVerificationModal').style.display = 'none';
+            // Recheck pending verifications and show banner if there are any
+            setTimeout(checkPendingVerifications, 200);
         };
         
         // Close modals when clicking outside
@@ -1675,9 +1703,11 @@ unset($_SESSION['verification_notification']);
             const rejectModal = document.getElementById('rejectionReasonModal');
             if (e.target === verifyModal) {
                 verifyModal.style.display = 'none';
+                setTimeout(checkPendingVerifications, 200);
             }
             if (e.target === rejectModal) {
                 rejectModal.style.display = 'none';
+                setTimeout(checkPendingVerifications, 200);
             }
         });
         

@@ -3171,7 +3171,7 @@ include 'dashboard.php';
                   onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
               </td>
               <td style="text-align: center; padding: 14px 16px;">
-                ${resubmitDate ? `<button onclick="printKatunayanForm(${row.ApplicationID}, '${escapeHtml(row.Name)}', '${resubmitDate}')"
+                ${resubmitDate ? `<button onclick="printKatunayanForm(${row.ApplicationID}, '${escapeJs(row.Name)}', '${escapeJs(resubmitDate)}')"
                   class="btn btn-sm no-print"
                   style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); color: white; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);"
                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(76, 175, 80, 0.4)'"
@@ -3280,6 +3280,17 @@ include 'dashboard.php';
         return text ? text.replace(/[&<>"']/g, m => map[m]) : '';
       }
 
+      // Escape JavaScript strings to prevent breaking onclick handlers
+      function escapeJs(text) {
+        if (!text) return '';
+        return String(text)
+          .replace(/\\/g, '\\\\')
+          .replace(/'/g, "\\'")
+          .replace(/"/g, '\\"')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r');
+      }
+
       // ===== PRINT REPORT FUNCTION =====
       function printReport() {
         // Add print date to report container
@@ -3302,18 +3313,21 @@ include 'dashboard.php';
         // Open new window for printing
         const printWindow = window.open('', '_blank', 'width=800,height=600');
 
+        // Escape the applicant name for safe HTML output
+        const safeName = applicantName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
         // Parse the resubmit date (format: YYYY-MM-DD)
         const [year, month, day] = resubmitDate.split('-').map(num => parseInt(num));
         const resubmitDateObj = new Date(year, month - 1, day);
-        const formattedDate = resubmitDateObj.toLocaleDateString('en-US', {
+        const formattedResubmitDate = resubmitDateObj.toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
           day: 'numeric'
         });
 
-        // Get current date
+        // Get current date for when the form is issued
         const today = new Date();
-        const currentDate = today.toLocaleDateString('en-US', {
+        const formattedIssueDate = today.toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
           day: 'numeric'
@@ -3324,7 +3338,7 @@ include 'dashboard.php';
           <!DOCTYPE html>
           <html>
           <head>
-            <title>Katunayan - ${applicantName}</title>
+            <title>Katunayan - ${safeName}</title>
             <style>
               body {
                 font-family: Arial, sans-serif;
@@ -3377,18 +3391,18 @@ include 'dashboard.php';
               <h2 style="text-align: center; margin: 30px 0;">KATUNAYAN</h2>
 
               <p style="text-indent: 50px;">
-                Ito ay nagpapatunay na si <strong>${applicantName}</strong> ay nag-apply para sa
+                Ito ay nagpapatunay na si <strong>${safeName}</strong> ay nag-apply para sa
                 Sangguniang Kabataan Scholarship Program at nakatanggap ng pahintulot na
                 muling magsumite ng kumpletong requirements.
               </p>
 
               <p style="text-indent: 50px;">
                 Ang aplikante ay inaasahang magsusumite ng lahat ng kinakailangang dokumento
-                sa o bago ang <strong>${formattedDate}</strong>.
+                sa o bago ang <strong>${formattedResubmitDate}</strong>.
               </p>
 
               <p style="text-indent: 50px;">
-                Ang katunayang ito ay inisyu ngayong <strong>${currentDate}</strong> para sa
+                Ang katunayang ito ay inisyu ngayong <strong>${formattedIssueDate}</strong> para sa
                 anumang legal na layunin na maaaring kailanganin.
               </p>
             </div>

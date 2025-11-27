@@ -1,10 +1,19 @@
 <?php
-session_start();
+// Initialize role-based session for SK users
+require_once __DIR__ . '/../config/session_config.php';
+initRoleBasedSession('sk');
+
 header('Content-Type: application/json');
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
+// Check if user is logged in with proper role
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
     echo json_encode(['success' => false, 'message' => 'Not authenticated']);
+    exit();
+}
+
+// Security check - only sk users allowed to update resubmit dates
+if ($_SESSION['role'] !== 'sk') {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
     exit();
 }
 

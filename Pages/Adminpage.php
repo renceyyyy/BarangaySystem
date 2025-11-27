@@ -3859,7 +3859,14 @@ function reloadItemRequestsPanel(message) {
                   <input type="text" id="view_complaint_status" readonly>
                 </div>
 
-                <hr>
+                
+                <!-- Complaint Logs History Section -->
+                <hr id="complaintLogsHrBefore" style="display: none;">
+                <h3 id="complaintLogsHeader" style="display: none;">Complaint Logs History</h3>
+                <div id="complaint_logs_container" style="display:none; flex-direction:column; gap:20px;">
+                  <!-- Logs will be loaded here as form-style sections -->
+                </div>
+                <hr id="complaintLogsHrAfter" style="display: none;">
 
                 <!-- Evidence/Uploaded Files -->
                 <h3>Evidence Files</h3>
@@ -3877,6 +3884,7 @@ function reloadItemRequestsPanel(message) {
                     </tbody>
                   </table>
                 </div>
+                <hr>
 
                 <!-- NEW: Process Complaint Button (shown only for Pending status) -->
                 <div id="processComplaintSection" style="display:none; margin-bottom:20px;">
@@ -3888,6 +3896,7 @@ function reloadItemRequestsPanel(message) {
                 <!-- NEW: Solution Form Section (shown after processing starts) -->
                 <div id="solutionFormSection" style="display:none;">
                   <h3>Barangay Solution</h3>
+                  
                   <div class="form-group">
                     <label>Performed By <span style="color:red;">*</span></label>
                     <input type="text" id="performed_by" placeholder="Enter name of staff handling this complaint" required>
@@ -8840,6 +8849,8 @@ function releaseNoBirthCertDocument(id) {
             </script>
               
             
+
+
             <!-- View Complaint Modal Script -->
             <!-- filepath: d:\xampp\htdocs\BarangaySampaguita\BarangaySystem\Pages\Adminpage.php -->
             <script>
@@ -8944,6 +8955,9 @@ function releaseNoBirthCertDocument(id) {
                         </tr>
                       `;
                     }
+
+                    // ✅ FETCH COMPLAINT LOGS - THIS WAS MISSING!
+                    fetchComplaintLogs(complaint.CmpID);
                     
                     // Show the modal
                     document.getElementById('viewComplaintModal').style.display = 'flex';
@@ -8954,6 +8968,119 @@ function releaseNoBirthCertDocument(id) {
                   });
               });
             });
+
+
+            // NEW: Fetch complaint logs from database
+            function fetchComplaintLogs(complaintId) {
+              fetch('../Process/online_complaints/get_complaint_logs.php?complaint_id=' + encodeURIComponent(complaintId))
+                .then(response => response.json())
+                .then(data => {
+                  const logsHeader = document.getElementById('complaintLogsHeader');
+                  const logsContainer = document.getElementById('complaint_logs_container');
+                  const hrBefore = document.getElementById('complaintLogsHrBefore');
+                  const hrAfter = document.getElementById('complaintLogsHrAfter');
+                  
+                  
+                  if (!data.success || !data.logs || data.logs.length === 0) {
+                    logsHeader.style.display = 'none';
+                    logsContainer.style.display = 'none';
+                    hrBefore.style.display = 'none';
+                    hrAfter.style.display = 'none';
+                    
+                    return;
+                  }
+
+                  // Show the section if logs exist
+                  logsHeader.style.display = 'block';
+                  logsContainer.style.display = 'flex';
+                  hrBefore.style.display = 'block';
+                  hrAfter.style.display = 'block';
+
+  
+
+                  logsContainer.innerHTML = '';
+                  
+                  data.logs.forEach((log, index) => {
+                    const createdDate = log.created_at ? new Date(log.created_at).toLocaleString('en-US', {
+                      year: 'numeric', month: 'short', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit'
+                    }) : 'N/A';
+
+                    // Status badge styling
+                    let statusBadge = '';
+                    let statusColor = '#856404'; // pending
+                    if (log.user_verification === 'approved') {
+                      statusBadge = 'Approved';
+                      statusColor = '#155724';
+                    } else if (log.user_verification === 'rejected') {
+                      statusBadge = 'Rejected';
+                      statusColor = '#721c24';
+                    } else {
+                      statusBadge = 'Pending';
+                    }
+                    
+                    // Build form-style section
+                    const logSection = document.createElement('div');
+                    logSection.style.cssText = 'border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9;';
+                    
+                    let html = `
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
+                        <div>
+                          <label style="font-weight: 600; color: #333; font-size: 14px; display: block; margin-bottom: 5px;">Complaint Log ID</label>
+                          <input type="text" value="${log.Cmp_log_id || 'N/A'}" readonly style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background-color: #fff; font-size: 14px;">
+                        </div>
+                        <div>
+                          <label style="font-weight: 600; color: #333; font-size: 14px; display: block; margin-bottom: 5px;">Created Date</label>
+                          <input type="text" value="${createdDate}" readonly style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background-color: #fff; font-size: 14px;">
+                        </div>
+                      </div>
+                      
+                      <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; color: #333; font-size: 14px; display: block; margin-bottom: 5px;">Solution Details</label>
+                        <textarea readonly style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; background-color: #fff; font-size: 14px; min-height: 100px; font-family: Arial, sans-serif;">${log.brgy_solution_logs || 'N/A'}</textarea>
+                      </div>
+                      
+                      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 15px;">
+                        <div>
+                          <label style="font-weight: 600; color: #333; font-size: 14px; display: block; margin-bottom: 5px;">Handled By</label>
+                          <input type="text" value="${log.performed_by || 'N/A'}" readonly style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background-color: #fff; font-size: 14px;">
+                        </div>
+                        <div>
+                          <label style="font-weight: 600; color: #333; font-size: 14px; display: block; margin-bottom: 5px;">Verification Status</label>
+                          <div style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background-color: #fff; font-size: 14px; font-weight: 600; color: ${statusColor};">${statusBadge}</div>
+                        </div>
+                      </div>
+                    `;
+                    
+                    // Conditionally add rejection reason if status is rejected
+                    if (log.user_verification === 'rejected' && log.rejection_reason) {
+                      html += `
+                        <div style="margin-bottom: 0;">
+                          <label style="font-weight: 600; color: #d32f2f; font-size: 14px; display: block; margin-bottom: 5px;">Rejection Reason</label>
+                          <textarea readonly style="width: 100%; padding: 12px; border: 1px solid #f8d7da; border-radius: 4px; background-color: #fff; font-size: 14px; min-height: 80px; font-family: Arial, sans-serif; color: #721c24;">${log.rejection_reason}</textarea>
+                        </div>
+                      `;
+                    }
+                    
+                    logSection.innerHTML = html;
+                    logsContainer.appendChild(logSection);
+                  });
+                })
+                .catch(error => {
+                  console.error('Error fetching logs:', error);
+                  const logsHeader = document.getElementById('complaintLogsHeader');
+                  const logsContainer = document.getElementById('complaint_logs_container');
+                  const hrBefore = document.getElementById('complaintLogsHrBefore');
+                  const hrAfter = document.getElementById('complaintLogsHrAfter');
+                  logsHeader.style.display = 'none';
+                  logsContainer.style.display = 'none';
+                  hrBefore.style.display = 'none';
+                  hrAfter.style.display = 'none';
+                });
+            }
+
+
+
 
             // Handle "Process Complaint" button click
             document.getElementById('processComplaintBtn')?.addEventListener('click', function() {

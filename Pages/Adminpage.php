@@ -2728,14 +2728,41 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
       <form method="POST">
         <input type="hidden" name="returnId" id="returnId">
         <label>Damage Status:</label><br>
-        <select name="damageStatus" required>
+        <select name="damageStatus" id="damageStatusSelect" required onchange="toggleDamageResolution()">
           <option value="Good">Good</option>
           <option value="Damaged">Damaged</option>
         </select><br><br>
+        
+        <div id="damageResolutionDiv" style="display:none;">
+          <label style="color: #d9534f; font-weight: 600;">Damage Resolution:</label><br>
+          <select name="damageResolution" id="damageResolutionSelect">
+            <option value="">-- Select Resolution --</option>
+            <option value="Replace">Replace the Item</option>
+            <option value="Pay">Pay for the Damage</option>
+          </select><br><br>
+        </div>
+        
         <button type="submit" name="processReturn">Submit Return</button>
       </form>
     </div>
   </div>
+  
+  <script>
+  function toggleDamageResolution() {
+    const damageStatus = document.getElementById('damageStatusSelect').value;
+    const resolutionDiv = document.getElementById('damageResolutionDiv');
+    const resolutionSelect = document.getElementById('damageResolutionSelect');
+    
+    if (damageStatus === 'Damaged') {
+      resolutionDiv.style.display = 'block';
+      resolutionSelect.required = true;
+    } else {
+      resolutionDiv.style.display = 'none';
+      resolutionSelect.required = false;
+      resolutionSelect.value = '';
+    }
+  }
+  </script>
 
   <!-- Modal: View Request Details -->
   <div id="requestDetailsModal" class="details-view-modal">
@@ -2772,6 +2799,7 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
           <th>DATE NEEDED</th>
           <th>STATUS</th>
           <th>CONDITION</th>
+          <th>RESOLUTION</th>
           <th>ACTION</th>
         </tr>
       </thead>
@@ -2856,23 +2884,38 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
         if (isset($_POST['processReturn'])) {
           $id = (int) $_POST['returnId'];
           $damageStatus = $_POST['damageStatus'];
+          $damageResolution = isset($_POST['damageResolution']) ? $_POST['damageResolution'] : null;
           $returnDate = date('Y-m-d H:i:s');
 
-          $q = $conn->query("SELECT item, quantity FROM tblitemrequest WHERE id=$id AND RequestStatus='On Loan'")->fetch_assoc();
-          if ($q) {
-            $conn->query("UPDATE inventory SET on_loan = GREATEST(on_loan - {$q['quantity']}, 0) WHERE item_name = '{$q['item']}'");
+          // Validate damage resolution if item is damaged
+          if ($damageStatus === 'Damaged' && empty($damageResolution)) {
+            $message = "Error: Please select a damage resolution option (Replace or Pay).";
+            echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
+          } else {
+            $q = $conn->query("SELECT item, quantity, name FROM tblitemrequest WHERE id=$id AND RequestStatus='On Loan'")->fetch_assoc();
+            if ($q) {
+              $conn->query("UPDATE inventory SET on_loan = GREATEST(on_loan - {$q['quantity']}, 0) WHERE item_name = '{$q['item']}'");
 
-            if ($damageStatus === 'Damaged') {
-              $conn->query("UPDATE inventory SET total_stock = GREATEST(total_stock - {$q['quantity']}, 0) WHERE item_name = '{$q['item']}'");
+              if ($damageStatus === 'Damaged') {
+                // If resident chooses to replace, don't deduct from stock (they will replace)
+                // If resident chooses to pay, deduct from stock (item is lost)
+                if ($damageResolution === 'Pay') {
+                  $conn->query("UPDATE inventory SET total_stock = GREATEST(total_stock - {$q['quantity']}, 0) WHERE item_name = '{$q['item']}'");
+                }
+                
+                // Update with damage resolution info
+                $conn->query("UPDATE tblitemrequest SET RequestStatus='Returned', return_date='$returnDate', damage_status='$damageStatus', damage_resolution='$damageResolution' WHERE id=$id");
+                $message = "Item returned as Damaged. Resident will " . ($damageResolution === 'Replace' ? "replace the item." : "pay for the damage.");
+              } else {
+                $conn->query("UPDATE tblitemrequest SET RequestStatus='Returned', return_date='$returnDate', damage_status='$damageStatus' WHERE id=$id");
+                $message = "Item returned successfully in good condition.";
+              }
+            } else {
+              $message = "Error: Invalid return request.";
             }
 
-            $conn->query("UPDATE tblitemrequest SET RequestStatus='Returned', return_date='$returnDate', damage_status='$damageStatus' WHERE id=$id");
-            $message = "Item returned successfully.";
-          } else {
-            $message = "Error: Invalid return request.";
+            echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
           }
-
-          echo "<script>alert(" . json_encode($message) . "); window.location.href='Adminpage.php?panel=itemrequestsPanel';</script>";
         }
 
         // 4) OTHER ACTION BUTTONS
@@ -2926,6 +2969,11 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
         $res = $conn->query("SELECT * FROM tblitemrequest ORDER BY date DESC");
         if ($res && $res->num_rows > 0) {
           while ($row = $res->fetch_assoc()) {
+            $damageResolution = $row['damage_resolution'] ?? 'N/A';
+            $resolutionDisplay = ($row['damage_status'] === 'Damaged' && !empty($row['damage_resolution'])) 
+              ? htmlspecialchars($row['damage_resolution']) 
+              : 'N/A';
+            
             echo "<tr>
               <td>" . htmlspecialchars($row['name']) . "</td>
               <td>" . htmlspecialchars($row['item']) . "</td>
@@ -2934,6 +2982,7 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
               <td>" . date("Y-m-d", strtotime($row["event_datetime"])) . "</td>
               <td>" . htmlspecialchars($row['RequestStatus']) . "</td>
               <td>" . htmlspecialchars($row['damage_status'] ?? 'N/A') . "</td>
+              <td>" . $resolutionDisplay . "</td>
               <td>";
 
             echo "<button class='action-btn action-view' data-id='{$row['id']}' onclick='viewRequest(this)'><i class='fa fa-eye'></i> View</button>";
@@ -2949,7 +2998,7 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
             echo "</td></tr>";
           }
         } else {
-          echo "<tr><td colspan='7'>No item requests found.</td></tr>";
+          echo "<tr><td colspan='9'>No item requests found.</td></tr>";
         }
         // Singleton connection closed by PHP
 
@@ -3600,9 +3649,17 @@ function viewRequest(btn) {
         </div>
         
         ${data.damage_status && data.damage_status !== 'N/A' ? `
-          <div style="background: ${data.damage_status === 'No Damage' ? '#d4edda' : '#f8d7da'}; border: 1px solid ${data.damage_status === 'No Damage' ? '#c3e6cb' : '#f5c6cb'}; border-radius: 8px; padding: 15px; margin-top: 15px;">
+          <div style="background: ${data.damage_status === 'No Damage' || data.damage_status === 'Good' ? '#d4edda' : '#f8d7da'}; border: 1px solid ${data.damage_status === 'No Damage' || data.damage_status === 'Good' ? '#c3e6cb' : '#f5c6cb'}; border-radius: 8px; padding: 15px; margin-top: 15px;">
             <p style="color: #6c757d; font-size: 13px; margin: 0 0 5px 0;">Damage Status</p>
-            <p style="color: ${data.damage_status === 'No Damage' ? '#155724' : '#721c24'}; font-size: 15px; margin: 0; font-weight: 600;">${data.damage_status}</p>
+            <p style="color: ${data.damage_status === 'No Damage' || data.damage_status === 'Good' ? '#155724' : '#721c24'}; font-size: 15px; margin: 0; font-weight: 600;">${data.damage_status}</p>
+            ${data.damage_resolution && data.damage_status === 'Damaged' ? `
+              <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid ${data.damage_status === 'Good' ? '#c3e6cb' : '#f5c6cb'};">
+                <p style="color: #6c757d; font-size: 13px; margin: 0 0 5px 0;">Resolution</p>
+                <p style="color: ${data.damage_resolution === 'Replace' ? '#0056b3' : '#d39e00'}; font-size: 15px; margin: 0; font-weight: 600;">
+                  ${data.damage_resolution === 'Replace' ? '🔄 Replace the Item' : '💰 Pay for Damage'}
+                </p>
+              </div>
+            ` : ''}
           </div>
         ` : ''}
       `;

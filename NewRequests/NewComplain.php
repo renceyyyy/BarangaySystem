@@ -245,7 +245,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File a Complaint</title>
+    <title>Incident Reporting</title>
     <link rel="stylesheet" href="./Style/Applications&RequestStyle.css">
     <style>
         body {
@@ -464,15 +464,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
 <body>
     <div class="overlay" id="overlay"></div>
     <div class="success-message" id="successMessage">
-        <h3>Complaint Submitted Successfully!</h3>
-        <p>Your complaint has been received and will be reviewed.</p>
+        <h3>Incident Report Submitted Successfully!</h3>
+        <p>Your incident report has been received and will be reviewed.</p>
         <p>Reference Number: <strong id="refNo"></strong></p>
-        <p>Please keep this reference number for tracking your complaint.</p>
+        <p>Please keep this reference number for tracking your incident report.</p>
         <button id="closeSuccessMessage">OK</button>
     </div>
 
     <div class="container">
-        <h1>Complain</h1>
+        <h1>Incident Reporting</h1>
 
         <div class="user-info-note">
             <strong>Note:</strong> Your personal information has been pre-filled from your profile. Please review and update if necessary.
@@ -549,11 +549,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
             </div>
 
             <div class="form-section">
-                <h2>Complaint Details</h2>
+                <h2>Incident Details</h2>
 
                 <div class="form-group">
-                    <label for="complain">Complaint Details <span class="required">*</span></label>
-                    <textarea id="complain" name="complain" placeholder="Please provide detailed information about your complaint..." required><?php echo htmlspecialchars($complain ?? ''); ?></textarea>
+                    <label for="complain">Incident Details <span class="required">*</span></label>
+                    <textarea id="complain" name="complain" placeholder="Please provide detailed information about your incident..." required><?php echo htmlspecialchars($complain ?? ''); ?></textarea>
                     <div class="file-info">Be specific about the issue, include dates, times, and any relevant details</div>
                 </div>
 
@@ -572,7 +572,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                 <a href="../Pages/landingpage.php" class="btn btn-secondary" style="background-color: #6c757d; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
                     <i class="fas fa-arrow-left"></i> Back
                 </a>
-                <button type="submit" class="btn" id="submitBtn">Submit Complaint</button>
+                <button type="submit" class="btn" id="submitBtn">Submit Incident Report</button>
             </div>
         </form>
     </div>

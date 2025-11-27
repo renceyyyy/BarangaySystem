@@ -853,7 +853,7 @@ unset($_SESSION['verification_notification']);
                                 onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Request
                                 Business Permit</a>
                             <a href="#"
-                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Complain</a>
+                                onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Incident Reporting</a>
                             <a href="#"
                                 onclick="showNotification('Your account has an active blotter record. Please contact the barangay office to resolve this matter before accessing services.', 'warning'); return false;">Apply
                                 for Scholar</a>
@@ -872,7 +872,7 @@ unset($_SESSION['verification_notification']);
                             <a href="../NewRequests/NewBusinessRequest.php">Request Business Permit / Closure</a>
 
                             <!-- Complaint -->
-                            <a href="../NewRequests/NewComplain.php">Complain</a>
+                            <a href="../NewRequests/NewComplain.php">Incident Reporting</a>
 
                             <!-- Scholarship -->
                             <a href="../NewRequests/NewScholar.php">Apply for Scholar</a>
@@ -894,7 +894,7 @@ unset($_SESSION['verification_notification']);
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Request
                                 Business Permit</a>
                             <a href="#"
-                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Complain</a>
+                                onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Incident Reporting</a>
                             <a href="#"
                                 onclick="showNotification('Please wait for admin to verify your account to access services.', 'warning'); return false;">Apply
                                 for Scholar</a>
@@ -949,7 +949,7 @@ unset($_SESSION['verification_notification']);
         <div class="modal-content" style="max-width: 550px;">
             <span class="close" onclick="closeVerificationModal()">&times;</span>
             <h2 style="color: #2e7d32; margin-bottom: 15px;">
-                <i class="fas fa-check-circle"></i> Complaint Resolution Verification
+                <i class="fas fa-check-circle"></i> Incident Report Resolution Verification
             </h2>
             <div id="verificationDetails">
                 <!-- Will be populated dynamically -->
@@ -1502,7 +1502,7 @@ unset($_SESSION['verification_notification']);
             banner.id = 'verificationBanner_' + data.complaint_id;
             
             banner.innerHTML = `
-                <h4><i class="fas fa-gavel"></i> Complaint Resolution Awaiting Your Approval</h4>
+                <h4><i class="fas fa-gavel"></i> Incident Report Resolution Awaiting Your Approval</h4>
                 <p>
                     <strong>Reference No:</strong> ${data.refno}<br>
                     <strong>Incident:</strong> ${data.incident_type || 'N/A'}<br>
@@ -1551,7 +1551,7 @@ unset($_SESSION['verification_notification']);
         
         // Global functions for button handlers
         window.approveComplaint = function(complaintId, logId) {
-            if (!confirm('Are you sure you want to approve this resolution? This confirms that your complaint has been satisfactorily resolved.')) {
+            if (!confirm('Are you sure you want to approve this resolution? This confirms that your incident report has been satisfactorily resolved.')) {
                 return;
             }
             
@@ -1673,7 +1673,7 @@ unset($_SESSION['verification_notification']);
                 </div>
                 
                 <p style="color: #666; font-style: italic; margin-bottom: 15px;">
-                    Please verify if this solution satisfactorily resolves your complaint.
+                    Please verify if this solution satisfactorily resolves your incident report.
                 </p>
                 
                 <div style="display: flex; gap: 10px;">

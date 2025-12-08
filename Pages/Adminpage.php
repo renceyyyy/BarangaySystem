@@ -46,7 +46,7 @@ require_once '../Process/db_connection.php';
       <div class="col-12 col-md-2 sidebar">
         <img src="/BarangaySampaguita/BarangaySystem/Assets/sampaguitalogo.png" alt="Logo" class="mb-4"
           style="width: 100%; max-width: 160px; border-radius: 50%;" />
-        <button class="sidebar-btn" type="button" onclick="showPanel('dashboardPanel')">
+        <button class="sidebar-btn active" type="button" onclick="showPanel('dashboardPanel')">
           <i class="fas fa-tachometer-alt"></i> Dashboard
         </button>
         <button class="sidebar-btn" type="button" onclick="showPanel('residencePanel')">
@@ -218,34 +218,85 @@ require_once '../Process/db_connection.php';
             </div>
           </div>
 
-         <div id="residencePanel" class="panel-content">
-  <h1>Account Management</h1>
+          <div id="residencePanel" class="panel-content">
+            <!-- Modern Header Section -->
+            <div class="residence-header">
+              <div class="residence-title-section">
+                <div class="residence-icon-wrapper">
+                  <i class="fas fa-users"></i>
+                </div>
+                <div>
+                  <h1 class="residence-title">Account Management</h1>
+                  <p class="residence-subtitle">Manage and monitor resident accounts by verification status</p>
+                </div>
+              </div>
 
-  <!-- Tab Navigation -->
-  <div class="tabs-container">
-    <button class="tab-btn active" type="button" onclick="switchTab(event, 'unverified')">
-      Unverified
-    </button>
-    <button class="tab-btn" type="button" onclick="switchTab(event, 'pending')">
-      Pending
-    </button>
-    <button class="tab-btn" type="button" onclick="switchTab(event, 'verified')">
-      Verified
-    </button>
-  </div>
+              <?php
+              require_once '../Process/db_connection.php';
+              $connection = getDBConnection();
 
-  <?php
-  require_once '../Process/db_connection.php';
-  $connection = getDBConnection();
+              if ($connection->connect_error) {
+                http_response_code(500);
+                echo "Database connection failed.";
+                exit;
+              }
 
-  if ($connection->connect_error) {
-    http_response_code(500);
-    echo "Database connection failed.";
-    exit;
-  }
+              // Get live statistics
+              $unverifiedCount = $connection->query("SELECT COUNT(*) as count FROM userloginfo WHERE AccountStatus = 'unverified'")->fetch_assoc()['count'];
+              $pendingCount = $connection->query("SELECT COUNT(*) as count FROM userloginfo WHERE AccountStatus = 'pending'")->fetch_assoc()['count'];
+              $verifiedCount = $connection->query("SELECT COUNT(*) as count FROM userloginfo WHERE AccountStatus = 'verified'")->fetch_assoc()['count'];
+              ?>
 
-  // Handle save user action
-  if (isset($_POST['saveUser'])) {
+              <!-- Statistics Cards -->
+              <div class="residence-stats-cards">
+                <div class="residence-stat-card unverified-card">
+                  <div class="stat-icon-wrapper">
+                    <i class="fas fa-user-clock"></i>
+                  </div>
+                  <div class="stat-info">
+                    <div class="stat-value"><?php echo $unverifiedCount; ?></div>
+                    <div class="stat-label">Unverified</div>
+                  </div>
+                </div>
+
+                <div class="residence-stat-card pending-card">
+                  <div class="stat-icon-wrapper">
+                    <i class="fas fa-hourglass-half"></i>
+                  </div>
+                  <div class="stat-info">
+                    <div class="stat-value"><?php echo $pendingCount; ?></div>
+                    <div class="stat-label">Pending</div>
+                  </div>
+                </div>
+
+                <div class="residence-stat-card verified-card">
+                  <div class="stat-icon-wrapper">
+                    <i class="fas fa-user-check"></i>
+                  </div>
+                  <div class="stat-info">
+                    <div class="stat-value"><?php echo $verifiedCount; ?></div>
+                    <div class="stat-label">Verified</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modern Tab Navigation -->
+            <div class="tabs-container">
+              <button class="tab-btn active" type="button" onclick="switchTab(event, 'unverified')">
+                <i class="fas fa-user-clock"></i> Unverified
+              </button>
+              <button class="tab-btn" type="button" onclick="switchTab(event, 'pending')">
+                <i class="fas fa-hourglass-half"></i> Pending
+              </button>
+              <button class="tab-btn" type="button" onclick="switchTab(event, 'verified')">
+                <i class="fas fa-user-check"></i> Verified
+              </button>
+            </div>
+
+            <?php
+                      // Handle save user action
+            if (isset($_POST['saveUser'])) {
     $UserID = $_POST['UserID'];
     $Firstname = $_POST['Firstname'];
     $Lastname = $_POST['Lastname'];
@@ -270,10 +321,10 @@ require_once '../Process/db_connection.php';
     } else {
       echo "Error: " . $connection->error;
     }
-  }
+            }
 
-  // Function to render table for specific status
-  function renderTableForStatus($connection, $status) {
+            // Function to render table for specific status
+            function renderTableForStatus($connection, $status) {
     $search = isset($_GET['search_lastname']) ? $connection->real_escape_string($_GET['search_lastname']) : '';
     
     if (!empty(trim($search))) {
@@ -326,176 +377,537 @@ require_once '../Process/db_connection.php';
       $rows = "<tr><td colspan='7' style='text-align: center;'>No records found</td></tr>";
     }
 
-    return $rows;
-  }
-  ?>
+              return $rows;
+            }
+            ?>
 
-  <!-- Unverified Tab -->
-  <div id="unverified" class="tab-content active">
-    <!-- Search Form -->
-    <form method="GET" action="" class="mb-3 search-form">
-      <div class="search-form-group">
-        <input type="text" name="search_lastname" class="form-control search-input"
-          placeholder="Search by Lastname"
-          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
-        <button type="submit" class="search-btn">
-          <i class="fas fa-search"></i> Search
-        </button>
-      </div>
-    </form>
+            <!-- Unverified Tab -->
+            <div id="unverified" class="tab-content active">
+              <!-- Search Form -->
+              <form method="GET" action="" class="mb-3 search-form">
+                <div class="search-form-group">
+                  <input type="text" name="search_lastname" class="form-control search-input"
+                    placeholder="Search by Lastname"
+                    value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+                  <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> Search
+                  </button>
+                </div>
+              </form>
 
-    <!-- Table -->
-    <div class="scrollable-table-container">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>FIRSTNAME</th>
-            <th>LASTNAME</th>
-            <th>MIDDLENAME</th>
-            <th>EMAIL</th>
-            <th>ACCOUNT STATUS</th>
-            <th>ACTION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php echo renderTableForStatus($connection, 'unverified'); ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
+              <!-- Table -->
+              <div class="scrollable-table-container">
+                <table class="styled-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>FIRSTNAME</th>
+                      <th>LASTNAME</th>
+                      <th>MIDDLENAME</th>
+                      <th>EMAIL</th>
+                      <th>ACCOUNT STATUS</th>
+                      <th>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php echo renderTableForStatus($connection, 'unverified'); ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-  <!-- Pending Tab -->
-  <div id="pending" class="tab-content">
-    <!-- Search Form -->
-    <form method="GET" action="" class="mb-3 search-form">
-      <div class="search-form-group">
-        <input type="text" name="search_lastname" class="form-control search-input"
-          placeholder="Search by Lastname"
-          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
-        <button type="submit" class="search-btn">
-          <i class="fas fa-search"></i> Search
-        </button>
-      </div>
-    </form>
+            <!-- Pending Tab -->
+            <div id="pending" class="tab-content">
+              <!-- Search Form -->
+              <form method="GET" action="" class="mb-3 search-form">
+                <div class="search-form-group">
+                  <input type="text" name="search_lastname" class="form-control search-input"
+                    placeholder="Search by Lastname"
+                    value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+                  <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> Search
+                  </button>
+                </div>
+              </form>
 
-    <!-- Table -->
-    <div class="scrollable-table-container">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>FIRSTNAME</th>
-            <th>LASTNAME</th>
-            <th>MIDDLENAME</th>
-            <th>EMAIL</th>
-            <th>ACCOUNT STATUS</th>
-            <th>ACTION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php echo renderTableForStatus($connection, 'pending'); ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
+              <!-- Table -->
+              <div class="scrollable-table-container">
+                <table class="styled-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>FIRSTNAME</th>
+                      <th>LASTNAME</th>
+                      <th>MIDDLENAME</th>
+                      <th>EMAIL</th>
+                      <th>ACCOUNT STATUS</th>
+                      <th>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php echo renderTableForStatus($connection, 'pending'); ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-  <!-- Verified Tab -->
-  <div id="verified" class="tab-content">
-    <!-- Search Form -->
-    <form method="GET" action="" class="mb-3 search-form">
-      <div class="search-form-group">
-        <input type="text" name="search_lastname" class="form-control search-input"
-          placeholder="Search by Lastname"
-          value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
-        <button type="submit" class="search-btn">
-          <i class="fas fa-search"></i> Search
-        </button>
-      </div>
-    </form>
+            <!-- Verified Tab -->
+            <div id="verified" class="tab-content">
+              <!-- Search Form -->
+              <form method="GET" action="" class="mb-3 search-form">
+                <div class="search-form-group">
+                  <input type="text" name="search_lastname" class="form-control search-input"
+                    placeholder="Search by Lastname"
+                    value="<?php echo isset($_GET['search_lastname']) ? htmlspecialchars($_GET['search_lastname']) : ''; ?>">
+                  <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> Search
+                  </button>
+                </div>
+              </form>
 
-    <!-- Table -->
-    <div class="scrollable-table-container">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>FIRSTNAME</th>
-            <th>LASTNAME</th>
-            <th>MIDDLENAME</th>
-            <th>EMAIL</th>
-            <th>ACCOUNT STATUS</th>
-            <th>ACTION</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php echo renderTableForStatus($connection, 'verified'); ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+              <!-- Table -->
+              <div class="scrollable-table-container">
+                <table class="styled-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>FIRSTNAME</th>
+                      <th>LASTNAME</th>
+                      <th>MIDDLENAME</th>
+                      <th>EMAIL</th>
+                      <th>ACCOUNT STATUS</th>
+                      <th>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php echo renderTableForStatus($connection, 'verified'); ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
 
-<style>
-.tabs-container {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #e0e0e0;
-}
+          <style>
+          /* ========================================
+             RESIDENCE PANEL MODERN DESIGN
+          ======================================== */
 
-.tab-btn {
-  padding: 12px 24px;
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  color: #666;
-  transition: all 0.3s ease;
-}
+          /* Main Panel Styling */
+          #residencePanel {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+          }
 
-.tab-btn:hover {
-  color: #333;
-  background: #f5f5f5;
-}
+          /* Header Section */
+          .residence-header {
+            background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+            padding: 1.5rem 2.5rem 2rem;
+            border-radius: 12px 12px 0 0;
+            border-top: 4px solid #0b9920ff;
+            position: relative;
+            overflow: hidden;
+          }
 
-.tab-btn.active {
-  color: #007bff;
-  border-bottom-color: #007bff;
-}
+          .residence-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #0b9920ff 0%, #059629ff 50%, #0b9920ff 100%);
+            animation: shimmer 3s infinite;
+          }
 
-.tab-content {
-  display: none;
-}
+          @keyframes shimmer {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+          }
 
-.tab-content.active {
-  display: block;
-}
-</style>
+          /* Title Section */
+          .residence-title-section {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+          }
 
-<script>
-function switchTab(event, tabName) {
-  // Hide all tab contents
-  const tabContents = document.getElementsByClassName('tab-content');
-  for (let i = 0; i < tabContents.length; i++) {
-    tabContents[i].classList.remove('active');
-  }
+          .residence-icon-wrapper {
+            width: 65px;
+            height: 65px;
+            background: linear-gradient(135deg, #0b9920ff 0%, #059629ff 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(11, 153, 32, 0.3);
+            animation: iconFloat 3s ease-in-out infinite;
+          }
 
-  // Remove active class from all tab buttons
-  const tabBtns = document.getElementsByClassName('tab-btn');
-  for (let i = 0; i < tabBtns.length; i++) {
-    tabBtns[i].classList.remove('active');
-  }
+          @keyframes iconFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+          }
 
-  // Show the selected tab content
-  document.getElementById(tabName).classList.add('active');
-  
-  // Add active class to the clicked button
-  event.currentTarget.classList.add('active');
-}
-</script>
+          .residence-icon-wrapper i {
+            font-size: 28px;
+            color: white;
+          }
+
+          .residence-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1a5a2a;
+            margin: 0;
+            letter-spacing: -0.5px;
+          }
+
+          .residence-subtitle {
+            font-size: 0.95rem;
+            color: #6b7280;
+            margin: 0.25rem 0 0 0;
+            font-weight: 400;
+          }
+
+          /* Statistics Cards */
+          .residence-stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-top: 0;
+          }
+
+          .residence-stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+          }
+
+          .residence-stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, currentColor, transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+          }
+
+          .residence-stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+          }
+
+          .residence-stat-card:hover::before {
+            opacity: 1;
+          }
+
+          .unverified-card {
+            border-color: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+          }
+
+          .unverified-card:hover {
+            border-color: #f59e0b;
+          }
+
+          .pending-card {
+            border-color: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+          }
+
+          .pending-card:hover {
+            border-color: #3b82f6;
+          }
+
+          .verified-card {
+            border-color: rgba(11, 153, 32, 0.2);
+            color: #0b9920ff;
+          }
+
+          .verified-card:hover {
+            border-color: #0b9920ff;
+          }
+
+          .stat-icon-wrapper {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+          }
+
+          .unverified-card .stat-icon-wrapper {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #d97706;
+          }
+
+          .pending-card .stat-icon-wrapper {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #2563eb;
+          }
+
+          .verified-card .stat-icon-wrapper {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #059629ff;
+          }
+
+          .stat-info {
+            flex: 1;
+          }
+
+          .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+          }
+
+          .stat-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          /* Modern Tab Navigation */
+          .tabs-container {
+            display: flex;
+            gap: 8px;
+            margin: 2rem 2.5rem 0;
+            background: white;
+            padding: 8px;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            max-width: calc(100% - 5rem);
+          }
+
+          .tab-btn {
+            flex: 1;
+            padding: 14px 24px;
+            background: transparent;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: #6b7280;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+          }
+
+          .tab-btn i {
+            font-size: 16px;
+            transition: transform 0.3s ease;
+          }
+
+          .tab-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(11, 153, 32, 0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.4s ease, height 0.4s ease;
+          }
+
+          .tab-btn:hover {
+            color: #0b9920ff;
+            background: rgba(11, 153, 32, 0.05);
+          }
+
+          .tab-btn:hover i {
+            transform: scale(1.1);
+          }
+
+          .tab-btn.active {
+            background: linear-gradient(135deg, #0b9920ff 0%, #059629ff 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(11, 153, 32, 0.3);
+          }
+
+          .tab-btn.active i {
+            transform: scale(1.1);
+          }
+
+          .tab-content {
+            display: none;
+            padding: 1.5rem 2.5rem 2.5rem;
+            animation: fadeIn 0.4s ease;
+            max-width: 100%;
+            box-sizing: border-box;
+          }
+
+          .tab-content.active {
+            display: block;
+          }
+
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          /* Search Form Styling */
+          .search-form {
+            margin-bottom: 2rem;
+          }
+
+          .search-form-group {
+            display: flex;
+            gap: 12px;
+            max-width: 500px;
+          }
+
+          .search-input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: white;
+          }
+
+          .search-input:focus {
+            outline: none;
+            border-color: #0b9920ff;
+            box-shadow: 0 0 0 3px rgba(11, 153, 32, 0.1);
+          }
+
+          .search-btn {
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #0b9920ff 0%, #059629ff 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(11, 153, 32, 0.3);
+          }
+
+          .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(11, 153, 32, 0.4);
+          }
+
+          .search-btn i {
+            font-size: 14px;
+          }
+
+          /* Responsive Design */
+          @media (max-width: 1200px) {
+            .residence-stats-cards {
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+          }
+
+          @media (max-width: 768px) {
+            .residence-header {
+              padding: 1.5rem;
+            }
+
+            .residence-title-section {
+              flex-direction: column;
+              text-align: center;
+              gap: 1rem;
+            }
+
+            .residence-icon-wrapper {
+              width: 55px;
+              height: 55px;
+            }
+
+            .residence-icon-wrapper i {
+              font-size: 24px;
+            }
+
+            .residence-title {
+              font-size: 1.5rem;
+            }
+
+            .residence-stats-cards {
+              grid-template-columns: 1fr;
+              gap: 1rem;
+            }
+
+            .tabs-container {
+              margin: 1.5rem 1.5rem 0;
+              flex-direction: column;
+            }
+
+            .tab-content {
+              padding: 1.5rem;
+            }
+
+            .search-form-group {
+              flex-direction: column;
+              max-width: 100%;
+            }
+
+            .search-btn {
+              width: 100%;
+              justify-content: center;
+            }
+
+          }
+          </style>
+
+          <script>
+            function switchTab(event, tabName) {
+              // Hide all tab contents
+              const tabContents = document.getElementsByClassName('tab-content');
+              for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+              }
+
+              // Remove active class from all tab buttons
+              const tabBtns = document.getElementsByClassName('tab-btn');
+              for (let i = 0; i < tabBtns.length; i++) {
+                tabBtns[i].classList.remove('active');
+              }
+
+              // Show the selected tab content
+              document.getElementById(tabName).classList.add('active');
+              
+              // Add active class to the clicked button
+              event.currentTarget.classList.add('active');
+            }
+          </script>
 
         
 
@@ -629,7 +1041,7 @@ FROM docsreqtbl WHERE RequestStatus != 'Declined' AND 1=1";
             <td>" . htmlspecialchars($row["refno"]) . "</td>
             <td>" . strtoupper(htmlspecialchars($row["Docutype"])) . "</td>
             <td>" . date("Y-m-d", strtotime($row["DateRequested"])) . "</td>
-            <td>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</td> <!-- Status Column -->
+            <td><span class='status-badge status-" . strtolower(htmlspecialchars($row['RequestStatus'])) . "'>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</span></td> <!-- Fixed: Removed invalid 'string:' syntax; Added badge styling -->
             <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
             <td>";
 
@@ -1373,7 +1785,7 @@ elseif ($row["RequestStatus"] === "Pending") {
                         <td>" . strtoupper(htmlspecialchars($row["certificate_type"])) . "</td>
                         <td>" . htmlspecialchars($row["refno"]) . "</td>
                         <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
-                        <td>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</td> <!-- Status Column -->
+            <td><span class='status-badge status-" . strtolower(htmlspecialchars($row['RequestStatus'])) . "'>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</span></td> <!-- Fixed: Removed invalid 'string:' syntax; Added badge styling -->
                         <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
                         <td>";
 
@@ -1704,7 +2116,7 @@ elseif ($row["RequestStatus"] === "Printed") {
             <td>" . strtoupper($row["request_type"]) . "</td>      
             <td>" . $row["refno"] . "</td>
             <td>" . date("Y-m-d", strtotime($row["request_date"])) . "</td>
-            <td>" . strtoupper($row['RequestStatus']) . "</td> <!-- Status Column -->
+            <td><span class='status-badge status-" . strtolower(htmlspecialchars($row['RequestStatus'])) . "'>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</span></td> <!-- Fixed: Removed invalid 'string:' syntax; Added badge styling -->
             <td>" . strtoupper(htmlspecialchars($row['ReleasedBy'])) . "</td>
              <td>";
 
@@ -1925,13 +2337,23 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
 
 <div id="itemrequestsPanel" class="panel-content">
   <div class="item-requests-header">
-    <h1>Item Requests</h1>
+    <div class="header-title-section">
+      <div class="title-icon-wrapper">
+        <i class="fas fa-box-open"></i>
+      </div>
+      <div class="title-text">
+        <h1>Item Requests Management</h1>
+        <p class="subtitle">Manage inventory requests and availability</p>
+      </div>
+    </div>
     <div class="header-buttons">
       <button id="openRequestModalBtn" class="item-requests-btn">
-        <i class="fa fa-plus"></i> Add Request
+        <i class="fa fa-plus"></i>
+        <span>New Request</span>
       </button>
       <button id="openAddQuantityBtn" class="item-requests-btn-add-quantity">
-        <i class="fas fa-plus-circle"></i> Add Item Quantity
+        <i class="fas fa-plus-circle"></i>
+        <span>Add Stock</span>
       </button>
     </div>
   </div>
@@ -1997,23 +2419,157 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
   </div>
 
   <style>
+  /* ========== ITEM REQUESTS PANEL STYLES ========== */
+  #itemrequestsPanel {
+    background: linear-gradient(135deg, #f5f7fa 0%, #f0f4f8 100%);
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  .item-requests-header {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fffe 100%);
+    padding: 2rem 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+    border: 1px solid rgba(45, 122, 62, 0.1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .item-requests-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #0b9920ff 0%, #059629ff 100%);
+  }
+
+  .header-title-section {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .title-icon-wrapper {
+    width: 65px;
+    height: 65px;
+    background: linear-gradient(135deg, #0b9920ff 0%, #059629ff 100%);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(11, 153, 32, 0.3);
+    animation: iconFloat 3s ease-in-out infinite;
+  }
+
+  .title-icon-wrapper i {
+    font-size: 2rem;
+    color: white;
+  }
+
+  @keyframes iconFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .title-text h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #1a5a2a 0%, #0b9920ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.02em;
+  }
+
+  .title-text .subtitle {
+    margin: 0.3rem 0 0 0;
+    font-size: 0.95rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+
   .header-buttons {
     display: flex;
-    gap: 10px;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .item-requests-btn,
+  .item-requests-btn-add-quantity {
+    padding: 0.875rem 1.75rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .item-requests-btn::before,
+  .item-requests-btn-add-quantity::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+
+  .item-requests-btn:hover::before,
+  .item-requests-btn-add-quantity:hover::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  .item-requests-btn {
+    background: linear-gradient(135deg, #0b9920ff 0%, #059629ff 100%);
+    color: white;
+  }
+
+  .item-requests-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 28px rgba(11, 153, 32, 0.4);
   }
 
   .item-requests-btn-add-quantity {
-     padding: 10px 16px;
-      background-color: #5CB25D;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
+    background: linear-gradient(135deg, #5CB25D 0%, #4CAF50 100%);
+    color: white;
   }
 
   .item-requests-btn-add-quantity:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(56, 239, 125, 0.4);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 28px rgba(92, 178, 93, 0.4);
+  }
+
+  .item-requests-btn i,
+  .item-requests-btn-add-quantity i {
+    font-size: 1.1rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .item-requests-btn span,
+  .item-requests-btn-add-quantity span {
+    position: relative;
+    z-index: 1;
   }
 
   .inventory-availability {
@@ -2021,17 +2577,45 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
     margin: 0 auto;
     padding: 2rem;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(45, 122, 62, 0.1);
   }
 
   .inventory-header {
     margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(45, 122, 62, 0.1);
+    position: relative;
+  }
+
+  .inventory-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(90deg, #0b9920ff 0%, #059629ff 100%);
   }
 
   .inventory-header h2 {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
-    color: #1a202c;
-    margin: 0 0 0.5rem 0;
+    color: #1a5a2a;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .inventory-header h2::before {
+    content: '\f1b3';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    color: #0b9920ff;
+    font-size: 1.5rem;
   }
 
   .inventory-grid {
@@ -2042,111 +2626,275 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
   }
 
   .inventory-card {
-     display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex: 0 0 372px;
-  padding: 1rem;
-  /* NEW look */
-  background-color: #d9f2dc;       /* light green fill */
-  border: 2px solid #2d7a3e;       /* darker green border line */
-  border-radius: 6px;
-  color: #2d7a3e;                  /* dark green text */
-  box-shadow: none;                /* remove heavy shadow for clean look */
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 420px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fffe 100%);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    border: 2px solid rgba(45, 122, 62, 0.12);
+  }
+
+  .inventory-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #0b9920ff 0%, #2d7a3e 100%);
+    transition: height 0.3s ease;
   }
 
   .inventory-card:hover {
-    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
-    transform: translateY(-2px);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(45, 122, 62, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1);
   }
 
-  .status-high { border-left-color: #0b9920ff; }
-  .status-low { border-left-color: #f59e0b; }
-  .status-critical { border-left-color: #ef4444; }
+  .inventory-card:hover::before {
+    height: 6px;
+  }
+
+  .status-high::before { 
+    background: linear-gradient(90deg, #0b9920ff 0%, #059629ff 100%);
+  }
+  
+  .status-low::before { 
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+  }
+  
+  .status-critical::before { 
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+  }
 
   .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.25rem 1.5rem;
-    background: #d9f2dc;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 1.5rem 1.75rem 1.25rem;
+    background: linear-gradient(135deg, rgba(217, 242, 220, 0.4) 0%, rgba(217, 242, 220, 0.2) 100%);
+    border-bottom: 1px solid rgba(45, 122, 62, 0.08);
   }
 
   .item-name {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #2d7a3e;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a5a2a;
     margin: 0;
+    letter-spacing: -0.02em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
   .availability-badge {
-    background: #d9f2dc;
-    color: #2d7a3e;
-    padding: 0.375rem 0.875rem;
-    border-radius: 20px;
-    font-size: 1.125rem;
-    font-weight: 600;
+    background: linear-gradient(135deg, #0b9920ff 0%, #059629ff 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(11, 153, 32, 0.25);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 
-  .card-body { padding: .5rem; }
+  .availability-badge::before {
+    content: '✓';
+    font-size: 1rem;
+    font-weight: bold;
+  }
+
+  .card-body { 
+    padding: 1.5rem 1.75rem;
+    background: white;
+  }
 
   .stat-row {
     display: flex;
     gap: 1rem;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
   }
 
   .stat-item {
     flex: 1;
-    background: #f8fafc;
-    padding: 1rem;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #f8fffe 0%, #f0fdf4 100%);
+    padding: 1.25rem;
+    border-radius: 12px;
+    border: 1px solid rgba(45, 122, 62, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, #0b9920ff 0%, #059629ff 100%);
+    transition: width 0.3s ease;
+  }
+
+  .stat-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(45, 122, 62, 0.1);
+  }
+
+  .stat-item:hover::before {
+    width: 6px;
   }
 
   .stat-label {
     display: block;
-    font-size: 0.75rem;
-    color: #2d7a3e;
+    font-size: 0.7rem;
+    color: #059629ff;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.375rem;
-    font-weight: 600;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
   }
 
   .stat-value {
     display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #2d7a3e;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #1a5a2a;
+    letter-spacing: -0.02em;
   }
 
   .progress-bar {
     width: 100%;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 10px;
+    height: 12px;
+    background: linear-gradient(90deg, #e8f5e9 0%, #f1f8f2 100%);
+    border-radius: 20px;
     overflow: hidden;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    position: relative;
   }
 
-  .status-high .progress-fill { background: #4CAF50; }
-  .status-low .progress-fill { background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }
-  .status-critical .progress-fill { background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); }
+  .progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 100%);
+    border-radius: 20px 20px 0 0;
+  }
+
+  .status-high .progress-fill { 
+    background: linear-gradient(90deg, #0b9920ff 0%, #059629ff 100%);
+    box-shadow: 0 0 10px rgba(11, 153, 32, 0.3);
+  }
+  
+  .status-low .progress-fill { 
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+  }
+  
+  .status-critical .progress-fill { 
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+  }
 
   .progress-fill {
     height: 100%;
-    transition: width 0.6s ease;
-    border-radius: 10px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 20px;
+    position: relative;
+    animation: progressGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes progressGlow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
   }
 
   .progress-label {
     font-size: 0.875rem;
-    color: #64748b;
-    font-weight: 500;
+    color: #059629ff;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .progress-label::before {
+    content: '●';
+    font-size: 0.6rem;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.2); }
+  }
+
+  /* ========== RESPONSIVE DESIGN ========== */
+  @media (max-width: 1200px) {
+    .item-requests-header {
+      flex-direction: column;
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+
+    .header-buttons {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+
+  @media (max-width: 768px) {
+    #itemrequestsPanel {
+      padding: 1rem;
+    }
+
+    .item-requests-header {
+      padding: 1.5rem;
+    }
+
+    .title-icon-wrapper {
+      width: 50px;
+      height: 50px;
+    }
+
+    .title-icon-wrapper i {
+      font-size: 1.5rem;
+    }
+
+    .title-text h1 {
+      font-size: 1.5rem;
+    }
+
+    .title-text .subtitle {
+      font-size: 0.85rem;
+    }
+
+    .header-buttons {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .item-requests-btn,
+    .item-requests-btn-add-quantity {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .inventory-card {
+      flex: 0 0 100%;
+    }
+
+    .inventory-grid {
+      gap: 1rem;
+    }
   }
 
   /* Details View Modal Styles */
@@ -2567,42 +3315,140 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
     }
   }
 
+  /* ========== REQUESTS TABLE SECTION ========== */
   .item-requests-table-container {
-  max-height: 700px; /* Adjust height as needed */
-  overflow-y: auto;  /* Enables vertical scrolling */
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
-}
+    max-height: 700px;
+    overflow-y: auto;
+    border-radius: 2px;
+    background: white;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    margin-top: 2.5rem;
+    border: 1px solid rgba(45, 122, 62, 0.1);
+  }
 
-/* Keep the table header fixed during scroll */
-.item-requests-table {
-  width: 100%;
-  border-collapse: collapse;
-}
+  .item-requests-table-container::-webkit-scrollbar {
+    width: 10px;
+  }
 
-.item-requests-thead th {
-  position: sticky;
-  top: 0;
-  background-color: #f8fafc; /* Header background */
-  z-index: 2;
-  padding: 10px;
-  text-align: left;
-  font-weight: 600;
-  border-bottom: 2px solid #cbd5e1;
-}
+  .item-requests-table-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
 
-.item-requests-tbody td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
-}
+  .item-requests-table-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #0b9920ff 0%, #059629ff 100%);
+    border-radius: 10px;
+  }
 
-/* Optional: subtle hover effect */
-.item-requests-tbody tr:hover {
-  background-color: #f1f5f9;
-  transition: background-color 0.2s ease-in-out;
-}
+  .item-requests-table-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #059629ff 0%, #0b9920ff 100%);
+  }
+
+  .item-requests-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .item-requests-thead th {
+    position: sticky;
+    top: 0;
+    background: linear-gradient(135deg, #1a5a2a 0%, #0b9920ff 100%);
+    color: white;
+    z-index: 2;
+    padding: 1.25rem 1rem;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 3px solid #059629ff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .item-requests-thead th:first-child {
+    border-radius: 16px 0 0 0;
+    padding-left: 1.5rem;
+  }
+
+  .item-requests-thead th:last-child {
+    border-radius: 0 16px 0 0;
+    padding-right: 1.5rem;
+  }
+
+  .item-requests-tbody td {
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #ffffff;
+    font-size: 0.95rem;
+    color: #334155;
+    transition: all 0.2s ease;
+  }
+
+  .item-requests-tbody td:first-child {
+    padding-left: 1.5rem;
+    font-weight: 600;
+    color: #1a5a2a;
+  }
+
+  .item-requests-tbody td:last-child {
+    padding-right: 1.5rem;
+  }
+
+  .item-requests-tbody tr {
+    transition: all 0.3s ease;
+  }
+
+  .item-requests-tbody tr:hover {
+    background: linear-gradient(90deg, rgba(11, 153, 32, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+    transform: translateX(4px);
+    box-shadow: -4px 0 0 0 #0b9920ff;
+  }
+
+  .item-requests-tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Status Badges in Table */
+  .status-badge {
+    padding: 0.4rem 0.9rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: inline-block;
+  }
+
+  .status-pending {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+  }
+
+  .status-approved {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+  }
+
+  .status-released {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+  }
+    .status-printed {
+    background: linear-gradient(135deg, #ff824d8c 0%, #ffa632b5 100%);
+    color: #d42020ff;
+  }
+   .status-cancelled {
+    background: linear-gradient(135deg, #ff824d8c 0%, #ffa632b5 100%);
+    color: #d42020ff;
+  }
+   .status-on-loan {
+    background: linear-gradient(135deg, #ff824d8c 0%, #ffa632b5 100%);
+    color: #d42020ff;
+  }
+   .status-returned {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    color: #065f46;
+  }
 
   </style>
 
@@ -2980,7 +3826,7 @@ observer.observe(guardianshipModal, { attributes: true, attributeFilter: ['style
               <td>" . htmlspecialchars($row['quantity']) . "</td>
               <td>" . htmlspecialchars($row['date']) . "</td>
               <td>" . date("Y-m-d", strtotime($row["event_datetime"])) . "</td>
-              <td>" . htmlspecialchars($row['RequestStatus']) . "</td>
+            <td><span class='status-badge status-" . strtolower(htmlspecialchars($row['RequestStatus'])) . "'>" . strtoupper(htmlspecialchars($row['RequestStatus'])) . "</span></td> <!-- Fixed: Removed invalid 'string:' syntax; Added badge styling -->
               <td>" . htmlspecialchars($row['damage_status'] ?? 'N/A') . "</td>
               <td>" . $resolutionDisplay . "</td>
               <td>";
@@ -6054,7 +6900,7 @@ function reloadItemRequestsPanel(message) {
                     echo '</div>';
 
                     // Full details table
-                    $detailsSql = "SELECT id, name, item, quantity, event_datetime, date, RequestStatus, damage_status
+                    $detailsSql = "SELECT id, name, item, quantity, event_datetime, date, RequestStatus, damage_status, damage_resolution
                                       FROM tblitemrequest 
                                       WHERE date BETWEEN ? AND ?";
                     
@@ -6086,6 +6932,7 @@ function reloadItemRequestsPanel(message) {
                             <th>Date Requested</th>
                             <th>Request Status</th>
                             <th>Item condition</th>
+                            <th>Resolution</th>
                             
                  
                         </tr>
@@ -6101,6 +6948,7 @@ function reloadItemRequestsPanel(message) {
                     <td>' . htmlspecialchars($r['date']) . '</td>
                     <td>' . htmlspecialchars($r['RequestStatus']) . '</td>
                     <td>' . htmlspecialchars($r['damage_status']) . '</td>
+                    <td>' . htmlspecialchars($r['damage_resolution']) . '</td>
                
                   </tr>';
                     }
@@ -6737,63 +7585,101 @@ function reloadItemRequestsPanel(message) {
                   datasets: [{
                     label: 'Requests',
                     data: DocutypeCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: 'rgba(66, 209, 73, 0.2)', // soft green fill
-                    pointBackgroundColor: '#42d149',
-                    pointBorderColor: '#1c552b',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
+                    backgroundColor: [
+                      'rgba(90, 244, 111, 0.8)',
+                      'rgba(76, 175, 80, 0.8)',
+                      'rgba(22, 193, 47, 0.8)',
+                      'rgba(0, 130, 52, 0.8)',
+                      'rgba(116, 229, 131, 0.8)'
+                    ],
+                    borderColor: [
+                     'rgba(90, 244, 111, 0.8)',
+                      'rgba(76, 175, 80, 0.8)',
+                      'rgba(22, 193, 47, 0.8)',
+                      'rgba(0, 130, 52, 0.8)',
+                      'rgba(116, 229, 131, 0.8)'
+                    ],
                     borderWidth: 2,
+                    borderRadius: 8,
+                    hoverBackgroundColor: [
+                      'rgba(90, 244, 111, 0.8)',
+                      'rgba(76, 175, 80, 0.8)',
+                      'rgba(22, 193, 47, 0.8)',
+                      'rgba(0, 130, 52, 0.8)',
+                      'rgba(116, 229, 131, 0.8)'
+                    ],
                   }]
                 },
                 options: {
                   responsive: true,
+                  maintainAspectRatio: true,
+                  animation: {
+                    duration: 2000,
+                    easing: 'easeInOutQuart',
+                    onComplete: function() {
+                      const chart = this;
+                      const ctx = chart.ctx;
+                      ctx.font = 'bold 12px Arial';
+                      ctx.textAlign = 'center';
+                      ctx.textBaseline = 'bottom';
+                      chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        meta.data.forEach((bar, index) => {
+                          const data = dataset.data[index];
+                          ctx.fillStyle = '#333';
+                          ctx.fillText(data, bar.x, bar.y - 5);
+                        });
+                      });
+                    }
+                  },
                   plugins: {
                     title: {
-                      display: true,
-                      font: {
-                        size: 18,
-                        weight: 'bold'
-                      }
+                      display: false
                     },
                     legend: {
-                      display: true,
-                      position: 'top'
+                      display: false
                     },
                     tooltip: {
-                      backgroundColor: '#1c552b',
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
                       titleColor: '#fff',
                       bodyColor: '#fff',
-                      borderColor: '#42d149',
-                      borderWidth: 1
+                      borderColor: '#2196F3',
+                      borderWidth: 2,
+                      padding: 12,
+                      cornerRadius: 8,
+                      titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                      },
+                      bodyFont: {
+                        size: 13
+                      }
                     }
                   },
                   scales: {
                     x: {
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
                       grid: {
-                        color: '#e0e0e0'
+                        display: false
+                      },
+                      ticks: {
+                        font: {
+                          size: 11,
+                          weight: 'bold'
+                        },
+                        color: '#666'
                       }
                     },
                     y: {
                       beginAtZero: true,
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
                       grid: {
-                        color: '#f0f0f0'
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawBorder: false
+                      },
+                      ticks: {
+                        font: {
+                          size: 11
+                        },
+                        color: '#666'
                       }
                     }
                   }
@@ -6806,31 +7692,56 @@ function reloadItemRequestsPanel(message) {
 
 
               new Chart(document.getElementById('unemploymentChart'), {
-                type: 'pie',
+                type: 'doughnut',
                 data: {
                   labels: unemploymentLabels,
                   datasets: [{
-                    label: 'Residents',
+                    label: 'Unemployment Certificates',
                     data: unemploymentCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
                     backgroundColor: [
-                      '#6acf6fff', // green
-                      '#22843afb', // dark green
+                      'rgba(10, 228, 29, 1)',
+                      'rgba(0, 140, 19, 1)',
                     ],
-                    pointBackgroundColor: '#1fff2b4f',
-                    pointBorderColor: '#177f33ff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
+                    borderColor: [
+                      'rgba(97, 255, 121, 1)',
+                      'rgba(82, 249, 96, 1)',
+                    ],
+                    borderWidth: 3,
+                    hoverOffset: 15,
+                    hoverBorderWidth: 4,
                   }]
                 },
                 options: {
                   responsive: true,
+                  maintainAspectRatio: true,
+                  animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 2000,
+                    easing: 'easeInOutQuart'
+                  },
                   plugins: {
                     legend: {
-                      position: 'bottom'
+                      position: 'bottom',
+                      labels: {
+                        padding: 15,
+                        font: {
+                          size: 12,
+                          weight: 'bold'
+                        },
+                        color: '#333',
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                      }
+                    },
+                    tooltip: {
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      borderColor: '#FF9800',
+                      borderWidth: 2,
+                      padding: 12,
+                      cornerRadius: 8
                     },
                     datalabels: {
                       formatter: (value, context) => {
@@ -6853,69 +7764,89 @@ function reloadItemRequestsPanel(message) {
               const guardianshipLabels = <?php echo json_encode($guadianshipLabels ?? []); ?>;
               const guardianshipCounts = <?php echo json_encode($guadianshipCounts ?? []); ?>;
               new Chart(document.getElementById('guardianshipChart'), {
-                type: 'bar',
+                type: 'line',
                 data: {
                   labels: guardianshipLabels,
                   datasets: [{
                     label: 'Guardianship Requests',
                     data: guardianshipCounts,
                     fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: 'rgba(66, 209, 73, 0.2)', // soft green fill
-                    pointBackgroundColor: '#42d149',
-                    pointBorderColor: '#1c552b',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
+                    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                    borderColor: 'rgba(76, 175, 80, 1)',
+                    borderWidth: 3,
+                    pointRadius: 5,
+                    pointBackgroundColor: 'rgba(76, 175, 80, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 8,
+                    pointHoverBackgroundColor: 'rgba(76, 175, 80, 1)',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 3,
+                    tension: 0.4,
                   }]
                 },
                 options: {
                   responsive: true,
+                  maintainAspectRatio: true,
+                  animation: {
+                    duration: 2000,
+                    easing: 'easeInOutQuart',
+                    delay: (context) => {
+                      let delay = 0;
+                      if (context.type === 'data' && context.mode === 'default') {
+                        delay = context.dataIndex * 100;
+                      }
+                      return delay;
+                    }
+                  },
                   plugins: {
                     title: {
-                      display: true,
-                      font: {
-                        size: 18,
-                        weight: 'bold'
-                      }
+                      display: false
                     },
                     legend: {
-                      display: true,
-                      position: 'top'
+                      display: false
                     },
                     tooltip: {
-                      backgroundColor: '#1c552b',
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
                       titleColor: '#fff',
                       bodyColor: '#fff',
-                      borderColor: '#42d149',
-                      borderWidth: 1
+                      borderColor: '#4CAF50',
+                      borderWidth: 2,
+                      padding: 12,
+                      cornerRadius: 8,
+                      titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                      },
+                      bodyFont: {
+                        size: 13
+                      }
                     }
                   },
                   scales: {
                     x: {
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
                       grid: {
-                        color: '#e0e0e0'
+                        display: false
+                      },
+                      ticks: {
+                        font: {
+                          size: 11,
+                          weight: 'bold'
+                        },
+                        color: '#666'
                       }
                     },
                     y: {
                       beginAtZero: true,
-                      title: {
-                        display: true,
-
-                        font: {
-                          weight: 'bold'
-                        }
-                      },
                       grid: {
-                        color: '#f0f0f0'
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        drawBorder: false
+                      },
+                      ticks: {
+                        font: {
+                          size: 11
+                        },
+                        color: '#666'
                       }
                     }
                   }
@@ -6927,31 +7858,56 @@ function reloadItemRequestsPanel(message) {
               const businessCounts = <?php echo json_encode($businessCounts); ?>;
 
               new Chart(document.getElementById('businessChart'), {
-                type: 'pie',
+                type: 'doughnut',
                 data: {
                   labels: businessLabels,
                   datasets: [{
-                    label: 'Residents',
+                    label: 'Business Permits',
                     data: businessCounts,
-                    fill: true,
-                    borderColor: '#2e7d32', // dark green line
-                    backgroundColor: [
-                      '#6acf6fff', // green
-                      '#22843afb', // dark green
+                     backgroundColor: [
+                      'rgba(10, 228, 29, 1)',
+                      'rgba(0, 140, 19, 1)',
                     ],
-                    pointBackgroundColor: '#1fff2b4f',
-                    pointBorderColor: '#177f33ff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#42d149',
-                    tension: 0.3, // smooth curves
-                    borderWidth: 2,
+                    borderColor: [
+                      'rgba(97, 255, 121, 1)',
+                      'rgba(82, 249, 96, 1)',
+                    ],
+                    borderWidth: 3,
+                    hoverOffset: 15,
+                    hoverBorderWidth: 4,
                   }]
                 },
                 options: {
                   responsive: true,
+                  maintainAspectRatio: true,
+                  animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 2000,
+                    easing: 'easeInOutQuart'
+                  },
                   plugins: {
                     legend: {
-                      position: 'bottom'
+                      position: 'bottom',
+                      labels: {
+                        padding: 15,
+                        font: {
+                          size: 12,
+                          weight: 'bold'
+                        },
+                        color: '#333',
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                      }
+                    },
+                    tooltip: {
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      borderColor: '#9C27B0',
+                      borderWidth: 2,
+                      padding: 12,
+                      cornerRadius: 8
                     },
                     datalabels: {
                       formatter: (value, context) => {
@@ -6962,7 +7918,8 @@ function reloadItemRequestsPanel(message) {
                       },
                       color: '#fff',
                       font: {
-                        weight: 'bold'
+                        weight: 'bold',
+                        size: 13
                       }
                     }
                   }
@@ -7365,6 +8322,31 @@ function reloadItemRequestsPanel(message) {
                 const panel = document.getElementById(panelId);
                 if (panel) {
                   panel.classList.add('active');
+                }
+
+                // Remove active class from all sidebar buttons
+                document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+
+                // Add active class to the clicked button based on panelId
+                const buttonMap = {
+                  'dashboardPanel': 0,
+                  'residencePanel': 1,
+                  'governmentDocumentPanel': 2,
+                  'businessPermitPanel': 2,
+                  'businessUnemploymentCertificatePanel': 2,
+                  'guardianshipPanel': 2,
+                  'itemrequestsPanel': 3,
+                  'onlineComplaintsPanel': 4,
+                  'blotterComplaintPanel': 5,
+                  'blotteredIndividualsPanel': 5,
+                  'reportsPanel': 6,
+                  'announcementPanel': 7
+                };
+
+                const buttons = document.querySelectorAll('.sidebar-btn');
+                const buttonIndex = buttonMap[panelId];
+                if (buttonIndex !== undefined && buttons[buttonIndex]) {
+                  buttons[buttonIndex].classList.add('active');
                 }
 
                 // Hide dropdown menu

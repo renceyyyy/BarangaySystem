@@ -531,13 +531,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["complaint_request"]))
                     <label for="incident_type">Incident Type <span class="required">*</span></label>
                     <select id="incident_type" name="incident_type" required>
                         <option value="">Select Incident Type</option>
-                        <option value="Theft" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Theft') ? 'selected' : ''; ?>>Theft</option>
-                        <option value="Assault" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Assault') ? 'selected' : ''; ?>>Assault</option>
+                        <option value="Road Hazard" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Road Hazard') ? 'selected' : ''; ?>>Road Hazard</option>
+                        <option value="Environmental Concern" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Environmental Concern') ? 'selected' : ''; ?>>Environmental Concern</option>
                         <option value="Vandalism" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Vandalism') ? 'selected' : ''; ?>>Vandalism</option>
-                        <option value="Domestic Dispute" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Domestic Dispute') ? 'selected' : ''; ?>>Domestic Dispute</option>
+                        <option value="Animal Welfare" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Animal Welfare') ? 'selected' : ''; ?>>Animal Welfare</option>
                         <option value="Noise Complaint" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Noise Complaint') ? 'selected' : ''; ?>>Noise Complaint</option>
-                        <option value="Traffic Violation" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Traffic Violation') ? 'selected' : ''; ?>>Traffic Violation</option>
-                        <option value="Grave Threat" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Grave Threat') ? 'selected' : ''; ?>>Grave Threat</option>
+                        <option value="Illegal Parking" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Illegal Parking') ? 'selected' : ''; ?>>Illegal Parking</option>
+                        <option value="Broken Public Facility" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Broken Public Facility') ? 'selected' : ''; ?>>Broken Public Facility</option>
                         <option value="Other" <?php echo (isset($_POST['incident_type']) && $_POST['incident_type'] === 'Other') ? 'selected' : ''; ?>>Other</option>
                     </select>
                 </div>

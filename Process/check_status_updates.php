@@ -464,18 +464,21 @@ try {
                 if ($currentStatus !== $previousStatus) {
                     // Status changed! Create notification
                     $message = '';
+
+                    // Use "Incident Report" instead of "Complaint" for display
+                    $displayType = ($requestType === 'Complaint') ? 'Incident Report' : $requestType;
                     
-                    if ($currentStatus === 'approved' || $currentStatus === 'completed') {
-                        $message = "Your {$requestType} (Ref No: {$refno}) is approved. Please proceed to the barangay office and pay the needed fee to get your request.";
+                     if ($currentStatus === 'approved' || $currentStatus === 'completed') {
+                        $message = "Your {$displayType} (Ref No: {$refno}) is approved. Please proceed to the barangay office and pay the needed fee to get your request.";
                     } elseif ($currentStatus === 'declined') {
                         $reason = $request['decline_reason'] ?: 'administrative reasons';
-                        $message = "Unfortunately, your {$requestType} (Ref No: {$refno}) is declined due to {$reason}. For inquiries, go to the barangay or contact us at: 86380301.";
+                        $message = "Unfortunately, your {$displayType} (Ref No: {$refno}) is declined due to {$reason}. For inquiries, go to the barangay or contact us at: 86380301.";
                     } elseif ($currentStatus === 'released') {
-                        $message = "Your {$requestType} (Ref No: {$refno}) has been released. Thank you for using our services!";
+                        $message = "Your {$displayType} (Ref No: {$refno}) has been released. Thank you for using our services!";
                     } elseif ($currentStatus === 'pending') {
-                        $message = "Your {$requestType} (Ref No: {$refno}) is now being processed. Please wait for approval.";
+                        $message = "Your {$displayType} (Ref No: {$refno}) is now being processed. Please wait for approval.";
                     } else {
-                        $message = "Your {$requestType} (Ref No: {$refno}) status has been updated to: {$currentStatus}";
+                        $message = "Your {$displayType} (Ref No: {$refno}) status has been updated to: {$currentStatus}";
                     }
                     
                     // Insert notification into database

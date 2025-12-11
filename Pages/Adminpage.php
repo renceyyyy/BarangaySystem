@@ -4587,7 +4587,7 @@ function reloadItemRequestsPanel(message) {
                 </select>
 
                 <button class="add-user" type="button" onclick="openComplaintModal()">
-                  <i class="fa-regular fa-user"></i> Add Complaint
+                  <i class="fa-regular fa-user"></i> Add Incident Report
                 </button>
 
               </div>
@@ -4782,13 +4782,13 @@ function reloadItemRequestsPanel(message) {
                     <label>Type of Incident</label>
                     <select id="addComplaintIncidentType" name="incident_type" required>
                       <option value="" disabled selected>Select Incident type</option>
-                      <option value="Theft">Theft</option>
-                      <option value="Assault">Assault</option>
+                      <option value="Road Hazard">Road Hazard</option>
+                      <option value="Environmental Concern">Environmental Concern</option>
                       <option value="Vandalism">Vandalism</option>
-                      <option value="Domestic Dispute">Domestic Dispute</option>
-                      <option value="Traffic Violation">Traffic Violation</option>
+                      <option value="Animal Welfare">Animal Welfare</option>
+                      <option value="Illegal Parking">Illegal Parking</option>
                       <option value="Noise Complaint">Noise Complaint</option>
-                      <option value="Grave Threat">Grave Threat</option>
+                      <option value="Broken Public Facility">Broken Public Facility</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
